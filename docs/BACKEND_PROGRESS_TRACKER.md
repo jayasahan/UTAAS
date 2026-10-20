@@ -7,7 +7,7 @@
 
 ---
 
-## 📈 Overall Backend Progress: `[█████████████░░░░░░░] 65% (In Progress)`
+## 📈 Overall Backend Progress: `[████████████████░░░░] 80% (In Progress)`
 
 | Milestone | Status | Target Date | Owner |
 | :--- | :---: | :---: | :--- |
@@ -15,7 +15,7 @@
 | **M2: Database Schema & Migrations** | ✅ Completed | Sprint 1, W1 | Backend |
 | **M3: Identity Adapter & RBAC** | ✅ Completed | Sprint 1, W2 | Backend / DevOps |
 | **M4: Paper Marking Submission Engine** | ✅ Completed | Sprint 1, W2 | Backend |
-| **M5: 6-Stage Workflow State Machine** | ⏹️ Planned | Sprint 1, W2 | Backend |
+| **M5: 6-Stage Workflow State Machine** | ✅ Completed | Sprint 1, W2 | Backend |
 | **M6: Tracking & History APIs** | ⏹️ Planned | Sprint 1, W3 | Backend |
 | **M7: Automated Tests & Verification** | ⏹️ Planned | Sprint 1, W3 | QA / Backend |
 
@@ -87,20 +87,24 @@
 - [x] Add unit test suites for fee calculation, tracking numbers, claim service, and controller (55 unit tests passing)
 
 ### Milestone 5: 6-Stage Workflow State Machine & Transition Actions
-- [ ] Implement atomic state machine transaction (`EntityManager.transaction`):
+- [x] Implement atomic state machine transaction (`DataSource.transaction`):
   - Transitions `Request.status`
   - Closes active `RequestStageHistory` row and opens next stage
-  - Inserts append-only `AuditEvent` record
-- [ ] Support Transition Actions:
-  - [ ] **`SUBMIT`**: Transitions `DRAFT` ➔ `UNDER_REVIEW` (Stage: `HEAD_OF_DEPARTMENT`)
-  - [ ] **`APPROVE`**: Advances `HOD` ➔ `DEAN` ➔ `EXAMINATION_OFFICE`
-  - [ ] **`REJECT_RETURN`**:
+  - Inserts append-only `AuditEvent` record with before/after diffs
+- [x] Support Transition Actions:
+  - [x] **`SUBMIT`**: Transitions `DRAFT` ➔ `UNDER_REVIEW` (Stage: `HEAD_OF_DEPARTMENT`)
+  - [x] **`APPROVE`**: Advances `HOD` ➔ `DEAN` ➔ `EXAMINATION_OFFICE`
+  - [x] **`REJECT_RETURN`**:
     - HOD returns to Lecturer
-    - Exam Office returns to HOD
-    - Financial Office returns to HOD
-  - [ ] **`APPROVE_PAYOUT`**: Financial Office approves and routes to Assistant Bursar
-  - [ ] **`DIRECT_QUERY`**: Allows Lecturer to communicate directly with Exam / Financial office
-  - [ ] **`RESUBMIT`**: Lecturer corrections route directly back to the returning office (Blue line)
+    - Exam Office returns to HOD (or Lecturer)
+    - Financial Office returns to HOD (or Lecturer)
+    - Records `returningOfficerId` for direct non-linear resubmission channel
+  - [x] **`APPROVE_PAYOUT`**: Financial Office authorizes payout and routes directly to Assistant Bursar
+  - [x] **`SETTLE`**: Assistant Bursar final financial settlement, transitioning request to `SETTLED`
+  - [x] **`DIRECT_QUERY`**: Enables direct bi-directional communication between Lecturer and Exam/Financial offices
+  - [x] **`RESUBMIT`**: Lecturer corrections route directly back to the returning office (Blue line) without repeating prior approvals
+- [x] Expose `POST /api/v1/requests/:id/actions` endpoint in `WorkflowController`
+- [x] Add comprehensive unit test suites (66 unit tests passing)
 
 ### Milestone 6: Request Tracking & Audit History Endpoints
 - [ ] Implement `GET /api/v1/requests/:id/tracking`:
@@ -129,5 +133,5 @@
 ```bash
 git checkout mvp
 git pull origin mvp
-git checkout -b feature/backend-paper-marking-claim mvp
+git checkout -b feature/backend-workflow-engine mvp
 ```
