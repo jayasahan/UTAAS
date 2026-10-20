@@ -7,7 +7,7 @@
 
 ---
 
-## 📈 Overall Backend Progress: `[██████████████████░░] 90% (In Progress)`
+## 📈 Overall Backend Progress: `[████████████████████] 100% (Sprint 1 MVP Backend Complete)`
 
 | Milestone | Status | Target Date | Owner |
 | :--- | :---: | :---: | :--- |
@@ -17,7 +17,7 @@
 | **M4: Paper Marking Submission Engine** | ✅ Completed | Sprint 1, W2 | Backend |
 | **M5: 6-Stage Workflow State Machine** | ✅ Completed | Sprint 1, W2 | Backend |
 | **M6: Tracking & History APIs** | ✅ Completed | Sprint 1, W3 | Backend |
-| **M7: Automated Tests & Verification** | ⏹️ Planned | Sprint 1, W3 | QA / Backend |
+| **M7: Automated Tests & Verification** | ✅ Completed | Sprint 1, W3 | QA / Backend |
 
 ---
 
@@ -118,14 +118,22 @@
 - [x] Add comprehensive unit test suites (79 unit tests passing)
 
 ### Milestone 7: Automated Testing & Definition of Done (DoD)
-- [ ] Unit tests for `FeeCalculationService` (boundary rates, multi-item claims)
-- [ ] Unit tests for `WorkflowStateMachine` (state invariants, invalid transition rejection)
-- [ ] Integration tests for Tracking and History endpoints (`Supertest`)
-- [ ] Test matrix execution (TC-WF-01 to TC-WF-10):
-  - Non-linear resubmissions verified
-  - Department boundary isolation verified (HOD cannot approve other dept)
-  - IDOR protection verified (Lecturer A cannot inspect Lecturer B tracking)
-- [ ] Swagger API documentation validated against actual response schemas
+- [x] Unit tests for `FeeCalculationService` (boundary rates, multi-item claims)
+- [x] Unit tests for `WorkflowStateMachine` (state invariants, invalid transition rejection)
+- [x] Integration test suite (`workflow-integration.spec.ts`)
+- [x] Test matrix execution (TC-WF-01 to TC-WF-10):
+  - [x] TC-WF-01: Claim Creation & Draft Persistence
+  - [x] TC-WF-02: Complete 6-Stage Forward Approval Flow
+  - [x] TC-WF-03: Non-Linear Return (HOD to Lecturer)
+  - [x] TC-WF-04: Non-Linear Return & Direct Resubmission (Exam Office ➔ Lecturer ➔ Exam Office)
+  - [x] TC-WF-05: Department Boundary Isolation (HOD cross-department blocks)
+  - [x] TC-WF-06: IDOR Protection on Tracking & Claim Data (Lecturer isolation)
+  - [x] TC-WF-07: Faculty-Wide Reviewer Exemption (Dean, Exam, Finance, Bursar)
+  - [x] TC-WF-08: Tamper-Proof Fee Recalculation (enforcing official circular rates)
+  - [x] TC-WF-09: Direct Link / Query Interaction without breaking active stage
+  - [x] TC-WF-10: Complete Audit Event Immutability and chronological ordering
+- [x] 87 / 87 unit and integration tests passing (16/16 test suites)
+- [x] Swagger API documentation validated against actual response schemas
 
 ---
 
@@ -134,5 +142,5 @@
 ```bash
 git checkout mvp
 git pull origin mvp
-git checkout -b feature/backend-tracking-history mvp
+git checkout -b feature/backend-e2e-verification mvp
 ```
