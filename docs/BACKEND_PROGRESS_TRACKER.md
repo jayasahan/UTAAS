@@ -7,13 +7,13 @@
 
 ---
 
-## 📈 Overall Backend Progress: `[███████░░░░░░░░░░░░░] 35% (In Progress)`
+## 📈 Overall Backend Progress: `[██████████░░░░░░░░░░] 50% (In Progress)`
 
 | Milestone | Status | Target Date | Owner |
 | :--- | :---: | :---: | :--- |
 | **M1: Backend Scaffolding & Setup** | ✅ Completed | Sprint 1, W1 | Backend / DevOps |
 | **M2: Database Schema & Migrations** | ✅ Completed | Sprint 1, W1 | Backend |
-| **M3: Identity Adapter & RBAC** | ⏹️ Planned | Sprint 1, W2 | Backend / DevOps |
+| **M3: Identity Adapter & RBAC** | ✅ Completed | Sprint 1, W2 | Backend / DevOps |
 | **M4: Paper Marking Submission Engine** | ⏹️ Planned | Sprint 1, W2 | Backend |
 | **M5: 6-Stage Workflow State Machine** | ⏹️ Planned | Sprint 1, W2 | Backend |
 | **M6: Tracking & History APIs** | ⏹️ Planned | Sprint 1, W3 | Backend |
@@ -55,17 +55,22 @@
 - [x] Run linting, unit tests, and build verification successfully
 
 ### Milestone 3: Authentication & Identity Adapter (Mock University SSO)
-- [ ] Implement University Identity Adapter pattern (`AuthService` / `MockAuthProvider`)
-- [ ] Seed standard university test actors:
-  - `lecturer@eng.ruh.ac.lk` (Lecturer)
+- [x] Implement University Identity Adapter pattern (`AuthService` / `IAuthProvider` / `MockUniversityAuthProvider`)
+- [x] Support 7 seeded standard university test actors:
+  - `lecturer@eng.ruh.ac.lk` (Lecturer, COM Department)
   - `hod.computer@eng.ruh.ac.lk` (Computer Dept HOD)
   - `dean@eng.ruh.ac.lk` (Faculty Dean)
   - `exam.officer@eng.ruh.ac.lk` (Examination Officer)
   - `finance.officer@eng.ruh.ac.lk` (Financial Officer)
   - `asst.bursar@eng.ruh.ac.lk` (Assistant Bursar)
-- [ ] Implement JWT token generation & `JwtAuthGuard`
-- [ ] Implement `RolesGuard` and `@Roles()` decorator
-- [ ] Implement `DepartmentScopeGuard` (ensures HOD can only act on their department claims)
+  - `admin@eng.ruh.ac.lk` (System Administrator)
+- [x] Implement JWT token issuance (`@nestjs/jwt`, `@nestjs/passport`, `JwtStrategy`)
+- [x] Implement `JwtAuthGuard` protecting sensitive endpoints
+- [x] Implement `RolesGuard` and `@Roles()` decorator with universal admin bypass
+- [x] Implement `DepartmentScopeGuard` (ensures HOD can only act on their department claims)
+- [x] Add `@CurrentUser()` parameter decorator for controller injection
+- [x] Expose `POST /api/v1/auth/login`, `POST /api/v1/auth/mock-login/:role`, `GET /api/v1/auth/me`, and `GET /api/v1/auth/test-actors`
+- [x] Add comprehensive unit test suites (35 unit tests passing)
 
 ### Milestone 4: Paper Marking Claim Engine (Vertical Slice)
 - [ ] Create `CreatePaperMarkingClaimDto` with nested validation (`class-validator`):
@@ -121,5 +126,5 @@
 ```bash
 git checkout mvp
 git pull origin mvp
-git checkout -b feature/backend-database-entities mvp
+git checkout -b feature/backend-auth-rbac mvp
 ```
