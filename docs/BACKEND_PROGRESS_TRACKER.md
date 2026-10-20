@@ -7,12 +7,12 @@
 
 ---
 
-## 📈 Overall Backend Progress: `[░░░░░░░░░░░░░░░░░░░░] 0% (Kickoff)`
+## 📈 Overall Backend Progress: `[███████░░░░░░░░░░░░░] 35% (In Progress)`
 
 | Milestone | Status | Target Date | Owner |
 | :--- | :---: | :---: | :--- |
 | **M1: Backend Scaffolding & Setup** | ✅ Completed | Sprint 1, W1 | Backend / DevOps |
-| **M2: Database Schema & Migrations** | ⏹️ Planned | Sprint 1, W1 | Backend |
+| **M2: Database Schema & Migrations** | ✅ Completed | Sprint 1, W1 | Backend |
 | **M3: Identity Adapter & RBAC** | ⏹️ Planned | Sprint 1, W2 | Backend / DevOps |
 | **M4: Paper Marking Submission Engine** | ⏹️ Planned | Sprint 1, W2 | Backend |
 | **M5: 6-Stage Workflow State Machine** | ⏹️ Planned | Sprint 1, W2 | Backend |
@@ -24,32 +24,35 @@
 ## 📋 Detailed Task Checklist
 
 ### Milestone 1: Backend Scaffolding & Setup
-- [ ] Initialize NestJS project in `backend/` directory (`@nestjs/cli`)
-- [ ] Configure `tsconfig.json`, `eslint`, `prettier`
-- [ ] Configure environment variable validation via `@nestjs/config` and `class-validator`
-- [ ] Setup Swagger/OpenAPI documentation at `/api/docs` with `@nestjs/swagger`
-- [ ] Setup `docker-compose.yml` service for PostgreSQL 16
-- [ ] Implement global HTTP exception filter and request transformation interceptor
-- [ ] Add health check endpoint (`GET /api/v1/health`)
+- [x] Initialize NestJS project in `backend/` directory (`@nestjs/cli`)
+- [x] Configure `tsconfig.json`, `eslint`, `prettier`
+- [x] Configure environment variable validation via `@nestjs/config` and `class-validator`
+- [x] Setup Swagger/OpenAPI documentation at `/api/docs` with `@nestjs/swagger`
+- [x] Setup `docker-compose.yml` service for PostgreSQL 16
+- [x] Implement global HTTP exception filter and request transformation interceptor
+- [x] Add health check endpoint (`GET /api/v1/health`)
 
 ### Milestone 2: Database Schema & Core Entities (PostgreSQL)
-- [ ] Configure database connection (TypeORM / Prisma) and migration scripts
-- [ ] Implement `User`, `Role`, and `Department` entities with seed data
-- [ ] Implement `RequestType` and `WorkflowTemplate` entities (versioned configurations)
-- [ ] Implement `Request` entity:
+- [x] Configure database connection (TypeORM / PostgreSQL) and module registration
+- [x] Implement `User`, `Role`, and `Department` entities with seed data
+- [x] Implement `RequestType` and `WorkflowTemplate` entities (versioned configurations)
+- [x] Implement `Request` entity:
   - `id` (UUID PK)
-  - `tracking_number` (Unique, e.g., `UTR-2026-0001`)
+  - `trackingNumber` (Unique, e.g., `UTR-2026-0001`)
   - `status` (`DRAFT`, `SUBMITTED`, `UNDER_REVIEW`, `RETURNED_FOR_CORRECTION`, `APPROVED`, `REJECTED`, `SETTLED`)
-  - `current_stage_key`
-  - `returning_officer_id` (nullable, for direct resubmission)
-  - `form_data` (JSONB)
-- [ ] Implement `RequestStageHistory` entity:
-  - `stage_key`, `stage_name`, `required_role`, `stage_order`
-  - `actor_id`, `action` (`PENDING`, `APPROVED`, `REJECT_RETURN`, `APPROVE_PAYOUT`)
-  - `comments`, `entered_at`, `completed_at`
-- [ ] Implement `AuditEvent` entity (Append-Only guarantee):
-  - `request_id`, `actor_id`, `action_type`, `previous_status`, `new_status`, `field_diff`, `comment`, `created_at`
-- [ ] Run initial migration and verify tables in PostgreSQL
+  - `currentStageKey`
+  - `returningOfficerId` (nullable, for direct resubmission)
+  - `formData` (JSONB)
+  - `totalAmount` (numeric decimal)
+- [x] Implement `RequestStageHistory` entity:
+  - `stageKey`, `stageName`, `requiredRole`, `stageOrder`
+  - `actorId`, `action` (`PENDING`, `APPROVED`, `REJECT_RETURN`, `APPROVE_PAYOUT`)
+  - `comments`, `enteredAt`, `completedAt`
+- [x] Implement `AuditEvent` entity (Append-Only guarantee):
+  - `requestId`, `actorId`, `actionType`, `previousStatus`, `newStatus`, `fieldDiff`, `comment`, `createdAt`
+- [x] Create Database Seed Service (`COM`, `CIV`, `EIE`, `MEC` departments; 7 test roles; `PAPER_MARKING` workflow template)
+- [x] Add unit test suite for database entities (`entities.spec.ts`)
+- [x] Run linting, unit tests, and build verification successfully
 
 ### Milestone 3: Authentication & Identity Adapter (Mock University SSO)
 - [ ] Implement University Identity Adapter pattern (`AuthService` / `MockAuthProvider`)
@@ -64,7 +67,7 @@
 - [ ] Implement `RolesGuard` and `@Roles()` decorator
 - [ ] Implement `DepartmentScopeGuard` (ensures HOD can only act on their department claims)
 
-### Milestone 4: Paper Setting & Marking Claim Engine (Vertical Slice)
+### Milestone 4: Paper Marking Claim Engine (Vertical Slice)
 - [ ] Create `CreatePaperMarkingClaimDto` with nested validation (`class-validator`):
   - Course metadata: academic year, semester, course code/title, exam type, examiner role
   - Line items: paper setting, moderation, script marking, practical/oral, second marking
@@ -113,11 +116,10 @@
 
 ---
 
-## 🛠️ Active Working Branch for Backend Kickoff
+## 🛠️ Active Working Branch
 
 ```bash
-# Branch off mvp for backend scaffolding
 git checkout mvp
 git pull origin mvp
-git checkout -b feature/backend-scaffold mvp
+git checkout -b feature/backend-database-entities mvp
 ```
