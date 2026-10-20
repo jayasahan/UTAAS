@@ -12,8 +12,10 @@ import { FeeCalculationService } from './services/fee-calculation.service';
 import { TrackingNumberService } from './services/tracking-number.service';
 import { PaperMarkingClaimService } from './services/paper-marking-claim.service';
 import { WorkflowStateMachineService } from './services/workflow-state-machine.service';
+import { TrackingHistoryService } from './services/tracking-history.service';
 import { PaperMarkingController } from './controllers/paper-marking.controller';
 import { WorkflowController } from './controllers/workflow.controller';
+import { TrackingHistoryController } from './controllers/tracking-history.controller';
 
 @Module({
   imports: [
@@ -28,18 +30,24 @@ import { WorkflowController } from './controllers/workflow.controller';
     ]),
     AuthModule,
   ],
-  controllers: [PaperMarkingController, WorkflowController],
+  controllers: [
+    PaperMarkingController,
+    WorkflowController,
+    TrackingHistoryController,
+  ],
   providers: [
     FeeCalculationService,
     TrackingNumberService,
     PaperMarkingClaimService,
     WorkflowStateMachineService,
+    TrackingHistoryService,
   ],
   exports: [
     FeeCalculationService,
     TrackingNumberService,
     PaperMarkingClaimService,
     WorkflowStateMachineService,
+    TrackingHistoryService,
   ],
 })
 export class RequestsModule {}
