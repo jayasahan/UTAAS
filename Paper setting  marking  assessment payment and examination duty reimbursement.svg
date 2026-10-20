@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 577.2299 705.6999999999999" width="577.2299" height="705.6999999999999" style="--bg:#1F1F1F;--fg:#CCCCCC;--line:#CCCCCC;--accent:#0078D4;--muted:#CCCCCCCC;--surface:#181818;--border:#CCCCCC;background:var(--bg)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<polyline class="edge" data-from="Lecturer2" data-to="HOD2" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="Submit" points="205.42328333333333,76.9 205.42328333333333,242.10000000000002 60.5,242.10000000000002 60.5,487.6000000000001 85.769,487.6000000000001 85.769,499.6000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="HOD2" data-to="Lecturer2" data-style="dotted" data-arrow-start="false" data-arrow-end="true" data-label="Reject / Return" points="120.6868,499.6000000000001 120.6868,487.6000000000001 131.538,487.6000000000001 131.538,254.10000000000002 224.48368333333335,254.10000000000002 224.48368333333335,76.9" fill="none" stroke="var(--_line)" stroke-width="1" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="HOD2" data-to="Dean2" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="Approve" points="138.14569999999998,536.5 138.14569999999998,616.8 241.65964166666666,616.8 241.65964166666666,628.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Dean2" data-to="ExamOffice" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="Approve" points="266.016975,628.8 266.016975,616.8 464.32490000000007,616.8 464.32490000000007,322.40000000000003 350.7898,322.40000000000003 350.7898,230.10000000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="ExamOffice" data-to="HOD2" data-style="dotted" data-arrow-start="false" data-arrow-end="true" data-label="Reject / Return" points="277.5743,230.10000000000002 277.5743,266.1 181.538,266.1 181.538,487.6000000000001 155.6046,487.6000000000001 155.6046,499.6000000000001" fill="none" stroke="var(--_line)" stroke-width="1" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="ExamOffice" data-to="Finance2" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="Approve" points="314.18205,230.10000000000002 314.18205,266.1 299.0832333333334,266.1 299.0832333333334,346.40000000000003" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Finance2" data-to="HOD2" data-style="dotted" data-arrow-start="false" data-arrow-end="true" data-label="Reject / Return" points="299.0832333333334,383.3 299.0832333333334,419.30000000000007 261.7061666666667,419.30000000000007 261.7061666666667,487.6000000000001 190.52239999999998,487.6000000000001 190.52239999999998,499.6000000000001" fill="none" stroke="var(--_line)" stroke-width="1" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Finance2" data-to="Bursar2" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="Approve / Payout" points="342.4595666666667,383.3 342.4595666666667,487.6 377.1413166666667,487.6 377.1413166666667,567.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Lecturer2" data-to="ExamOffice" data-style="dotted" data-arrow-start="false" data-arrow-end="true" data-label="Direct link / Query" points="243.54408333333333,76.9 243.54408333333333,112.9 314.18205,112.9 314.18205,193.2" fill="none" stroke="var(--_line)" stroke-width="1" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="Lecturer2" data-to="Finance2" data-style="dotted" data-arrow-start="false" data-arrow-end="true" data-label="Direct link / Query" points="262.60448333333335,76.9 262.60448333333335,100.9 477.32490000000007,100.9 477.32490000000007,334.40000000000003 342.4595666666667,334.40000000000003 342.4595666666667,346.40000000000003" fill="none" stroke="var(--_line)" stroke-width="1" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
+<g class="edge-label" data-from="Lecturer2" data-to="HOD2" data-label="Submit">
+  <rect x="36" y="426.30000000000007" width="48.53800000000001" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="60.269000000000005" y="441.45000000000005" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Submit</text>
+</g>
+<g class="edge-label" data-from="HOD2" data-to="Lecturer2" data-label="Reject / Return">
+  <rect x="88.53800000000001" y="361.70000000000005" width="85.96000000000002" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="131.51800000000003" y="376.85" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Reject / Return</text>
+</g>
+<g class="edge-label" data-from="HOD2" data-to="Dean2" data-label="Approve">
+  <rect x="108.14569999999998" y="579.5" width="59.230000000000004" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="137.76069999999999" y="594.65" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Approve</text>
+</g>
+<g class="edge-label" data-from="Dean2" data-to="ExamOffice" data-label="Approve">
+  <rect x="434.32490000000007" y="494.6" width="59.230000000000004" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="463.9399000000001" y="509.75" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Approve</text>
+</g>
+<g class="edge-label" data-from="ExamOffice" data-to="HOD2" data-label="Reject / Return">
+  <rect x="138.538" y="394.00000000000006" width="85.96000000000002" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="181.51800000000003" y="409.15000000000003" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Reject / Return</text>
+</g>
+<g class="edge-label" data-from="ExamOffice" data-to="Finance2" data-label="Approve">
+  <rect x="269.0832333333334" y="273.1" width="59.230000000000004" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="298.6982333333334" y="288.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Approve</text>
+</g>
+<g class="edge-label" data-from="Finance2" data-to="HOD2" data-label="Reject / Return">
+  <rect x="218.70616666666666" y="426.30000000000007" width="85.96000000000002" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="261.6861666666667" y="441.45000000000005" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Reject / Return</text>
+</g>
+<g class="edge-label" data-from="Finance2" data-to="Bursar2" data-label="Approve / Payout">
+  <rect x="327.1413166666667" y="494.6" width="99.028" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="376.6553166666667" y="509.75" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Approve / Payout</text>
+</g>
+<g class="edge-label" data-from="Lecturer2" data-to="ExamOffice" data-label="Direct link / Query">
+  <rect x="263.68205" y="119.9" width="100.81000000000003" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="314.08705000000003" y="135.05" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Direct link / Query</text>
+</g>
+<g class="edge-label" data-from="Lecturer2" data-to="Finance2" data-label="Direct link / Query">
+  <rect x="426.82490000000007" y="285.1" width="100.81000000000003" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="477.2299000000001" y="300.25" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Direct link / Query</text>
+</g>
+<g class="node" data-id="Lecturer2" data-label="Lecturer" data-shape="stadium">
+  <rect x="186.36288333333334" y="40" width="95.30199999999999" height="36.900000000000006" rx="18.450000000000003" ry="18.450000000000003" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="234.01388333333335" y="58.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Lecturer</text>
+</g>
+<g class="node" data-id="HOD2" data-label="Head of the Department" data-shape="stadium">
+  <rect x="50.851200000000006" y="499.6000000000001" width="174.58899999999997" height="36.900000000000006" rx="18.450000000000003" ry="18.450000000000003" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="138.14569999999998" y="518.0500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Head of the Department</text>
+</g>
+<g class="node" data-id="Dean2" data-label="Dean" data-shape="stadium">
+  <rect x="217.30230833333331" y="628.8" width="73.072" height="36.900000000000006" rx="18.450000000000003" ry="18.450000000000003" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="253.83830833333332" y="647.25" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Dean</text>
+</g>
+<g class="node" data-id="ExamOffice" data-label="Examination office" data-shape="stadium">
+  <rect x="240.96654999999998" y="193.2" width="146.431" height="36.900000000000006" rx="18.450000000000003" ry="18.450000000000003" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="314.18205" y="211.64999999999998" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Examination office</text>
+</g>
+<g class="node" data-id="Finance2" data-label="Financial office" data-shape="stadium">
+  <rect x="255.70690000000005" y="346.40000000000003" width="130.12900000000002" height="36.900000000000006" rx="18.450000000000003" ry="18.450000000000003" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="320.7714000000001" y="364.85" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Financial office</text>
+</g>
+<g class="node" data-id="Bursar2" data-label="Assistant Bursar" data-shape="stadium">
+  <rect x="306.1488166666667" y="567.9" width="141.985" height="36.900000000000006" rx="18.450000000000003" ry="18.450000000000003" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="377.1413166666667" y="586.35" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Assistant Bursar</text>
+</g>
+</svg>
