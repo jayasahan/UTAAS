@@ -7,7 +7,7 @@
 
 ---
 
-## 📈 Overall Backend Progress: `[████████████████░░░░] 80% (In Progress)`
+## 📈 Overall Backend Progress: `[██████████████████░░] 90% (In Progress)`
 
 | Milestone | Status | Target Date | Owner |
 | :--- | :---: | :---: | :--- |
@@ -16,7 +16,7 @@
 | **M3: Identity Adapter & RBAC** | ✅ Completed | Sprint 1, W2 | Backend / DevOps |
 | **M4: Paper Marking Submission Engine** | ✅ Completed | Sprint 1, W2 | Backend |
 | **M5: 6-Stage Workflow State Machine** | ✅ Completed | Sprint 1, W2 | Backend |
-| **M6: Tracking & History APIs** | ⏹️ Planned | Sprint 1, W3 | Backend |
+| **M6: Tracking & History APIs** | ✅ Completed | Sprint 1, W3 | Backend |
 | **M7: Automated Tests & Verification** | ⏹️ Planned | Sprint 1, W3 | QA / Backend |
 
 ---
@@ -107,14 +107,15 @@
 - [x] Add comprehensive unit test suites (66 unit tests passing)
 
 ### Milestone 6: Request Tracking & Audit History Endpoints
-- [ ] Implement `GET /api/v1/requests/:id/tracking`:
-  - Returns `trackingNumber`, current status, active stage, and ordered list of stages with completion statuses & timestamps
-- [ ] Implement `GET /api/v1/requests/:id/history`:
+- [x] Implement `GET /api/v1/requests/:id/tracking`:
+  - Returns `trackingNumber`, current status, active stage, and ordered list of stages with completion statuses & timestamps (Figma-aligned visual stepper)
+- [x] Implement `GET /api/v1/requests/:id/history`:
   - Returns complete chronological audit logs, reviewer comments, and before/after diffs
-- [ ] Implement `GET /api/v1/requests/my-requests`:
+- [x] Implement `GET /api/v1/requests/my-requests`:
   - Paginated list of claims submitted by logged-in lecturer
-- [ ] Implement `GET /api/v1/requests/pending-queue`:
+- [x] Implement `GET /api/v1/requests/pending-queue`:
   - Work queue for current reviewer role, scoped by department where applicable
+- [x] Add comprehensive unit test suites (79 unit tests passing)
 
 ### Milestone 7: Automated Testing & Definition of Done (DoD)
 - [ ] Unit tests for `FeeCalculationService` (boundary rates, multi-item claims)
@@ -133,5 +134,5 @@
 ```bash
 git checkout mvp
 git pull origin mvp
-git checkout -b feature/backend-workflow-engine mvp
+git checkout -b feature/backend-tracking-history mvp
 ```
