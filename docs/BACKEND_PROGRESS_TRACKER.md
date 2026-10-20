@@ -7,14 +7,14 @@
 
 ---
 
-## 📈 Overall Backend Progress: `[██████████░░░░░░░░░░] 50% (In Progress)`
+## 📈 Overall Backend Progress: `[█████████████░░░░░░░] 65% (In Progress)`
 
 | Milestone | Status | Target Date | Owner |
 | :--- | :---: | :---: | :--- |
 | **M1: Backend Scaffolding & Setup** | ✅ Completed | Sprint 1, W1 | Backend / DevOps |
 | **M2: Database Schema & Migrations** | ✅ Completed | Sprint 1, W1 | Backend |
 | **M3: Identity Adapter & RBAC** | ✅ Completed | Sprint 1, W2 | Backend / DevOps |
-| **M4: Paper Marking Submission Engine** | ⏹️ Planned | Sprint 1, W2 | Backend |
+| **M4: Paper Marking Submission Engine** | ✅ Completed | Sprint 1, W2 | Backend |
 | **M5: 6-Stage Workflow State Machine** | ⏹️ Planned | Sprint 1, W2 | Backend |
 | **M6: Tracking & History APIs** | ⏹️ Planned | Sprint 1, W3 | Backend |
 | **M7: Automated Tests & Verification** | ⏹️ Planned | Sprint 1, W3 | QA / Backend |
@@ -73,15 +73,18 @@
 - [x] Add comprehensive unit test suites (35 unit tests passing)
 
 ### Milestone 4: Paper Marking Claim Engine (Vertical Slice)
-- [ ] Create `CreatePaperMarkingClaimDto` with nested validation (`class-validator`):
+- [x] Create `CreatePaperMarkingClaimDto` with nested validation (`class-validator`):
   - Course metadata: academic year, semester, course code/title, exam type, examiner role
   - Line items: paper setting, moderation, script marking, practical/oral, second marking
-- [ ] Implement `FeeCalculationService`:
-  - Enforce official circular rates
+- [x] Implement `FeeCalculationService`:
+  - Enforce official circular rates (Paper Setting LKR 3,500; Moderation LKR 2,000; Script Marking LKR 120; Practical Assessment LKR 500/hr; Second Marking LKR 60)
   - Server-side recalculation and tamper-proofing
-- [ ] Implement `POST /api/v1/requests/paper-marking/draft` (save without workflow trigger)
-- [ ] Implement `POST /api/v1/requests/paper-marking/submit` (validate, compute, generate tracking number, transition to HOD review)
-- [ ] Implement mock file attachment handler for marking sheets / appointment letters
+  - Expose approved circular reference API (`GET /api/v1/requests/paper-marking/rates/circular`)
+- [x] Implement `TrackingNumberService` (`UTR-YYYY-XXXX` atomic sequence generation)
+- [x] Implement `POST /api/v1/requests/paper-marking/draft` (save/update without workflow trigger)
+- [x] Implement `POST /api/v1/requests/paper-marking/submit` (validate, compute, generate tracking number, transition to HOD review with StageHistory & AuditEvent initialization)
+- [x] Implement `GET /api/v1/requests/paper-marking/:id` with IDOR prevention and department scoping
+- [x] Add unit test suites for fee calculation, tracking numbers, claim service, and controller (55 unit tests passing)
 
 ### Milestone 5: 6-Stage Workflow State Machine & Transition Actions
 - [ ] Implement atomic state machine transaction (`EntityManager.transaction`):
@@ -126,5 +129,5 @@
 ```bash
 git checkout mvp
 git pull origin mvp
-git checkout -b feature/backend-auth-rbac mvp
+git checkout -b feature/backend-paper-marking-claim mvp
 ```
