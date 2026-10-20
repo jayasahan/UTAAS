@@ -11,7 +11,7 @@
 
 | Milestone | Status | Target Date | Owner |
 | :--- | :---: | :---: | :--- |
-| **M1: Backend Scaffolding & Setup** | ⏳ In Progress | Sprint 1, W1 | Backend / DevOps |
+| **M1: Backend Scaffolding & Setup** | ✅ Completed | Sprint 1, W1 | Backend / DevOps |
 | **M2: Database Schema & Migrations** | ⏹️ Planned | Sprint 1, W1 | Backend |
 | **M3: Identity Adapter & RBAC** | ⏹️ Planned | Sprint 1, W2 | Backend / DevOps |
 | **M4: Paper Marking Submission Engine** | ⏹️ Planned | Sprint 1, W2 | Backend |
