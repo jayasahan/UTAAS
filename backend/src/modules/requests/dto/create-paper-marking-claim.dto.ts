@@ -7,6 +7,7 @@ import {
   IsOptional,
   ValidateNested,
   IsArray,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -29,15 +30,15 @@ export class CourseMetadataDto {
   @IsNotEmpty()
   degreeProgramme: string;
 
-  @ApiProperty({ example: 'EC5060', description: 'Official course module code' })
+  @ApiPropertyOptional({ example: 'EC5060', description: 'Official course module code' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  courseCode: string;
+  courseCode?: string;
 
-  @ApiProperty({ example: 'Software Engineering', description: 'Course title' })
+  @ApiPropertyOptional({ example: 'Software Engineering', description: 'Course title' })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  courseTitle: string;
+  courseTitle?: string;
 
   @ApiProperty({
     example: 'End Semester Examination',
@@ -56,31 +57,122 @@ export class CourseMetadataDto {
   examinerRole: string;
 }
 
+export class PaperRowDto {
+  @ApiPropertyOptional({ example: 'paper-1' })
+  @IsOptional()
+  @IsString()
+  id?: string;
+
+  @ApiProperty({ example: 'Software Engineering (EC5060)', description: 'Title of the question paper' })
+  @IsString()
+  @IsNotEmpty()
+  title: string;
+
+  @ApiPropertyOptional({ example: 3, description: 'Duration in hours' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  durationHours?: number;
+
+  @ApiPropertyOptional({ example: 1, description: 'Number of papers set' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  settingCount?: number;
+
+  @ApiPropertyOptional({ example: 0, description: 'Number of papers moderated' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  moderationCount?: number;
+
+  @ApiPropertyOptional({ example: 0, description: 'Number of papers translated' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  translationCount?: number;
+
+  @ApiPropertyOptional({ example: 120, description: 'Number of student answer scripts marked' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  scriptCount?: number;
+
+  @ApiPropertyOptional({ example: 30, description: 'Number of scripts second-marked' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  secondMarkingCount?: number;
+
+  @ApiPropertyOptional({ example: 'candidates', enum: ['candidates', 'hours'] })
+  @IsOptional()
+  @IsString()
+  assessmentUnit?: 'candidates' | 'hours';
+
+  @ApiPropertyOptional({ example: 0, description: 'Practical assessment quantity (hours or candidates)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  assessmentQuantity?: number;
+}
+
+export class PersonalInfoDto {
+  @ApiPropertyOptional({ example: 'Dr. Hansana H.A.J.' })
+  @IsOptional()
+  @IsString()
+  fullName?: string;
+
+  @ApiPropertyOptional({ example: 'Senior Lecturer (Grade II)' })
+  @IsOptional()
+  @IsString()
+  designation?: string;
+
+  @ApiPropertyOptional({ example: 'Department of Computer Engineering' })
+  @IsOptional()
+  @IsString()
+  department?: string;
+
+  @ApiPropertyOptional({ example: 'ENG/COM/042' })
+  @IsOptional()
+  @IsString()
+  staffId?: string;
+
+  @ApiPropertyOptional({ example: 'EC5060 First Marking 2023/2024' })
+  @IsOptional()
+  @IsString()
+  referenceTitle?: string;
+}
+
 export class ClaimItemsDto {
-  @ApiProperty({ example: 1, description: 'Number of question papers set' })
+  @ApiPropertyOptional({ example: 1, description: 'Number of question papers set' })
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  paperSettingCount: number;
+  paperSettingCount?: number;
 
-  @ApiProperty({ example: 0, description: 'Number of question papers moderated' })
+  @ApiPropertyOptional({ example: 0, description: 'Number of question papers moderated' })
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  paperModerationCount: number;
+  paperModerationCount?: number;
 
-  @ApiProperty({ example: 120, description: 'Number of student answer scripts marked' })
+  @ApiPropertyOptional({ example: 120, description: 'Number of student answer scripts marked' })
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  scriptMarkingCount: number;
+  scriptMarkingCount?: number;
 
-  @ApiProperty({ example: 4, description: 'Total hours of practical / laboratory / oral examination assessment' })
+  @ApiPropertyOptional({ example: 4, description: 'Total hours of practical / laboratory / oral examination assessment' })
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  practicalAssessmentHours: number;
+  practicalAssessmentHours?: number;
 
-  @ApiProperty({ example: 0, description: 'Number of answer scripts verified as Second Examiner' })
+  @ApiPropertyOptional({ example: 0, description: 'Number of answer scripts verified as Second Examiner' })
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  secondMarkingCount: number;
+  secondMarkingCount?: number;
 }
 
 export class SupportingDocumentDto {
@@ -101,18 +193,44 @@ export class SupportingDocumentDto {
   @IsString()
   @IsNotEmpty()
   documentType: string;
+
+  @ApiPropertyOptional({ example: 102400 })
+  @IsOptional()
+  @IsNumber()
+  size?: number;
 }
 
 export class CreatePaperMarkingClaimDto {
-  @ApiProperty({ type: CourseMetadataDto })
+  @ApiPropertyOptional({ type: CourseMetadataDto })
+  @IsOptional()
   @ValidateNested()
   @Type(() => CourseMetadataDto)
-  metadata: CourseMetadataDto;
+  metadata?: CourseMetadataDto;
 
-  @ApiProperty({ type: ClaimItemsDto })
+  @ApiPropertyOptional({ type: CourseMetadataDto, description: 'Alias for metadata matching frontend model' })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CourseMetadataDto)
+  academic?: CourseMetadataDto;
+
+  @ApiPropertyOptional({ type: PersonalInfoDto, description: 'Lecturer personal information' })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PersonalInfoDto)
+  personal?: PersonalInfoDto;
+
+  @ApiPropertyOptional({ type: [PaperRowDto], description: 'Detailed individual paper rows from table' })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PaperRowDto)
+  papers?: PaperRowDto[];
+
+  @ApiPropertyOptional({ type: ClaimItemsDto, description: 'Aggregate quantities (computed automatically if papers provided)' })
+  @IsOptional()
   @ValidateNested()
   @Type(() => ClaimItemsDto)
-  items: ClaimItemsDto;
+  items?: ClaimItemsDto;
 
   @ApiPropertyOptional({ type: [SupportingDocumentDto] })
   @IsOptional()
@@ -120,6 +238,11 @@ export class CreatePaperMarkingClaimDto {
   @ValidateNested({ each: true })
   @Type(() => SupportingDocumentDto)
   supportingDocuments?: SupportingDocumentDto[];
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  declaration?: boolean;
 
   @ApiPropertyOptional({
     example: 'd1e2f3a4-5b6c-7d8e-9f0a-1b2c3d4e5f6a',

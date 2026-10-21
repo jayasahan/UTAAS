@@ -16,9 +16,10 @@ import {
 } from '../../../database/entities/request-stage-history.entity';
 import { AuditEvent } from '../../../database/entities/audit-event.entity';
 import { User, UserRole } from '../../../database/entities/user.entity';
-import { CreatePaperMarkingClaimDto } from '../dto/create-paper-marking-claim.dto';
 import { FeeCalculationService } from './fee-calculation.service';
 import { TrackingNumberService } from './tracking-number.service';
+import { CreatePaperMarkingClaimDto } from '../dto/create-paper-marking-claim.dto';
+import { SaveDraftClaimDto } from '../dto/save-draft-claim.dto';
 
 @Injectable()
 export class PaperMarkingClaimService {
@@ -42,13 +43,29 @@ export class PaperMarkingClaimService {
 
   /**
    * Save paper setting and marking claim as a draft without triggering the workflow.
+   * Supports partial drafts and multi-paper rows.
    */
   async saveDraft(
     user: User,
-    dto: CreatePaperMarkingClaimDto,
+    dto: SaveDraftClaimDto,
     draftId?: string,
   ): Promise<Request> {
-    const feeCalculation = this.feeCalculationService.calculateClaimFees(dto.items);
+    const feeCalculation = this.feeCalculationService.calculateClaimFees(dto.items, dto.papers);
+    const resolvedMetadata = dto.metadata || dto.academic || {};
+    const computedItems = dto.items || this.feeCalculationService.aggregateFromPaperRows(dto.papers);
+
+    const formData = {
+      personal: dto.personal || {},
+      metadata: resolvedMetadata,
+      academic: resolvedMetadata,
+      papers: dto.papers || [],
+      items: computedItems,
+      feeCalculation,
+      supportingDocuments: dto.supportingDocuments || [],
+      declaration: dto.declaration ?? false,
+      selectedDocumentCategory: dto.selectedDocumentCategory || 'APPOINTMENT_LETTER',
+      comments: dto.comments || '',
+    };
 
     if (draftId) {
       const existing = await this.requestRepo.findOne({
@@ -63,13 +80,7 @@ export class PaperMarkingClaimService {
         throw new BadRequestException('Cannot edit a claim that has already been submitted');
       }
 
-      existing.formData = {
-        metadata: dto.metadata,
-        items: dto.items,
-        feeCalculation,
-        supportingDocuments: dto.supportingDocuments || [],
-        comments: dto.comments || '',
-      };
+      existing.formData = formData;
       existing.totalAmount = feeCalculation.totalAmount;
 
       return await this.requestRepo.save(existing);
@@ -86,13 +97,7 @@ export class PaperMarkingClaimService {
       status: RequestStatus.DRAFT,
       currentStageKey: 'DRAFT',
       totalAmount: feeCalculation.totalAmount,
-      formData: {
-        metadata: dto.metadata,
-        items: dto.items,
-        feeCalculation,
-        supportingDocuments: dto.supportingDocuments || [],
-        comments: dto.comments || '',
-      },
+      formData,
     });
 
     return await this.requestRepo.save(request);
@@ -100,20 +105,27 @@ export class PaperMarkingClaimService {
 
   /**
    * Validate, calculate, and submit a paper marking claim into the 6-stage review workflow.
+   * Accepts structured multiple paper rows and preserves row details in formData.
    */
   async submitClaim(
     user: User,
     dto: CreatePaperMarkingClaimDto,
     draftId?: string,
   ): Promise<Request> {
-    const feeCalculation = this.feeCalculationService.calculateClaimFees(dto.items);
+    const feeCalculation = this.feeCalculationService.calculateClaimFees(dto.items, dto.papers);
 
     if (feeCalculation.totalAmount <= 0) {
       throw new BadRequestException(
-        'Invalid claim: Total claim amount must be greater than zero. Please provide at least one claim item.',
+        'Invalid claim: Total claim amount must be greater than zero. Please provide at least one claim item or paper row with positive counts.',
       );
     }
 
+    const resolvedMetadata = dto.metadata || dto.academic;
+    if (!resolvedMetadata) {
+      throw new BadRequestException('Missing examination metadata or academic information');
+    }
+
+    const computedItems = dto.items || this.feeCalculationService.aggregateFromPaperRows(dto.papers);
     const { requestType, template } = await this.getPaperMarkingWorkflowContext();
 
     return await this.dataSource.transaction(async (manager) => {
@@ -147,10 +159,14 @@ export class PaperMarkingClaimService {
       request.currentStageKey = 'HEAD_OF_DEPARTMENT';
       request.totalAmount = feeCalculation.totalAmount;
       request.formData = {
-        metadata: dto.metadata,
-        items: dto.items,
+        personal: dto.personal || {},
+        metadata: resolvedMetadata,
+        academic: resolvedMetadata,
+        papers: dto.papers || [],
+        items: computedItems,
         feeCalculation,
         supportingDocuments: dto.supportingDocuments || [],
+        declaration: dto.declaration ?? true,
         comments: dto.comments || '',
       };
 
@@ -193,9 +209,10 @@ export class PaperMarkingClaimService {
         newStatus: String(savedRequest.status),
         fieldDiff: {
           totalAmount: feeCalculation.totalAmount,
-          courseCode: dto.metadata.courseCode,
-          courseTitle: dto.metadata.courseTitle,
+          courseCode: resolvedMetadata.courseCode || 'N/A',
+          courseTitle: resolvedMetadata.courseTitle || (dto.papers?.[0]?.title) || 'N/A',
           itemsCount: feeCalculation.items.filter((i) => i.count > 0).length,
+          papersCount: dto.papers?.length || 1,
         },
         comment: dto.comments || 'Claim submitted and routed to Head of Department',
       });

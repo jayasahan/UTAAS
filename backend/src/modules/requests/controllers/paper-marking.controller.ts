@@ -19,6 +19,7 @@ import {
 import { PaperMarkingClaimService } from '../services/paper-marking-claim.service';
 import { FeeCalculationService } from '../services/fee-calculation.service';
 import { CreatePaperMarkingClaimDto } from '../dto/create-paper-marking-claim.dto';
+import { SaveDraftClaimDto } from '../dto/save-draft-claim.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { User } from '../../../database/entities/user.entity';
@@ -47,13 +48,13 @@ export class PaperMarkingController {
   @ApiOperation({
     summary: 'Save Paper Marking Claim Draft',
     description:
-      'Saves examination claim details without triggering the approval workflow, allowing the applicant to continue later',
+      'Saves partial examination claim details (metadata, personal info, multiple paper rows, documents) without triggering the approval workflow',
   })
   @ApiQuery({ name: 'draftId', required: false, description: 'Existing draft ID to update' })
   @ApiResponse({ status: 201, description: 'Draft saved successfully' })
   async saveDraft(
     @CurrentUser() user: User,
-    @Body() dto: CreatePaperMarkingClaimDto,
+    @Body() dto: SaveDraftClaimDto,
     @Query('draftId') draftId?: string,
   ) {
     return await this.claimService.saveDraft(user, dto, draftId);

@@ -110,6 +110,13 @@ describe('PaperMarkingClaimService', () => {
         totalAmount: 15500.0,
         items: [{ key: 'PAPER_SETTING', count: 1, subtotal: 3500.0 }],
       }),
+      aggregateFromPaperRows: jest.fn().mockReturnValue({
+        paperSettingCount: 1,
+        paperModerationCount: 0,
+        scriptMarkingCount: 100,
+        practicalAssessmentHours: 0,
+        secondMarkingCount: 0,
+      }),
     };
 
     mockTrackingService = {
@@ -171,6 +178,56 @@ describe('PaperMarkingClaimService', () => {
       expect(result.status).toBe(RequestStatus.DRAFT);
       expect(result.currentStageKey).toBe('DRAFT');
     });
+
+    it('should allow saving partial drafts with only personal and academic details', async () => {
+      (mockFeeService.calculateClaimFees as jest.Mock).mockReturnValue({
+        currency: 'LKR',
+        totalAmount: 0.0,
+        items: [],
+      });
+
+      const partialDraft = {
+        personal: {
+          fullName: 'Dr. Kamal Perera',
+          designation: 'Senior Lecturer',
+        },
+        academic: {
+          academicYear: '2023/2024',
+          semester: 'Semester 1',
+          degreeProgramme: 'BScEng',
+        },
+      };
+
+      const result = await service.saveDraft(mockUser, partialDraft as any);
+      expect(mockRequestRepo.save).toHaveBeenCalled();
+      expect(result.status).toBe(RequestStatus.DRAFT);
+      expect(result.formData.personal.fullName).toBe('Dr. Kamal Perera');
+      expect(result.formData.academic.academicYear).toBe('2023/2024');
+    });
+
+    it('should preserve multiple paper rows in formData when saving draft', async () => {
+      const multiPaperDraft = {
+        papers: [
+          {
+            id: 'paper-1',
+            title: 'Software Engineering',
+            settingCount: 1,
+            scriptCount: 60,
+          },
+          {
+            id: 'paper-2',
+            title: 'Computer Networks',
+            settingCount: 1,
+            scriptCount: 60,
+          },
+        ],
+      };
+
+      const result = await service.saveDraft(mockUser, multiPaperDraft as any);
+      expect(result.formData.papers).toHaveLength(2);
+      expect(result.formData.papers[0].title).toBe('Software Engineering');
+      expect(result.formData.papers[1].title).toBe('Computer Networks');
+    });
   });
 
   describe('submitClaim', () => {
@@ -180,6 +237,24 @@ describe('PaperMarkingClaimService', () => {
       expect(mockDataSource.transaction).toHaveBeenCalled();
       expect(result.status).toBe(RequestStatus.UNDER_REVIEW);
       expect(result.currentStageKey).toBe('HEAD_OF_DEPARTMENT');
+    });
+
+    it('should accept multi-paper rows and preserve them in formData on submission', async () => {
+      const multiPaperClaim = {
+        ...sampleDto,
+        papers: [
+          {
+            id: 'paper-1',
+            title: 'Operating Systems',
+            settingCount: 1,
+            scriptCount: 120,
+          },
+        ],
+      };
+
+      const result = await service.submitClaim(mockUser, multiPaperClaim as any);
+      expect(mockDataSource.transaction).toHaveBeenCalled();
+      expect(result.status).toBe(RequestStatus.UNDER_REVIEW);
     });
 
     it('should throw BadRequestException if claim total amount is 0', async () => {

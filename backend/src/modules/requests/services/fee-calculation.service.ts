@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ClaimItemsDto } from '../dto/create-paper-marking-claim.dto';
+import { ClaimItemsDto, PaperRowDto } from '../dto/create-paper-marking-claim.dto';
 
 export interface FeeLineItem {
   key: string;
@@ -32,14 +32,62 @@ export class FeeCalculationService {
   };
 
   /**
-   * Tamper-proof server-side fee recalculation enforcing official circular rates.
+   * Sums quantities across individual paper rows into aggregate counts.
    */
-  calculateClaimFees(items: ClaimItemsDto): FeeCalculationResult {
-    const paperSettingCount = Math.max(0, items.paperSettingCount || 0);
-    const paperModerationCount = Math.max(0, items.paperModerationCount || 0);
-    const scriptMarkingCount = Math.max(0, items.scriptMarkingCount || 0);
-    const practicalAssessmentHours = Math.max(0, items.practicalAssessmentHours || 0);
-    const secondMarkingCount = Math.max(0, items.secondMarkingCount || 0);
+  aggregateFromPaperRows(papers?: PaperRowDto[] | null): ClaimItemsDto {
+    const aggregated: ClaimItemsDto = {
+      paperSettingCount: 0,
+      paperModerationCount: 0,
+      scriptMarkingCount: 0,
+      practicalAssessmentHours: 0,
+      secondMarkingCount: 0,
+    };
+
+    if (!papers || !Array.isArray(papers)) {
+      return aggregated;
+    }
+
+    for (const paper of papers) {
+      aggregated.paperSettingCount = (aggregated.paperSettingCount || 0) + (Number(paper.settingCount) || 0);
+      aggregated.paperModerationCount = (aggregated.paperModerationCount || 0) + (Number(paper.moderationCount) || 0);
+      aggregated.scriptMarkingCount = (aggregated.scriptMarkingCount || 0) + (Number(paper.scriptCount) || 0);
+      aggregated.secondMarkingCount = (aggregated.secondMarkingCount || 0) + (Number(paper.secondMarkingCount) || 0);
+
+      // Assessment unit: hours maps directly to practical assessment hours
+      if (paper.assessmentUnit === 'hours') {
+        aggregated.practicalAssessmentHours = (aggregated.practicalAssessmentHours || 0) + (Number(paper.assessmentQuantity) || 0);
+      }
+    }
+
+    return aggregated;
+  }
+
+  /**
+   * Tamper-proof server-side fee recalculation enforcing official circular rates.
+   * Can accept explicit items, or compute them from paper rows, or merge both.
+   */
+  calculateClaimFees(
+    items?: Partial<ClaimItemsDto> | null,
+    papers?: PaperRowDto[] | null,
+  ): FeeCalculationResult {
+    let effectiveItems: Partial<ClaimItemsDto> = items || {};
+
+    if (papers && papers.length > 0) {
+      const fromPapers = this.aggregateFromPaperRows(papers);
+      effectiveItems = {
+        paperSettingCount: Math.max(fromPapers.paperSettingCount || 0, effectiveItems.paperSettingCount || 0),
+        paperModerationCount: Math.max(fromPapers.paperModerationCount || 0, effectiveItems.paperModerationCount || 0),
+        scriptMarkingCount: Math.max(fromPapers.scriptMarkingCount || 0, effectiveItems.scriptMarkingCount || 0),
+        practicalAssessmentHours: Math.max(fromPapers.practicalAssessmentHours || 0, effectiveItems.practicalAssessmentHours || 0),
+        secondMarkingCount: Math.max(fromPapers.secondMarkingCount || 0, effectiveItems.secondMarkingCount || 0),
+      };
+    }
+
+    const paperSettingCount = Math.max(0, effectiveItems.paperSettingCount || 0);
+    const paperModerationCount = Math.max(0, effectiveItems.paperModerationCount || 0);
+    const scriptMarkingCount = Math.max(0, effectiveItems.scriptMarkingCount || 0);
+    const practicalAssessmentHours = Math.max(0, effectiveItems.practicalAssessmentHours || 0);
+    const secondMarkingCount = Math.max(0, effectiveItems.secondMarkingCount || 0);
 
     const lineItems: FeeLineItem[] = [
       {
