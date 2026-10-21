@@ -11,9 +11,19 @@ import { DocumentsStep } from './components/DocumentsStep';
 import { ReviewStep } from './components/ReviewStep';
 import { ReviewProgress } from './components/ReviewProgress';
 import './paper-marking.css';
+import { useReadOnlyData } from './useReadOnlyData';
+import { ReadOnlyInformation } from './components/ReadOnlyInformation';
 
 export function PaperMarkingClaimPage() {
   const claim = useClaimForm();
+  const integration = useReadOnlyData();
+  const { applyProfile } = claim;
+  const loadedProfile = integration.profile.data;
+  const hasSession = Boolean(integration.session.client);
+  useEffect(() => {
+    if (!hasSession) applyProfile(null);
+    else if (loadedProfile) applyProfile(loadedProfile);
+  }, [hasSession, loadedProfile, applyProfile]);
   const heading = useRef<HTMLHeadingElement>(null);
   const summary = useRef<HTMLDivElement>(null);
   const pendingFocus = useRef<string | null>(null);
@@ -73,6 +83,7 @@ export function PaperMarkingClaimPage() {
           Step {claim.step + 1} of 4 · Local preparation · Not saved
         </p>
       </header>
+      <ReadOnlyInformation integration={integration} />
       <div className="rounded-control border border-warning bg-amber-50 p-4 text-sm text-brand">
         <p>{persistenceUnavailable}</p>
         <p className="mt-2">
@@ -140,6 +151,7 @@ export function PaperMarkingClaimPage() {
               value={claim.form.personal}
               errors={claim.errors}
               onChange={claim.updatePersonal}
+              profileAvailable={Boolean(integration.profile.data)}
             />
           )}
           {claim.step === 1 && (

@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import type { StaffProfile } from '../../auth/contracts';
 import { createForm, createPaper } from './model';
 import type {
   AcademicInformation,
@@ -17,8 +18,25 @@ export function useClaimForm() {
   const [announcement, setAnnouncement] = useState('');
   const [quantityReentry, setQuantityReentry] = useState<string[]>([]);
   const nextId = useRef(2);
+  const editedPersonal = useRef(new Set<keyof PersonalInformation>());
+  const applyProfile = useCallback((profile: StaffProfile | null) => {
+    setForm((old) => {
+      const personal = { ...old.personal };
+      if (!editedPersonal.current.has('fullName'))
+        personal.fullName = profile?.fullName ?? '';
+      if (!editedPersonal.current.has('department'))
+        personal.department = profile?.departmentCode ?? '';
+      if (
+        personal.fullName === old.personal.fullName &&
+        personal.department === old.personal.department
+      )
+        return old;
+      return { ...old, personal, declaration: false };
+    });
+  }, []);
   const changed = () => setErrors([]);
   function updatePersonal(key: keyof PersonalInformation, value: string) {
+    editedPersonal.current.add(key);
     setForm((old) => ({
       ...old,
       declaration: false,
@@ -148,6 +166,7 @@ export function useClaimForm() {
   }
   return {
     form,
+    applyProfile,
     step,
     errors,
     fileErrors,

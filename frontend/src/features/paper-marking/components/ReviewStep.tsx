@@ -62,7 +62,8 @@ export function ReviewStep({
           )}
         </dl>
         <p className="text-sm text-muted">
-          User-entered details; university identity is not verified.
+          Local form summary; profile provenance is shown above. Edited values,
+          designation and staff ID are not verified university identity.
         </p>
         <Button variant="ghost" onClick={() => onEdit(0)}>
           Edit personal information
@@ -116,7 +117,8 @@ export function ReviewStep({
           Total estimate: {formatEstimate(estimateTotal(form.papers))}
         </p>
         <p className="text-sm text-muted">
-          Verified rates are unavailable. No payable total has been established.
+          Circular rates, when available above, are reference data only. No
+          multi-paper payable total has been established.
         </p>
         <Button variant="ghost" onClick={() => onEdit(1)}>
           Edit payment details

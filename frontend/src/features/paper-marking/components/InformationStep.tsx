@@ -10,10 +10,12 @@ export function PersonalStep({
   value,
   errors,
   onChange,
+  profileAvailable = false,
 }: {
   value: PersonalInformation;
   errors: FieldError[];
   onChange: (key: keyof PersonalInformation, value: string) => void;
+  profileAvailable?: boolean;
 }) {
   return (
     <section aria-labelledby="personal-heading" className="space-y-6">
@@ -21,8 +23,9 @@ export function PersonalStep({
         Step 1 — Personal & Application Information
       </h2>
       <p className="text-sm text-muted">
-        Enter your staff details for local review. These values are not verified
-        against university records. An authenticated profile is not connected.
+        {profileAvailable
+          ? 'Untouched name and department fields use the backend development profile. Department contains its returned code, not an invented department name. Any edited values remain local.'
+          : 'Enter your staff details for local review. An authenticated backend profile is currently unavailable; local entries are not verified against university records.'}
       </p>
       <div className="grid gap-6 lg:grid-cols-2">
         {(Object.keys(personalLabels) as (keyof PersonalInformation)[]).map(
@@ -46,6 +49,11 @@ export function PersonalStep({
                 {...(key === 'referenceTitle'
                   ? {
                       hint: 'Optional private label. Kept in this page only; not sent or saved.',
+                    }
+                  : {})}
+                {...(key === 'designation' || key === 'staffId'
+                  ? {
+                      hint: 'Not returned by the profile endpoint. Enter locally; this value is not backend-verified.',
                     }
                   : {})}
                 onChange={(event) => onChange(key, event.target.value)}

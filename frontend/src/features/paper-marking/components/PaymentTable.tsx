@@ -67,9 +67,10 @@ export function PaymentTable({
         id="rate-limitation"
         className="rounded-control bg-blue-50 p-4 text-sm text-brand"
       >
-        Estimates unavailable: authenticated circular rates are not connected.
-        Translation and candidate-based assessment rules also require
-        confirmation. Rates and amounts cannot be entered manually.
+        Estimates unavailable: the backend rate reference above is separate from
+        an agreed multi-paper calculation contract. Translation and
+        candidate-based assessment rules also require confirmation. Rates and
+        amounts cannot be entered manually.
       </p>
       <div id="paper-table" className="paper-payment-table" tabIndex={-1}>
         <Table

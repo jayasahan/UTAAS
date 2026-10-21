@@ -1,4 +1,4 @@
-# Paper Setting & Marking — Phase 1
+# Paper Setting & Marking — Phase 1 UI and Phase 2 read-only integration
 
 Route: `/requests/new`. Existing application routes/layouts remain intact.
 
@@ -22,11 +22,26 @@ Route: `/requests/new`. Existing application routes/layouts remain intact.
 - Components compose existing design-system controls, tables, cards and buttons.
   Error summaries focus and link to fields; add/remove restores useful focus.
 
-No API calls, token storage, localStorage persistence, uploaded IDs/URLs, mocked
-production responses or success notifications exist. Save Draft and Submit remain
-disabled even after declaration acceptance. Validate local review checks local
-readiness only. Leaving the route/reloading loses entries and selected files;
-full-page exit warns when there are edits. SPA navigation is not intercepted.
+Phase 2 adds DEV-only backend lecturer sign-in and the profile/circular GETs.
+The private React session is memory-only, clears on logout/expiry/401/reload and
+never exposes credentials in UI, storage, logs or environment configuration.
+Production excludes the mock-login module and has no authentication implementation;
+its form remains explicitly unavailable for authenticated reads. The API client
+uses VITE_API_URL, bearer headers, cookie omission, no-store, no redirects and
+sanitized failures. No production responses are simulated.
+
+Only untouched matching fields receive /auth/me name and department code;
+designation/staff ID remain blank/editable until manually entered. Edited values,
+including deliberate empty edits, are never overwritten by later responses.
+Read-only circular labels/rates/units appear with their backend reference, without
+invented currency or validity dates. Unknown units are displayed, never converted.
+Rates are not yet passed to estimate helpers because multi-paper mapping is not
+agreed; all totals remain unavailable. Test fixtures are not runtime fallbacks.
+
+No draft/upload/submit/resubmit requests, uploaded IDs/URLs or fake success states
+exist. Save Draft and Submit remain disabled even after declaration acceptance.
+Validate local review checks local readiness only. Leaving the route/reloading
+loses entries/files; full-page exit warns on edits. SPA navigation is not intercepted.
 
 ## Design references and intentional differences
 
@@ -34,7 +49,8 @@ Current PRIMARY Figma: 39:48 (personal), 42:110 (payment table), 42:154 (documen
 67:2 (shared review). ARCHIVED and earlier REFERENCE Step 4 are excluded.
 
 - Keep navy/blue/teal branding, white cards, grouped table headers and four steps.
-- Editable identity starts blank and is explicitly unverified, unlike specimen data.
+- Editable identity starts blank; DEV backend profile data fills only untouched
+  matching fields. Mock identity and local edits are not production university SSO.
 - Add academic fields required by Sprint 1 above the table; preserve paper titles
   without guessing a split into course code/title or serializing rows.
 - Separate setting, moderation and translation counts; show second-marking and
@@ -42,8 +58,8 @@ Current PRIMARY Figma: 39:48 (personal), 42:110 (payment table), 42:154 (documen
 - Use readable labels and horizontally scrollable grouped columns on all widths
   instead of the specimen's compact 10px table text. Existing shell variants and
   accessible stronger input boundaries remain. No pixel-perfect sign-off claimed.
-- Rates/amounts display Unavailable rather than Figma sample numbers. No editable
-  rates/amounts are offered before calculation contracts are verified.
+- Amounts display Unavailable rather than Figma sample numbers. Actual authenticated
+  reference rates appear separately. No editable rates/amounts are offered.
 - Local file picker/list replaces the upload specimen: PDF/PNG/JPEG, 10 MiB per
   file, maximum 10 files, matching extension/MIME, empty/duplicate rejection.
   These are client preparation limits, not a verified server upload policy; MIME

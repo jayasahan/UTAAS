@@ -12,7 +12,9 @@ async function personal(user: ReturnType<typeof userEvent.setup>) {
     ['Department', 'Engineering'],
     ['Staff ID', 'LOCAL-123'],
   ]) {
-    await user.type(screen.getByLabelText(new RegExp(`^${label}`)), value!);
+    fireEvent.change(screen.getByLabelText(new RegExp(`^${label}`)), {
+      target: { value: value! },
+    });
   }
   await user.click(screen.getByRole('button', { name: 'Continue →' }));
 }
@@ -24,18 +26,17 @@ async function payment(user: ReturnType<typeof userEvent.setup>) {
     'Examination type',
     'Examiner role',
   ])
-    await user.type(
-      screen.getByLabelText(new RegExp(`^${label}`)),
-      'Entered locally',
-    );
-  await user.type(
-    screen.getByLabelText(/^Title of paper/),
-    'EC5060 Software Engineering',
-  );
-  await user.type(screen.getByLabelText(/^Duration/), '3');
+    fireEvent.change(screen.getByLabelText(new RegExp(`^${label}`)), {
+      target: { value: 'Entered locally' },
+    });
+  fireEvent.change(screen.getByLabelText(/^Title of paper/), {
+    target: { value: 'EC5060 Software Engineering' },
+  });
+  fireEvent.change(screen.getByLabelText(/^Duration/), {
+    target: { value: '3' },
+  });
   const count = screen.getByLabelText(/^Papers set/);
-  await user.clear(count);
-  await user.type(count, '1');
+  fireEvent.change(count, { target: { value: '1' } });
   await user.click(screen.getByRole('button', { name: 'Continue →' }));
 }
 async function review(user: ReturnType<typeof userEvent.setup>) {
