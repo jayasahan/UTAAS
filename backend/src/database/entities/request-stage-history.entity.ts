@@ -65,7 +65,7 @@ export class RequestStageHistory {
   @Column({ type: 'text', nullable: true })
   comments: string;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ type: 'timestamp', nullable: true, default: () => 'CURRENT_TIMESTAMP' })
   enteredAt: Date;
 
   @Column({ type: 'timestamp', nullable: true })
