@@ -10,16 +10,9 @@ import {
 } from 'typeorm';
 import { Department } from './department.entity';
 import { Request } from './request.entity';
+import { UserRole } from './user-role.enum';
 
-export enum UserRole {
-  LECTURER = 'LECTURER',
-  HOD = 'HOD',
-  DEAN = 'DEAN',
-  EXAMINATION_OFFICER = 'EXAMINATION_OFFICER',
-  FINANCIAL_OFFICER = 'FINANCIAL_OFFICER',
-  ASSISTANT_BURSAR = 'ASSISTANT_BURSAR',
-  ADMIN = 'ADMIN',
-}
+export { UserRole };
 
 @Entity('users')
 export class User {

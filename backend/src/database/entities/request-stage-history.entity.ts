@@ -8,7 +8,8 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Request } from './request.entity';
-import { User, UserRole } from './user.entity';
+import { User } from './user.entity';
+import { UserRole } from './user-role.enum';
 
 export enum StageAction {
   PENDING = 'PENDING',
@@ -64,7 +65,7 @@ export class RequestStageHistory {
   @Column({ type: 'text', nullable: true })
   comments: string;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ type: 'timestamp', nullable: true, default: () => 'CURRENT_TIMESTAMP' })
   enteredAt: Date;
 
   @Column({ type: 'timestamp', nullable: true })

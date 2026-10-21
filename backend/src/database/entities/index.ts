@@ -1,4 +1,5 @@
 export * from './department.entity';
+export * from './user-role.enum';
 export * from './user.entity';
 export * from './request-type.entity';
 export * from './workflow-template.entity';
