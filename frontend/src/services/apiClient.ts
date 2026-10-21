@@ -68,6 +68,7 @@ export async function requestJson<T>(
   decode: (value: unknown) => T,
   options: {
     method?: 'GET' | 'POST';
+    body?: unknown;
     signal?: AbortSignal;
     token?: string;
     query?: Readonly<Record<string, string>>;
@@ -83,8 +84,16 @@ export async function requestJson<T>(
     response = await fetch(url.href, {
       method: options.method ?? 'GET',
       headers: options.token
-        ? { Authorization: `Bearer ${options.token}` }
+        ? {
+            Authorization: `Bearer ${options.token}`,
+            ...(options.body === undefined
+              ? {}
+              : { 'Content-Type': 'application/json' }),
+          }
         : {},
+      ...(options.body === undefined
+        ? {}
+        : { body: JSON.stringify(options.body) }),
       credentials: 'omit',
       cache: 'no-store',
       redirect: 'error',
@@ -122,6 +131,12 @@ export interface ApiClient {
     signal?: AbortSignal,
     query?: Readonly<Record<string, string>>,
   ): Promise<T>;
+  post<T>(
+    path: string,
+    body: unknown,
+    decode: (value: unknown) => T,
+    query?: Readonly<Record<string, string>>,
+  ): Promise<T>;
 }
 export function createApiClient(
   base: string | undefined,
@@ -136,6 +151,22 @@ export function createApiClient(
         return await requestJson(base, path, decode, {
           token,
           ...(signal ? { signal } : {}),
+          ...(query ? { query } : {}),
+        });
+      } catch (error) {
+        if (error instanceof ApiError && error.kind === 'unauthorized')
+          onUnauthorized();
+        throw error;
+      }
+    },
+    async post(path, body, decode, query) {
+      const token = getToken();
+      if (!token) throw new ApiError('unauthorized');
+      try {
+        return await requestJson(base, path, decode, {
+          method: 'POST',
+          body,
+          token,
           ...(query ? { query } : {}),
         });
       } catch (error) {

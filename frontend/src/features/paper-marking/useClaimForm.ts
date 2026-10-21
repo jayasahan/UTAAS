@@ -148,6 +148,21 @@ export function useClaimForm() {
     changed();
     setAnnouncement('Local document removed.');
   }
+  const restore = useCallback(
+    (saved: Omit<ReturnType<typeof createForm>, 'documents'>) => {
+      setForm((old) => ({ ...old, ...saved, documents: [] }));
+      editedPersonal.current = new Set(
+        Object.keys(saved.personal) as (keyof PersonalInformation)[],
+      );
+      nextId.current = Math.max(
+        2,
+        ...saved.papers.map((_, index) => index + 2),
+      );
+      setErrors([]);
+      setStep(0);
+    },
+    [],
+  );
   function navigate(target: number): boolean {
     if (target > step) {
       const found = Array.from({ length: target }, (_, index) =>
@@ -166,6 +181,7 @@ export function useClaimForm() {
   }
   return {
     form,
+    restore,
     applyProfile,
     step,
     errors,

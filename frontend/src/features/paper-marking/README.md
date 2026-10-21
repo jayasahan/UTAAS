@@ -51,8 +51,9 @@ Current PRIMARY Figma: 39:48 (personal), 42:110 (payment table), 42:154 (documen
 - Keep navy/blue/teal branding, white cards, grouped table headers and four steps.
 - Editable identity starts blank; DEV backend profile data fills only untouched
   matching fields. Mock identity and local edits are not production university SSO.
-- Add academic fields required by Sprint 1 above the table; preserve paper titles
-  without guessing a split into course code/title or serializing rows.
+- Add academic fields required by Sprint 1 above the table, including separately
+  editable course code and course title; preserve paper titles without treating
+  them as course metadata or serializing rows to an aggregate DTO.
 - Separate setting, moderation and translation counts; show second-marking and
   explicit candidate/hour units so distinct quantities cannot be silently conflated.
 - Use readable labels and horizontally scrollable grouped columns on all widths

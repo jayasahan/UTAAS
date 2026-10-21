@@ -10,6 +10,8 @@ export interface AcademicInformation {
   academicYear: string;
   semester: string;
   degreeProgramme: string;
+  courseCode: string;
+  courseTitle: string;
   examType: string;
   examinerRole: string;
 }
@@ -67,6 +69,8 @@ export const academicLabels: Record<keyof AcademicInformation, string> = {
   academicYear: 'Academic year',
   semester: 'Semester',
   degreeProgramme: 'Degree programme',
+  courseCode: 'Course code',
+  courseTitle: 'Course title',
   examType: 'Examination type',
   examinerRole: 'Examiner role',
 };
@@ -97,6 +101,8 @@ export function createForm(): ClaimForm {
       academicYear: '',
       semester: '',
       degreeProgramme: '',
+      courseCode: '',
+      courseTitle: '',
       examType: '',
       examinerRole: '',
     },
@@ -107,4 +113,4 @@ export function createForm(): ClaimForm {
   };
 }
 export const persistenceUnavailable =
-  'Save Draft and Submit are unavailable: multi-paper persistence, document uploads and declaration contracts are not verified. Nothing is saved to the server.';
+  'Draft saving uses the authenticated backend. Claim submission remains unavailable until supporting documents can be uploaded and securely associated. Locally selected files are never included in a server draft.';
