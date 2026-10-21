@@ -1,9 +1,11 @@
 # UTAAS frontend development progress
 
 Snapshot: 2026-10-21 (Asia/Colombo). Owner: frontend developer, Fernando A.N.V.
-Current branch: `chore/frontend-scaffold`. HEAD: `d0c43fe20cf9b4c1e333f1113199e6f6fb2499e1`.
-The frontend is implemented locally and being prepared for a PR. It is not yet
-committed, pushed, teammate-reviewed, approved, or merged. No frontend feature is accepted as delivered.
+Current branch: `chore/frontend-scaffold`. Scaffold commit: `101184c7ad19d2ae4f9450aed56b101ced5425b3`.
+The scaffold is implemented, locally validated, committed and pushed.
+[PR #8](https://github.com/jayasahan/UTAAS/pull/8) is open against `mvp`;
+review by `jayasahan` is requested and pending. No reviews have been submitted
+as of this snapshot. The PR is not merged; no frontend feature is accepted as delivered.
 
 Use [FRONTEND_REVIEW_CHECKLIST.md](FRONTEND_REVIEW_CHECKLIST.md) for each task's
 review record. This tracker describes planned work; it does not authorize Git
@@ -42,7 +44,7 @@ Each task also has independent gates:
 - Teammate review before merge: PENDING / IN REVIEW / CHANGES REQUESTED / APPROVED.
 - Git: UNCOMMITTED / COMMITTED / PUSHED; record commit only when it exists.
 - Formal PR: NOT OPENED / OPEN / CHANGES REQUESTED / APPROVED / MERGED / CLOSED.
-- CI: NOT RUN / RUNNING / PASS / FAIL; identify the checked commit.
+- CI: UNVERIFIED / NOT RUN / RUNNING / PASS / FAIL; identify the checked commit.
 - QA: NOT RUN / IN PROGRESS / PASS / FAIL, with tester and tested revision.
 
 Only call a task **Complete** when implementation is I, local verification PASS,
@@ -146,11 +148,11 @@ IDs, evidence IDs, decision IDs (D), or backend dependency IDs (API).
 Each ID must retain its own gate values when it changes. The grouped defaults
 below apply individually, not as a combined approval. Expand ranges as work moves.
 
-| Task IDs            | Local verification | Teammate review               | Git         | Formal PR  | CI      | QA      |
-| ------------------- | ------------------ | ----------------------------- | ----------- | ---------- | ------- | ------- |
-| FE-01               | PASS, E2-E4 and E7 | PENDING; no reviewer assigned | UNCOMMITTED | NOT OPENED | NOT RUN | NOT RUN |
-| FE-02               | PARTIAL, E5        | PENDING                       | UNCOMMITTED | NOT OPENED | NOT RUN | NOT RUN |
-| FE-03 through FE-30 | NOT RUN            | PENDING                       | UNCOMMITTED | NOT OPENED | NOT RUN | NOT RUN |
+| Task IDs            | Local verification | Teammate review              | Git             | Formal PR                                             | CI         | QA      |
+| ------------------- | ------------------ | ---------------------------- | --------------- | ----------------------------------------------------- | ---------- | ------- |
+| FE-01               | PASS, E2-E4 and E7 | PENDING; jayasahan requested | PUSHED, 101184c | OPEN, [#8](https://github.com/jayasahan/UTAAS/pull/8) | UNVERIFIED | NOT RUN |
+| FE-02               | PARTIAL, E5        | PENDING                      | UNCOMMITTED     | NOT OPENED                                            | NOT RUN    | NOT RUN |
+| FE-03 through FE-30 | NOT RUN            | PENDING                      | UNCOMMITTED     | NOT OPENED                                            | NOT RUN    | NOT RUN |
 
 ## Evidence register
 
@@ -286,22 +288,33 @@ Complete gate met? (yes/no, evidence):
 | ---------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | 2026-10-21 | Initial tracker from repository inspection and prior scaffold session | FE-01 implemented/local PASS; FE-02 partial discovery; no approvals, commits, pushes, PRs, merges or QA sign-offs |
 
-## Current PR preparation record
+## Current scaffold PR record
 
 - Workflow update (2026-10-21): user requires teammate approval before merging
   through the formal GitHub PR, superseding the earlier pre-push review rule.
-- Commit, push and PR creation: awaiting explicit user confirmation.
-- Proposed commit/PR title: `chore(frontend): initialize React scaffold`.
-- PR base/head: `mvp` / `chore/frontend-scaffold`; URL: not created.
-- Proposed reviewer: `jayasahan` (repository administrator); not yet requested.
+- Scaffold commit: `101184c7ad19d2ae4f9450aed56b101ced5425b3`,
+  `chore(frontend): initialize React scaffold`; pushed to `origin/chore/frontend-scaffold`.
+- PR: [#8 — chore(frontend): initialize React scaffold](https://github.com/jayasahan/UTAAS/pull/8).
+- Verified PR base/head: `mvp` / `chore/frontend-scaffold`; state: OPEN, not draft.
+- Reviewer: `jayasahan`; GitHub review request verified. Review status: PENDING.
+- E8 (2026-10-21): GitHub PR metadata and review submissions queried;
+  head was `101184c7ad19d2ae4f9450aed56b101ced5425b3`, `merged` was false,
+  requested reviewers included `jayasahan`, and submitted reviews were empty.
 - Git author identity: configured human team account `PrabodhaRanawaka`; no
   identity changes made. This does not change frontend ownership.
-- Teammate approval: PENDING. Merge: NOT MERGED. CI: NOT RUN. QA: NOT RUN.
+- Teammate approval: PENDING. Merge: NOT MERGED. CI: UNVERIFIED. QA: NOT RUN.
+  CI was not checked in this documentation update; no passing result is claimed.
 - E7 (2026-10-21): fresh `npm run lint`, `npm run type-check`,
   `npm run format:check` and `npm run build` passed during PR preparation.
   Production build ran outside the Windows sandbox due to its known Vite
   realpath restriction. These are local checks, not teammate or CI approval.
 - Scope: frontend foundation and tracking documentation only. No business
   workflows, API integration or automated frontend test suite implemented.
-- Add the actual PR URL/status after creation; never predict a PR number or
-  mark approval, CI, merge or QA as passed without evidence.
+- This documentation update is submitted to the same feature branch so it is
+  included in PR #8. Approval, merge and QA remain separate evidence gates.
+
+### PR tracking update
+
+| Date       | Change                                                             | Evidence / gate impact                                                                                                                                                                     |
+| ---------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-10-21 | Record actual PR #8, pushed scaffold commit and requested reviewer | E8 verifies open PR to mvp, jayasahan requested, no submitted reviews and no merge. FE-01 remains I/local PASS; implementation 3.3%, accepted delivery 0.0%. Only this tracker is changed. |
