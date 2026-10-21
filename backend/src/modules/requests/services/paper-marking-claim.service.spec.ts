@@ -294,6 +294,33 @@ describe('PaperMarkingClaimService', () => {
       );
     });
 
+    it('should throw ForbiddenException if reviewer tries to access claim in DRAFT status', async () => {
+      mockRequestRepo.findOne.mockResolvedValue({
+        id: 'claim-draft',
+        status: RequestStatus.DRAFT,
+        applicantId: 'other-user',
+        applicant: { id: 'other-user', departmentId: 'dept-com-1' },
+      });
+
+      const hodUser: User = { ...mockUser, id: 'hod-1', role: UserRole.HOD, departmentId: 'dept-com-1' };
+
+      await expect(service.getClaimById('claim-draft', hodUser)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('should allow applicant to access their own claim in DRAFT status', async () => {
+      mockRequestRepo.findOne.mockResolvedValue({
+        id: 'claim-draft',
+        status: RequestStatus.DRAFT,
+        applicantId: mockUser.id,
+        applicant: mockUser,
+      });
+
+      const claim = await service.getClaimById('claim-draft', mockUser);
+      expect(claim.id).toBe('claim-draft');
+    });
+
     it('should throw ForbiddenException if HOD tries to access claim from another department', async () => {
       const hodUser: User = {
         ...mockUser,
@@ -306,6 +333,44 @@ describe('PaperMarkingClaimService', () => {
         id: 'claim-456',
         applicantId: 'civil-lecturer-id',
         applicant: { id: 'civil-lecturer-id', departmentId: 'dept-civ-2' },
+      });
+
+      await expect(service.getClaimById('claim-456', hodUser)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('should throw ForbiddenException if HOD has missing departmentId (fail-closed)', async () => {
+      const hodWithoutDept: User = {
+        ...mockUser,
+        id: 'hod-nodept',
+        role: UserRole.HOD,
+        departmentId: null as any,
+      };
+
+      mockRequestRepo.findOne.mockResolvedValue({
+        id: 'claim-456',
+        applicantId: 'lecturer-id',
+        applicant: { id: 'lecturer-id', departmentId: 'dept-com-1' },
+      });
+
+      await expect(service.getClaimById('claim-456', hodWithoutDept)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('should throw ForbiddenException if applicant has missing departmentId for HOD check (fail-closed)', async () => {
+      const hodUser: User = {
+        ...mockUser,
+        id: 'hod-1',
+        role: UserRole.HOD,
+        departmentId: 'dept-com-1',
+      };
+
+      mockRequestRepo.findOne.mockResolvedValue({
+        id: 'claim-456',
+        applicantId: 'lecturer-id',
+        applicant: { id: 'lecturer-id', departmentId: null as any },
       });
 
       await expect(service.getClaimById('claim-456', hodUser)).rejects.toThrow(
