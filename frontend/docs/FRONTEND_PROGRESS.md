@@ -661,3 +661,13 @@ is retained in the request but not priced by the current backend; the estimate
 is unavailable when such an unsupported line is present. Backend follow-up
 remains for broad non-lecturer document access, durable storage/orphan cleanup,
 and official translation pricing. No PR, commit or push was created in this task.
+
+## Read-only officer approval queue (2026-10-21)
+
+Implemented on isolated branch `feature/frontend-officer-queue`, based on latest fetched `origin/mvp` commit `1ab2c26a31ff4c32f3d4b4aaad1aab4783431529`, which contains the merged paper-marking upload/submission work (PR #17). The original persistence checkout was left unchanged.
+
+The officer portal supports the backend's verified development personas (HOD, Dean, Examination Officer, Financial Officer, Assistant Bursar, and Admin), displays the authenticated role and approved scope, and provides an authenticated pending queue with a typed/validated response decoder, accessible table, request-detail link, loading/empty/error/retry states, and page/limit pagination. Lecturer and HOD-without-verified-department access are blocked before queue retrieval. Detail uses the existing read-only Paper Marking request detail route. No approval, rejection, return, or editing actions are included.
+
+Figma reference: current PRIMARY frame `60:2` (“PRIMARY / Shared Officer Approval Queue”). The implementation follows the navy officer shell, institutional header, role/scope banner, pending count, table hierarchy, teal review action and responsive shared table treatment. Search and status/type/date filters, assignment controls, and returned/resubmitted/urgent summary cards are intentionally omitted because the inspected endpoint does not support them. The single displayed pending count is the server's `meta.total`, not a locally inferred number.
+
+Validation evidence: focused tests passed (25 tests across 3 files); the full suite passed 129/129 across 12 files. ESLint, strict TypeScript and production build passed. Full-project Prettier check passed with `--end-of-line auto` after formatting the changed documentation and source files. Browser checks used the signed-out/development-login and unavailable-backend state: the document had no horizontal overflow at CSS viewport widths 390, 768 and 1440, and keyboard Tab reached the labeled development-role selector. The authenticated populated queue was not browser-verified because `127.0.0.1:4000` was unavailable; no live authenticated GET was performed. Mocked tests do not establish live integration. Independent review, CI and QA are pending. No backend, CI or agent files were changed. No commit, push or PR has been created.

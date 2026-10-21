@@ -6,6 +6,11 @@ import { NewRequestPage } from './pages/NewRequestPage';
 import { RequestDetailPage } from './pages/RequestDetailPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { DesignSystemPage } from './pages/DesignSystemPage';
+import { OfficerPortalLayout } from './features/officer-queue/OfficerPortalLayout';
+import {
+  OfficerQueuePage,
+  OfficerRequestDetailPage,
+} from './features/officer-queue/OfficerQueuePage';
 
 export default function App() {
   return (
@@ -19,6 +24,13 @@ export default function App() {
         <Route path="requests/new" element={<NewRequestPage />} />
         <Route path="requests/:requestId" element={<RequestDetailPage />} />
         <Route path="*" element={<NotFoundPage />} />
+      </Route>
+      <Route element={<OfficerPortalLayout />}>
+        <Route path="officer/queue" element={<OfficerQueuePage />} />
+        <Route
+          path="officer/queue/:requestId"
+          element={<OfficerRequestDetailPage />}
+        />
       </Route>
       {import.meta.env.DEV && (
         <Route

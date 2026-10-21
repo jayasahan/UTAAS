@@ -8,6 +8,7 @@ import {
   requestJson,
 } from '../services/apiClient';
 import { decodeProfile, record, text } from './contracts';
+import type { StaffProfile } from './contracts';
 import { SessionContext } from './session';
 import type { Session, SessionStatus } from './session';
 
@@ -24,7 +25,7 @@ export default function DevSessionProvider({
   const [session, setSession] = useState<Session>({
     status: 'signed-out',
     message:
-      'Sign in with the backend development lecturer persona to load identity and circular rates.',
+      'Sign in with a backend development persona to load verified role and identity.',
     client: null,
     version: 0,
   });
@@ -44,7 +45,27 @@ export default function DevSessionProvider({
     },
     [],
   );
-  async function signIn() {
+  const [selectedRole, setSelectedRole] =
+    useState<StaffProfile['role']>('LECTURER');
+  const roleLabels: Record<StaffProfile['role'], string> = {
+    LECTURER: 'Lecturer',
+    HOD: 'Head of Department',
+    DEAN: 'Dean',
+    EXAMINATION_OFFICER: 'Examination Officer',
+    FINANCIAL_OFFICER: 'Financial Officer',
+    ASSISTANT_BURSAR: 'Assistant Bursar',
+    ADMIN: 'Administrator',
+  };
+  const roleButtonLabels: Record<StaffProfile['role'], string> = {
+    LECTURER: 'lecturer',
+    HOD: 'HOD',
+    DEAN: 'Dean',
+    EXAMINATION_OFFICER: 'Examination Officer',
+    FINANCIAL_OFFICER: 'Financial Officer',
+    ASSISTANT_BURSAR: 'Assistant Bursar',
+    ADMIN: 'Administrator',
+  };
+  async function signIn(role: StaffProfile['role']) {
     if (!import.meta.env.DEV) return;
     clear('signing-in', 'Signing in to the development backend…');
     const attempt = generation.current;
@@ -53,12 +74,11 @@ export default function DevSessionProvider({
     try {
       const login = await requestJson(
         apiBaseUrl(),
-        '/auth/mock-login/LECTURER',
+        `/auth/mock-login/${role}`,
         (value) => {
           const data = record(value);
           const profile = decodeProfile(data.user);
-          if (profile.role !== 'LECTURER')
-            throw new Error('Invalid lecturer response');
+          if (profile.role !== role) throw new Error('Invalid role response');
           const accessToken = text(data.accessToken);
           const parts = accessToken.split('.');
           if (parts.length !== 3) throw new Error('Invalid session');
@@ -102,8 +122,7 @@ export default function DevSessionProvider({
       );
       setSession({
         status: 'authenticated',
-        message:
-          'Development lecturer session active. Identity is verified separately through the profile endpoint.',
+        message: `Development ${roleLabels[role]} session active. Authorization is checked from the profile and by the backend.`,
         client,
         version: attempt,
       });
@@ -127,17 +146,36 @@ export default function DevSessionProvider({
         aria-label="Development authentication"
         className="border-b border-border bg-blue-50 p-4 text-brand"
       >
-        <p className="font-bold">Development-only lecturer sign-in</p>
+        <p className="font-bold">Development-only sign-in</p>
         <p role="status" className="my-2 text-sm">
           {session.message}
         </p>
         <div className="flex flex-wrap gap-3">
           {session.status !== 'authenticated' && (
+            <label className="grid gap-1 text-sm font-semibold">
+              Development role
+              <select
+                aria-label="Development role"
+                className="min-h-11 rounded-control border border-border bg-white px-3 text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+                value={selectedRole}
+                onChange={(event) =>
+                  setSelectedRole(event.target.value as StaffProfile['role'])
+                }
+              >
+                {Object.entries(roleLabels).map(([role, label]) => (
+                  <option key={role} value={role}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {session.status !== 'authenticated' && (
             <Button
               pending={session.status === 'signing-in'}
-              onClick={() => void signIn()}
+              onClick={() => void signIn(selectedRole)}
             >
-              Sign in as development lecturer
+              Sign in as development {roleButtonLabels[selectedRole]}
             </Button>
           )}
           {(session.status === 'authenticated' ||
@@ -156,8 +194,8 @@ export default function DevSessionProvider({
           )}
         </div>
         <p className="mt-2 text-xs">
-          Local development only. Reloading clears the session. Drafts, uploads
-          and submission remain unavailable.
+          Local development only. Reloading clears the in-memory session. The
+          backend remains authoritative for each role and request.
         </p>
       </aside>
       {children}
