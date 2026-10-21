@@ -6,8 +6,9 @@ import { OfficerAccessProvider } from './officerAccess';
 import { useOfficerAccess } from './officerAccess';
 import type { OfficerAccessFeedbackProps } from './officerAccess';
 
-const queueNavigation = [
+const officerNavigation = [
   { to: '/officer/queue', label: 'Approval Queue', end: false },
+  { to: '/officer/review-history', label: 'Review History', end: true },
 ] as const;
 
 export function OfficerPortalLayout() {
@@ -24,7 +25,7 @@ export function OfficerPortalLayout() {
       <AppLayout
         variant="officer"
         workspaceLabel="Officer Portal"
-        items={allowed ? queueNavigation : []}
+        items={allowed ? officerNavigation : []}
       />
     </OfficerAccessProvider>
   );
