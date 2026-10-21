@@ -226,3 +226,35 @@ origin/mvp f9f17d8 and backend bd4836e remain the inspected revisions.
 | Date       | Frontend task / backend revision       | Integration status                | Evidence                                                   |
 | ---------- | -------------------------------------- | --------------------------------- | ---------------------------------------------------------- |
 | 2026-10-21 | Design system / bd4836e (base f9f17d8) | NOT INTEGRATED; presentation only | Source inspection above; no backend execution or API calls |
+
+### Authenticated lecturer request reads — 2026-10-21
+
+Frontend pages now call these source-verified routes through the in-memory
+bearer API client: `GET /api/v1/requests/my-requests?page=&limit=`,
+`GET /api/v1/requests/paper-marking/:id`,
+`GET /api/v1/requests/:id/tracking` and
+`GET /api/v1/requests/:id/history`. Contracts were rechecked against `mvp` at
+`e1c3f7e`. The list uses only page/limit. Request IDs are UUID-validated before
+detail/tracking/history calls. The backend independently checks lecturer
+ownership and HOD department scope on detail/tracking/history.
+
+The implementation decodes documented response fields and displays backend
+statuses, LKR totals, workflow stages and audit comments. Each resource has its
+own loading/error/retry state. It does not expose formData wholesale or send
+workflow actions. E15 added five mocked page tests covering the list, three
+detail resources, invalid UUID, sanitized unauthorized response and empty list.
+The detail view now uses the request type returned by tracking and renders the
+documented optional `fieldDiff` in an accessible disclosure. The tests found and
+fixed the client decoder rejecting an empty audit comment. All 96 frontend tests,
+TypeScript, lint, formatting and build pass. Browser
+checks cover only the signed-out `/requests` shell at CSS viewport widths 390,
+768 and 1440px; authenticated response rendering is not browser-verified. A
+local check found no service at `127.0.0.1:4000`, so there is no live API
+integration result. Draft, submit, uploads and correction actions remain
+unconnected; Phase 3 blockers above remain open.
+The backend audit entity permits `previousStatus` to be null, despite the
+history response DTO's non-null example. The request-history UI now accepts
+that value and labels it “Initial state”; its test uses a mocked response.
+Empty stage comments are accepted as display data. The live backend remained
+unavailable at 127.0.0.1:4000 during this worktree's validation, so these
+source-derived cases still need real response verification.

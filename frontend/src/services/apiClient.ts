@@ -70,12 +70,17 @@ export async function requestJson<T>(
     method?: 'GET' | 'POST';
     signal?: AbortSignal;
     token?: string;
+    query?: Readonly<Record<string, string>>;
   } = {},
 ): Promise<T> {
-  const url = endpoint(base, path);
+  const url = new URL(endpoint(base, path));
+  if (options.query) {
+    for (const [key, value] of Object.entries(options.query))
+      url.searchParams.set(key, value);
+  }
   let response: Response;
   try {
-    response = await fetch(url, {
+    response = await fetch(url.href, {
       method: options.method ?? 'GET',
       headers: options.token
         ? { Authorization: `Bearer ${options.token}` }
@@ -115,6 +120,7 @@ export interface ApiClient {
     path: string,
     decode: (value: unknown) => T,
     signal?: AbortSignal,
+    query?: Readonly<Record<string, string>>,
   ): Promise<T>;
 }
 export function createApiClient(
@@ -123,13 +129,14 @@ export function createApiClient(
   onUnauthorized: () => void,
 ): ApiClient {
   return {
-    async get(path, decode, signal) {
+    async get(path, decode, signal, query) {
       const token = getToken();
       if (!token) throw new ApiError('unauthorized');
       try {
         return await requestJson(base, path, decode, {
           token,
           ...(signal ? { signal } : {}),
+          ...(query ? { query } : {}),
         });
       } catch (error) {
         if (error instanceof ApiError && error.kind === 'unauthorized')
