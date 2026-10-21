@@ -11,6 +11,7 @@ describe('TrackingHistoryService', () => {
   let service: TrackingHistoryService;
   let mockRequestRepo: any;
   let mockAuditEventRepo: any;
+  let mockQueryBuilder: any;
 
   const mockApplicant: User = {
     id: 'user-lecturer-1',
@@ -89,19 +90,67 @@ describe('TrackingHistoryService', () => {
     ],
   };
 
+  const sampleReviewedRequest: Request = {
+    ...sampleRequest,
+    id: 'req-reviewed-1',
+    trackingNumber: 'UTR-2026-0002',
+    status: RequestStatus.UNDER_REVIEW,
+    stageHistory: [
+      {
+        stageKey: 'SUBMISSION',
+        stageName: 'Lecturer Submission',
+        stageOrder: 0,
+        requiredRole: UserRole.LECTURER,
+        action: StageAction.APPROVED,
+        actorId: mockApplicant.id,
+        enteredAt: new Date('2026-10-21T00:00:00Z'),
+        completedAt: new Date('2026-10-21T00:00:00Z'),
+        comments: 'Initial submission',
+      } as any,
+      {
+        stageKey: 'HEAD_OF_DEPARTMENT',
+        stageName: 'Head of Department Recommendation',
+        stageOrder: 1,
+        requiredRole: UserRole.HOD,
+        action: StageAction.APPROVED,
+        actorId: 'hod-1',
+        enteredAt: new Date('2026-10-21T00:00:00Z'),
+        completedAt: new Date('2026-10-21T01:00:00Z'),
+        comments: 'Recommended for approval',
+      } as any,
+    ],
+    auditEvents: [
+      {
+        id: 'evt-2',
+        actionType: 'HOD_RECOMMEND',
+        actorName: 'Prof. Perera',
+        actorRole: 'HOD',
+        previousStatus: 'UNDER_REVIEW',
+        newStatus: 'UNDER_REVIEW',
+        fieldDiff: null,
+        comment: 'Recommended for approval',
+        createdAt: new Date('2026-10-21T01:00:00Z'),
+      } as any,
+    ],
+  };
+
   beforeEach(async () => {
+    mockQueryBuilder = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      setParameter: jest.fn().mockReturnThis(),
+      getManyAndCount: jest.fn().mockResolvedValue([[sampleRequest], 1]),
+      getMany: jest.fn().mockResolvedValue([sampleRequest]),
+    };
+
     mockRequestRepo = {
       findOne: jest.fn(),
       findAndCount: jest.fn().mockResolvedValue([[sampleRequest], 1]),
-      createQueryBuilder: jest.fn().mockReturnValue({
-        leftJoinAndSelect: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        skip: jest.fn().mockReturnThis(),
-        take: jest.fn().mockReturnThis(),
-        getManyAndCount: jest.fn().mockResolvedValue([[sampleRequest], 1]),
-      }),
+      createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
     };
 
     mockAuditEventRepo = {
@@ -268,6 +317,89 @@ describe('TrackingHistoryService', () => {
       const result = await service.getPendingQueue(hodWithoutDept, 1, 10);
       expect(result.data).toHaveLength(0);
       expect(result.meta.total).toBe(0);
+    });
+  });
+
+  describe('getReviewHistory', () => {
+    it('should return review history with summary counts for HOD', async () => {
+      mockQueryBuilder.getMany.mockResolvedValue([sampleReviewedRequest]);
+      const hodUser: User = {
+        ...mockApplicant,
+        id: 'hod-1',
+        role: UserRole.HOD,
+        departmentId: 'dept-com-1',
+      };
+
+      const result = await service.getReviewHistory(hodUser, 1, 10);
+
+      expect(mockRequestRepo.createQueryBuilder).toHaveBeenCalled();
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].id).toBe('req-reviewed-1');
+      expect(result.data[0].trackingNumber).toBe('UTR-2026-0002');
+      expect(result.data[0].decision).toBe('APPROVED');
+      expect(result.data[0].events).toHaveLength(1);
+      expect(result.meta.summaryCounts.approved).toBe(1);
+      expect(result.meta.summaryCounts.returned).toBe(0);
+      expect(result.meta.summaryCounts.rejected).toBe(0);
+    });
+
+    it('should return empty review history for LECTURER role', async () => {
+      const result = await service.getReviewHistory(mockApplicant, 1, 10);
+      expect(result.data).toHaveLength(0);
+      expect(result.meta.total).toBe(0);
+      expect(result.meta.summaryCounts.approved).toBe(0);
+    });
+
+    it('should return empty review history if HOD lacks departmentId (fail-closed)', async () => {
+      const hodWithoutDept: User = {
+        ...mockApplicant,
+        id: 'hod-nodept',
+        role: UserRole.HOD,
+        departmentId: null as any,
+      };
+
+      const result = await service.getReviewHistory(hodWithoutDept, 1, 10);
+      expect(result.data).toHaveLength(0);
+      expect(result.meta.total).toBe(0);
+      expect(result.meta.summaryCounts.approved).toBe(0);
+    });
+
+    it('should filter by decision correctly', async () => {
+      const returnedRequest: Request = {
+        ...sampleReviewedRequest,
+        id: 'req-returned-1',
+        status: RequestStatus.RETURNED_FOR_CORRECTION,
+      };
+      mockQueryBuilder.getMany.mockResolvedValue([sampleReviewedRequest, returnedRequest]);
+      const hodUser: User = {
+        ...mockApplicant,
+        id: 'hod-1',
+        role: UserRole.HOD,
+        departmentId: 'dept-com-1',
+      };
+
+      const result = await service.getReviewHistory(hodUser, 1, 10, 'RETURNED_FOR_CORRECTION');
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].id).toBe('req-returned-1');
+      expect(result.meta.total).toBe(1);
+      expect(result.meta.summaryCounts.approved).toBe(1);
+      expect(result.meta.summaryCounts.returned).toBe(1);
+    });
+
+    it('should apply search filter when provided', async () => {
+      mockQueryBuilder.getMany.mockResolvedValue([sampleReviewedRequest]);
+      const hodUser: User = {
+        ...mockApplicant,
+        id: 'hod-1',
+        role: UserRole.HOD,
+        departmentId: 'dept-com-1',
+      };
+
+      await service.getReviewHistory(hodUser, 1, 10, 'all', 'UTR-2026');
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('request.trackingNumber ILIKE :search'),
+        { search: '%UTR-2026%' },
+      );
     });
   });
 });

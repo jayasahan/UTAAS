@@ -18,6 +18,7 @@ describe('TrackingHistoryController', () => {
       getAuditHistory: jest.fn().mockResolvedValue({ events: [] }),
       getMyRequests: jest.fn().mockResolvedValue({ data: [], meta: { total: 0 } }),
       getPendingQueue: jest.fn().mockResolvedValue({ data: [], meta: { total: 0 } }),
+      getReviewHistory: jest.fn().mockResolvedValue({ data: [], meta: { total: 0, summaryCounts: { approved: 0, returned: 0, rejected: 0 } } }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -61,6 +62,19 @@ describe('TrackingHistoryController', () => {
     it('should call trackingHistoryService.getPendingQueue with default pagination', async () => {
       await controller.getPendingQueue(mockUser);
       expect(mockTrackingService.getPendingQueue).toHaveBeenCalledWith(mockUser, 1, 10);
+    });
+  });
+
+  describe('getReviewHistory', () => {
+    it('should call trackingHistoryService.getReviewHistory with params', async () => {
+      await controller.getReviewHistory(mockUser, 2, 20, 'APPROVED', 'claim');
+      expect(mockTrackingService.getReviewHistory).toHaveBeenCalledWith(
+        mockUser,
+        2,
+        20,
+        'APPROVED',
+        'claim',
+      );
     });
   });
 });
