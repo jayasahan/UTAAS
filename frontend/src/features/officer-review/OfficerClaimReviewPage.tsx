@@ -13,6 +13,11 @@ import {
   type ReviewDocumentMetadata,
 } from './contracts';
 import { OfficerClaimReviewView } from './OfficerClaimReviewView';
+import {
+  decodeWorkflowActionResult,
+  resolveWorkflowExpectation,
+} from './workflowActions';
+import type { WorkflowActionRequest } from './workflowActions';
 
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -131,9 +136,21 @@ export function OfficerClaimReviewPage() {
     null,
   );
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [decisionNotice, setDecisionNotice] = useState<{
+    requestId: string;
+    message: string;
+  } | null>(null);
+  const visibleDecisionNotice =
+    decisionNotice !== null && decisionNotice.requestId === requestId
+      ? decisionNotice.message
+      : null;
 
   const resources = [detail, tracking, history] as const;
-  const retry = () => resources.forEach((resource) => resource.retry());
+  const retry = useCallback(() => {
+    detail.retry();
+    tracking.retry();
+    history.retry();
+  }, [detail, history, tracking]);
   const reviewResult = useMemo(() => {
     if (
       !reviewerRole ||
@@ -201,6 +218,35 @@ export function OfficerClaimReviewPage() {
     [client, reviewResult.review],
   );
 
+  const executeDecision = useCallback(
+    async (request: WorkflowActionRequest) => {
+      const review = reviewResult.review;
+      if (!client || !requestId || !review)
+        throw new Error('The verified review data is no longer available.');
+      const expectation = resolveWorkflowExpectation(review, request);
+      if (!expectation)
+        throw new Error(
+          'This action is not available for the current workflow stage.',
+        );
+      const result = await client.post(
+        '/requests/' + requestId + '/actions',
+        request,
+        (value) => decodeWorkflowActionResult(value, review, request),
+      );
+      const message =
+        result.status === 'SETTLED'
+          ? 'Final settlement was recorded by the server.'
+          : result.status === 'RETURNED_FOR_CORRECTION'
+            ? 'The claim was returned for correction to ' +
+              (result.currentStageKey === 'HEAD_OF_DEPARTMENT'
+                ? 'the Head of Department.'
+                : 'the lecturer.')
+            : 'Approval was recorded by the server. Review data is refreshing.';
+      setDecisionNotice({ requestId, message });
+      retry();
+    },
+    [client, requestId, reviewResult.review, retry],
+  );
   if (!validRequestId)
     return (
       <OfficerAccessFeedback>
@@ -239,27 +285,43 @@ export function OfficerClaimReviewPage() {
   return (
     <OfficerAccessFeedback>
       {isLoading ? (
-        <LoadingReview />
+        <div className="space-y-4">
+          {visibleDecisionNotice && (
+            <Alert title="Decision recorded" tone="success">
+              <p>{visibleDecisionNotice}</p>
+            </Alert>
+          )}
+          <LoadingReview />
+        </div>
       ) : reviewResult.review ? (
         <OfficerClaimReviewView
           review={reviewResult.review}
+          onExecuteDecision={executeDecision}
+          decisionNotice={visibleDecisionNotice}
           onDownload={onDownload}
           downloadingFilename={downloadingFilename}
           downloadError={downloadError}
         />
       ) : (
-        <ReviewUnavailable
-          requestId={requestId}
-          title={
-            reviewResult.invalid
-              ? 'Review data could not be verified'
-              : missing && !failure
-                ? 'Request not found'
-                : errorTitle
-          }
-          message={errorMessage}
-          onRetry={retry}
-        />
+        <>
+          {visibleDecisionNotice && (
+            <Alert title="Decision recorded" tone="success">
+              <p>{visibleDecisionNotice}</p>
+            </Alert>
+          )}
+          <ReviewUnavailable
+            requestId={requestId}
+            title={
+              reviewResult.invalid
+                ? 'Review data could not be verified'
+                : missing && !failure
+                  ? 'Request not found'
+                  : errorTitle
+            }
+            message={errorMessage}
+            onRetry={retry}
+          />
+        </>
       )}
     </OfficerAccessFeedback>
   );

@@ -1,6 +1,13 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import type { StaffProfile } from '../../auth/contracts';
 import { SessionContext } from '../../auth/session';
 import type { ApiClient } from '../../services/apiClient';
@@ -61,10 +68,13 @@ function renderReviewPage(
     failPath?: string;
     holdDetail?: boolean;
     mismatchHistory?: boolean;
+    mismatchStage?: boolean;
   } = {},
 ) {
   let failedOnce = false;
-  const payloads: Record<string, unknown> = responses();
+  const payloads: Record<string, unknown> = JSON.parse(
+    JSON.stringify(responses()),
+  ) as Record<string, unknown>;
   const get = vi.fn(
     async (path: string, decode: (value: unknown) => unknown) => {
       if (path === detailPath && options.holdDetail)
@@ -80,11 +90,90 @@ function renderReviewPage(
           requestId: 'c6a51b21-71e2-47d0-b5cb-965b8c4af922',
         };
       }
+      if (path === detailPath && options.mismatchStage && value) {
+        value = { ...(value as object), currentStageKey: 'DEAN' };
+      }
       if (!value) throw new Error(`Unexpected API request: ${path}`);
       return decode(value);
     },
   );
-  const client = { get, downloadDocument: vi.fn() } as unknown as ApiClient;
+  const post = vi.fn(
+    async (
+      _path: string,
+      body: unknown,
+      decode: (value: unknown) => unknown,
+    ) => {
+      const action = (body as { action?: string }).action;
+      const targetReturnRole = (body as { targetReturnRole?: string })
+        .targetReturnRole;
+      const targetStage =
+        action === 'SETTLE'
+          ? 'SETTLED'
+          : action === 'APPROVE_PAYOUT'
+            ? 'ASSISTANT_BURSAR'
+            : action === 'REJECT_RETURN'
+              ? targetReturnRole === 'HOD'
+                ? 'HEAD_OF_DEPARTMENT'
+                : 'LECTURER_CORRECTION'
+              : 'DEAN';
+      const status =
+        action === 'SETTLE'
+          ? 'SETTLED'
+          : action === 'REJECT_RETURN'
+            ? 'RETURNED_FOR_CORRECTION'
+            : 'UNDER_REVIEW';
+      const result = decode({
+        id: syntheticOfficerReview.id,
+        trackingNumber: syntheticOfficerReview.trackingNumber,
+        status,
+        currentStageKey: targetStage,
+      });
+      const detail = payloads[detailPath] as Record<string, unknown>;
+      detail.currentStageKey = targetStage;
+      detail.status = status;
+      const tracking = payloads[trackingPath] as Record<string, unknown>;
+      tracking.status = status;
+      if (action === 'APPROVE' || action === 'REJECT_RETURN') {
+        const returned = action === 'REJECT_RETURN';
+        tracking.currentStage = {
+          key: targetStage,
+          name:
+            targetStage === 'DEAN'
+              ? 'Dean approval'
+              : targetStage === 'HEAD_OF_DEPARTMENT'
+                ? 'Head of Department review'
+                : 'Lecturer correction',
+          order: targetStage === 'DEAN' ? 2 : 1,
+          assignedRole:
+            targetStage === 'DEAN'
+              ? 'DEAN'
+              : targetStage === 'HEAD_OF_DEPARTMENT'
+                ? 'HOD'
+                : 'LECTURER',
+        };
+        tracking.stages = (
+          tracking.stages as Array<Record<string, unknown>>
+        ).map((stage) => ({
+          ...stage,
+          status: returned
+            ? stage.key === 'HEAD_OF_DEPARTMENT'
+              ? 'RETURNED'
+              : stage.status
+            : stage.key === 'HEAD_OF_DEPARTMENT'
+              ? 'APPROVED'
+              : stage.key === 'DEAN'
+                ? 'IN_PROGRESS'
+                : stage.status,
+        }));
+      }
+      return result;
+    },
+  );
+  const client = {
+    get,
+    post,
+    downloadDocument: vi.fn(),
+  } as unknown as ApiClient;
   render(
     <SessionContext.Provider
       value={{ status: 'authenticated', message: '', client, version: 1 }}
@@ -103,7 +192,7 @@ function renderReviewPage(
       </MemoryRouter>
     </SessionContext.Provider>,
   );
-  return get;
+  return Object.assign(get, { post });
 }
 
 afterEach(() => {
@@ -112,6 +201,72 @@ afterEach(() => {
 });
 
 describe('Officer Claim Review', () => {
+  it('posts an authenticated approval only after confirmation and refreshes server state', async () => {
+    const get = renderReviewPage();
+    expect(await screen.findByText('Dr. Asha Example')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+    expect(get.post).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm approval' }));
+    await waitFor(() =>
+      expect(get.post).toHaveBeenCalledWith(
+        '/requests/' + requestId + '/actions',
+        { action: 'APPROVE' },
+        expect.any(Function),
+      ),
+    );
+    expect(
+      await screen.findByText(
+        'Approval was recorded by the server. Review data is refreshing.',
+      ),
+    ).toBeVisible();
+    expect(
+      await screen.findByText(
+        'No decision action is available for this role, request status, and active workflow stage.',
+      ),
+    ).toBeVisible();
+  });
+  it('posts a return with required comments and confirms the backend correction route', async () => {
+    const user = userEvent.setup();
+    const get = renderReviewPage();
+    expect(await screen.findByText('Dr. Asha Example')).toBeVisible();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Return for correction' }),
+    );
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: /Section requiring correction/ }),
+      'PAPER_DETAILS',
+    );
+    await user.type(
+      screen.getByRole('textbox', { name: /Required correction/ }),
+      'Confirm the script marking quantity.',
+    );
+    await user.click(screen.getByRole('button', { name: 'Confirm Return' }));
+
+    await waitFor(() =>
+      expect(get.post).toHaveBeenCalledWith(
+        '/requests/' + requestId + '/actions',
+        {
+          action: 'REJECT_RETURN',
+          comments:
+            'Paper setting & marking details: Confirm the script marking quantity.',
+          targetReturnRole: 'LECTURER',
+        },
+        expect.any(Function),
+      ),
+    );
+    expect(
+      await screen.findByText(
+        'The claim was returned for correction to the lecturer.',
+      ),
+    ).toBeVisible();
+    expect(
+      await screen.findByText(
+        'No decision action is available for this role, request status, and active workflow stage.',
+      ),
+    ).toBeVisible();
+  });
   it('renders the authenticated detail, tracking and history responses together', async () => {
     const get = renderReviewPage();
     expect(await screen.findByText('Dr. Asha Example')).toBeVisible();
@@ -136,9 +291,8 @@ describe('Officer Claim Review', () => {
     expect(get.mock.calls.map(([path]) => path).sort()).toEqual(
       ['/auth/me', detailPath, trackingPath, historyPath].sort(),
     );
-    expect(
-      screen.queryByRole('button', { name: /approve|reject|return/i }),
-    ).toBeNull();
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: /reject/i })).toBeNull();
   });
 
   it('shows loading before all review responses are available', async () => {
@@ -228,6 +382,13 @@ describe('Officer Claim Review', () => {
     expect(screen.getByText(/responses do not match/)).toBeVisible();
   });
 
+  it('rejects detail data whose active stage differs from tracking', async () => {
+    renderReviewPage(hod, { mismatchStage: true });
+    expect(
+      await screen.findByText('Review data could not be verified'),
+    ).toBeVisible();
+    expect(screen.getByText(/responses do not match/)).toBeVisible();
+  });
   it('renders the development fixture as read-only and without a download action', () => {
     render(
       <MemoryRouter>

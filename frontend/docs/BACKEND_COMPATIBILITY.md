@@ -522,3 +522,90 @@ merged and its implementation/tests were inspected in `origin/mvp`; backend
 behavior has not been exercised against a running authenticated server.
 Automated frontend tests use mocked responses. Document association's
 substring lookup remains the noted backend hardening limitation.
+
+
+## Officer workflow decisions and updated issues — 2026-10-22
+
+Source inspection was performed against origin/mvp at 6a5f287c4af340b9b1a171371a27125a7caf3a20. The latest history includes the merged request-scope changes associated with backend PR #28, including HOD department-scope failure closed when the profile or request department is missing. GitHub issues #26 and #27 were checked with their comments and linked pull requests: both remain open and have no comments or linked closing PR at this inspection.
+
+The authenticated action route is POST /api/v1/requests/:id/actions. Its controller uses JwtAuthGuard and UUID parsing and returns the updated Request entity. TransitionActionDto accepts action plus optional comments, targetReturnRole, and updatedFormData. The backend service loads the request and active workflow stage, checks role and HOD department scope for stage actions, and tests exercise allowed transitions and forbidden role/department cases. The UI treats backend authorization as authoritative; client-side role/stage checks only control presentation.
+
+| Action | Verified backend behavior in merged source/tests | Frontend behavior |
+| --- | --- | --- |
+| APPROVE | Requires UNDER_REVIEW; active stage role and HOD department scope; advances to the next ordered stage; returns Request with updated currentStageKey. Tests cover HOD advancement, wrong role, and cross-department HOD. | Enabled for HOD, Dean, and Examination Officer only when profile role, request/tracking stage, and stage status agree and the next ordered stage is pending. |
+| APPROVE_PAYOUT | Requires UNDER_REVIEW, FINANCIAL_OFFICE stage, and Financial Officer role; opens Assistant Bursar stage. Service tests cover the transition. | Enabled only for the Financial Officer at FINANCIAL_OFFICE with the Assistant Bursar stage pending. |
+| SETTLE | Requires Assistant Bursar stage and role; returns status SETTLED and stage SETTLED; service tests cover the result. The service does not explicitly guard that request.status is UNDER_REVIEW before settlement. | Shown only when the decoded request is UNDER_REVIEW and Assistant Bursar is the matching active stage. The missing server status precondition is a backend hardening item; the frontend gate is not a security boundary. |
+| REJECT_RETURN | DTO comments and targetReturnRole are optional. Service uses a fixed Lecturer target for HOD; later stages route to Lecturer only when explicitly requested and otherwise route to HOD. The DTO does not enforce mandatory explanation or target-role policy, and tests do not cover missing comments or invalid target combinations. | Return dialog is presentation-only. Confirm Return is disabled; no action request is sent while Issue #27 is unresolved. |
+| HOD editing | No verified direct-edit endpoint or DTO contract was found. | Edit permitted fields remains disabled. |
+
+The frontend sends only the verified action and optional decision comments. It accepts a success only when the updated request response matches the request UUID, tracking number, expected status, and expected next stage. The existing API client handles bearer authentication and sanitized unauthorized/server failures. This integration is source-verified and mocked in frontend tests; no live authenticated mutation was exercised.
+
+GitHub issue #26 requests GET /api/v1/requests/review-history?page=&limit= scoped to the authenticated reviewer. That officer-specific listing endpoint is not present in origin/mvp. Keep production Officer Review History listing unavailable and handle its integration in a separate PR once a merged, source-verified contract exists. General per-request history is not a substitute.
+
+GitHub issue #27 requests mandatory return comments, validated correction targets, resubmission validation/recalculation, and a defined HOD editing contract. These requirements are not complete in merged source. Do not enable live returns, correction resubmission, or HOD editing until the backend contract and tests enforce those policies. Request-level authorization remains backend-owned; the frontend must never rely on presentation checks for protection.
+## Officer workflow contract update — issues #26 and #27 (2026-10-22)
+
+Verified the merged implementation in latest fetched origin/mvp
+(f5953a596aae529f833cdc889f6fb906e2f34024), including backend PR
+[#30](https://github.com/jayasahan/UTAAS/pull/30) for
+[issue #26](https://github.com/jayasahan/UTAAS/issues/26) and PR
+[#31](https://github.com/jayasahan/UTAAS/pull/31) for
+[issue #27](https://github.com/jayasahan/UTAAS/issues/27). The issue comments
+confirm closure; the statements below are based on source/test inspection,
+not issue status alone. Backend tests were inspected but not run in this
+frontend task.
+
+### Workflow actions: POST /api/v1/requests/:id/actions
+
+The controller uses JwtAuthGuard, ParseUUIDPipe, and the authenticated
+CurrentUser. It returns the updated Request entity. TransitionActionDto defines
+action, optional comments, optional targetReturnRole, and optional generic
+updatedFormData.
+
+| UI role | Verified action and conditions | Frontend behavior |
+| --- | --- | --- |
+| HOD | APPROVE at active HEAD_OF_DEPARTMENT stage; service checks stage role and fails closed unless the HOD and applicant department IDs match. | Enabled only for matching authenticated role/stage and UNDER_REVIEW response state. |
+| Dean | APPROVE at the active DEAN stage. | Enabled only when current role/stage data agree and the next stage is pending. |
+| Examination Officer | APPROVE at the active EXAMINATION_OFFICE stage. | Enabled only when current role/stage data agree and the next stage is pending. |
+| Financial Officer | APPROVE_PAYOUT at FINANCIAL_OFFICE; advances to ASSISTANT_BURSAR. | Enabled only when the Assistant Bursar stage is pending. |
+| Assistant Bursar | SETTLE at ASSISTANT_BURSAR; sets status and stage to SETTLED. | Exposed as Final Approve only at the active Assistant Bursar stage. The service checks role/stage but has no explicit UNDER_REVIEW status guard in handleSettle; UI checks status but is not a security boundary. |
+| HOD, Dean, Examination Officer, Financial Officer | REJECT_RETURN requires nonblank comments. HOD target is fixed to LECTURER_CORRECTION; later office targets are HEAD_OF_DEPARTMENT by default or LECTURER_CORRECTION when targetReturnRole is LECTURER. Only HOD and LECTURER targets are accepted for later offices. HOD role and department scope are checked. | Enabled for the first four roles. The UI requires a section plus explanation, composes the comments field, fixes HOD target to LECTURER, and makes later reviewers explicitly choose HOD or LECTURER. The API response must confirm status and resulting currentStageKey. |
+| Assistant Bursar | The service supports REJECT_RETURN at the active stage with the same later-office target rules. | Not displayed because the PRIMARY Assistant Bursar design provides Final Approve only. |
+
+The merged workflow tests include blank/missing return comments, invalid HOD
+and later-office targets, allowed HOD/lecturer routes, HOD direct-edit fee
+recalculation, non-HOD edit rejection, resubmission fee recalculation,
+zero/negative total rejection, and correction resubmission role/department
+checks.
+
+HOD direct editing is only partially specified for frontend use. The service
+accepts updatedFormData during HOD approval and recalculates official fees, but
+TransitionActionDto uses Record<string, any> and the service does not define a
+field allowlist or field-level DTO validation. The frontend therefore keeps
+Edit permitted fields disabled and does not send updatedFormData pending a
+backend-owned field schema.
+
+Frontend sends requests only through the existing in-memory bearer-authenticated
+API client. Successful responses are decoded against request ID, tracking
+number, status, and expected stage; HTTP 401/403/404, server validation, and
+network errors remain errors. Mocked tests verify the behavior; live
+authenticated mutations were not tested.
+
+### Officer completed review history: GET /api/v1/requests/review-history
+
+PR #30 adds JWT-protected pagination (page, limit), optional decision (all,
+APPROVED, RETURNED_FOR_CORRECTION, REJECTED) and search query parameters. The
+response is data plus meta (total, page, limit, totalPages, summaryCounts);
+each entry includes request/applicant/department summary, decision, date,
+amount, and chronological audit events. Source returns an empty result for
+lecturers and fails closed for HODs without departmentId; HOD results are
+filtered to the applicant department. Reviewer-role stages are filtered to
+completed stage history.
+
+A scope clarification remains before integrating this listing: the merged
+query matches a completed stage by reviewer role/stage key, not by the
+authenticated reviewer's actorId. It is role-stage scoped rather than
+demonstrably limited to records personally handled by a named officer. Keep
+history integration in a separate PR after confirming whether role-wide
+history is intended or actor-level scoping is required. The endpoint and DTO
+are available; live integration is unverified.

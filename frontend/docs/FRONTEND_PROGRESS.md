@@ -147,7 +147,7 @@ IDs, evidence IDs, decision IDs (D), or backend dependency IDs (API).
 | FE-20 | Correction detail and permitted editing | P0       | FE-17, FE-19; D3, D5          | NS    | Returning reviewer/reason prominent; correction sections/fields follow agreed permissions; retain existing documents and approvals                              | E0; returned-by-HOD/Exam/Finance scenarios                                                                 |
 | FE-21 | Review and resubmit corrections         | P0       | FE-20, FE-15; API5            | NS    | Review corrected values and reconfirm declaration; resubmit to same returning officer/stage; no replay of approved stages; refresh history                      | E0; Exam/Finance direct-resubmission E2E evidence required                                                 |
 | FE-22 | Officer work queues                     | P0       | FE-08, FE-26; API4            | NS    | HOD/Dean/Exam/Finance/Bursar queues and request links; correct department/faculty scope; loading/error/empty and supported pagination                           | E0; all reviewer roles and forbidden-scope cases                                                           |
-| FE-23 | Officer detail and review actions       | P0       | FE-22, FE-17, FE-19; API5, D3 | NS    | Read-only claim/evidence review; approved role/stage actions only; comments required for return; confirmation, pending and failure states                       | E0; no invented reject action; transition/authorization tests                                              |
+| FE-23 | Officer detail and review actions | P0 | FE-22, FE-17, FE-19; API5, D3 | I | Read-only claim/evidence review; approved role/stage actions only; required return comments and valid target; confirmation, pending and failure states | Source-verified against merged PR #31; 31 focused mocked tests pass; no live mutation test |
 | FE-24 | Finance/Bursar settlement visibility    | P0       | FE-23, FE-18; API5, D8        | NS    | Distinguish finance payout authorization from Bursar settlement; show server amount/status and available settlement history; no claim of payment before SETTLED | E0; full six-stage forward path and settled read-only view                                                 |
 | FE-25 | Direct link/query UI                    | P1       | FE-17; API5, D7               | B     | Lecturer-to-Exam/Finance clarification behavior, recipient, thread/history and permissions agreed; querying does not change active approval stage               | E0; DIRECT_QUERY exists, conversation contract unresolved                                                  |
 
@@ -828,3 +828,109 @@ changed. Playwright generated an untracked console log and page snapshot in the
 original persistence checkout; both were left in place. Its pre-existing
 uncommitted changes and recovery stash remain intact. This feature is in a
 separate worktree.
+
+
+## Officer Decision UI — initial implementation snapshot (2026-10-22)
+
+Worktree branch: feature/frontend-officer-decision-ui, based on origin/mvp at
+6a5f287c4af340b9b1a171371a27125a7caf3a20. FE-23 is now in progress. This
+records frontend implementation and mocked verification separately from live
+backend integration, independent review, CI, QA, and merge.
+
+The existing Officer Claim Review screen now has a Figma-aligned decision
+section. It offers HOD, Dean, and Examination Officer approval as APPROVE;
+Financial Officer payout authorization as APPROVE_PAYOUT; and Assistant
+Bursar final approval as SETTLE. Each action is gated by authenticated role,
+UNDER_REVIEW status, matching request/tracking current stage, IN_PROGRESS
+stage status, and the verified next-stage response expectation. The UI does
+not offer the backend ADMIN bypass. Approval requires an explicit confirmation
+dialog and accepts optional decision comments. Successful responses are
+validated against request ID, tracking number, resulting status, and next stage
+before the page refreshes.
+
+Return for correction is a PRIMARY-design presentation only. Its section and
+explanation fields have frontend validation, but Confirm Return remains
+disabled because backend Issue #27 is still open and the current DTO accepts
+comments and targets as optional without validated correction routing. HOD
+editing is displayed as unavailable because no verified editing contract
+exists. No terminal Reject action is offered.
+
+Focused mocked Officer Decision and Claim Review tests pass 25/25 after the
+current implementation. Full-suite, lint, strict TypeScript, formatting, build,
+responsive/browser, keyboard, and git diff validation are pending final run.
+No live authenticated backend mutation was tested. Issue #26 officer-specific
+review history listing remains blocked and should be integrated in a separate
+feature PR if its endpoint is implemented and source-verified. Teammate review,
+CI, QA, commit, push, PR, and merge remain pending.
+## Officer Decision UI — merged backend contract update (2026-10-22)
+
+This update supersedes the initial mid-task snapshot above. Latest fetched
+origin/mvp is f5953a596aae529f833cdc889f6fb906e2f34024. The feature worktree
+remains at 6a5f287c4af340b9b1a171371a27125a7caf3a20 because the user prohibited
+merges and rebases. The intervening upstream commits change backend files only.
+
+GitHub issues [#26](https://github.com/jayasahan/UTAAS/issues/26) and
+[#27](https://github.com/jayasahan/UTAAS/issues/27) are closed after backend
+PRs [#30](https://github.com/jayasahan/UTAAS/pull/30) and
+[#31](https://github.com/jayasahan/UTAAS/pull/31) merged. Their source and
+tests were inspected in latest origin/mvp; backend tests were not rerun.
+
+The production decision section now maps HOD, Dean, and Examination Officer to
+APPROVE, Financial Officer to APPROVE_PAYOUT, and Assistant Bursar to SETTLE.
+All require matching authenticated role, UNDER_REVIEW status, request/tracking
+stage agreement, and an IN_PROGRESS active stage. The UI excludes the Admin
+bypass. Approval is confirmed before submission and its response must match
+request ID, tracking number, result status, and next stage before success is
+shown.
+
+Return for correction is enabled for HOD, Dean, Examination Officer, and
+Financial Officer. The dialog requires a correction section and nonblank
+explanation for each item. It sends those entries as a readable comments string
+and sends a verified target: HOD is fixed to LECTURER; later-stage reviewers
+must explicitly select HOD or LECTURER. The response must confirm the expected
+RETURNED_FOR_CORRECTION stage. Assistant Bursar has no return control in the
+PRIMARY design. No terminal Reject action is offered.
+
+HOD edit remains disabled. PR #31 permits updatedFormData during HOD approval
+and recalculates server fees, but the DTO accepts a generic record and does not
+define a field-level allowlist or validated editable-field schema. The frontend
+does not send updatedFormData until the permitted fields are specified.
+
+Current evidence: 31/31 focused Officer Decision and Claim Review tests pass
+with mocked API responses. Full-suite and final lint/type/build/browser checks
+are recorded after this update below. No authenticated backend mutation was
+performed. Independent review, CI, QA, commit, push, PR, and merge remain
+pending. No backend, CI, or agent files were changed.
+
+### Final verification — 2026-10-22
+
+- Focused Officer Decision and Claim Review tests: 31/31 passed.
+- Full frontend suite: 187/187 passed across 17 files with one worker. A
+  concurrent run had one transient failure in the unrelated development
+  session provider test; that test passed in isolation and the serial full
+  run passed.
+- ESLint, strict TypeScript, production build, and Prettier checks for changed
+  TypeScript/TSX files passed. Whole-file Prettier checks for both Markdown
+  trackers still fail; checking the committed `HEAD` versions confirms that
+  drift predates this task. Historical content was preserved instead of
+  reformatting the full documents.
+- `git diff --check` passed.
+- Browser smoke checks used only the fictional, inert development preview.
+  At CSS viewport widths 390, 768, and 1440, document scroll width did not
+  exceed the viewport. Keyboard Tab reached the sign-in control, the skip
+  link, and the review's Back to Queue link; the focused link showed a solid
+  1.6px blue outline, and Enter on the skip link moved focus to `main-content`.
+  The preview deliberately does not execute workflow actions, so this was not
+  a live decision-dialog or authenticated workflow test.
+- No authenticated backend mutation was tested. Backend PR #31 source and
+  tests were inspected but not run. The implementation was committed as
+  `06158c2aa1b07abfee938a0b45bdb3c66461595f` and pushed to
+  `origin/feature/frontend-officer-decision-ui`. Independent review, CI, QA,
+  PR creation, and merge remain pending.
+
+The feature branch was synchronized onto fetched `origin/mvp`
+`f5953a596aae529f833cdc889f6fb906e2f34024` after preserving its worktree in a
+recoverable stash. The intervening upstream commits changed backend files
+only. The working tree contains the seven modified frontend files and three
+new frontend decision files listed in the task report; no backend, CI, agent,
+or unrelated worktree files changed.
