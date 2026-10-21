@@ -1,11 +1,12 @@
 # UTAAS frontend development progress
 
 Snapshot: 2026-10-21 (Asia/Colombo). Owner: frontend developer, Fernando A.N.V.
-Current branch: `chore/frontend-scaffold`. Scaffold commit: `101184c7ad19d2ae4f9450aed56b101ced5425b3`.
+Current branch: `feature/frontend-design-system` (base `f9f17d8`). Scaffold commit: `101184c7ad19d2ae4f9450aed56b101ced5425b3`.
 The scaffold is implemented, locally validated, committed and pushed.
-[PR #8](https://github.com/jayasahan/UTAAS/pull/8) is open against `mvp`;
-review by `jayasahan` is requested and pending. No reviews have been submitted
-as of this snapshot. The PR is not merged; no frontend feature is accepted as delivered.
+[PR #8](https://github.com/jayasahan/UTAAS/pull/8) merged into `mvp` at
+`f9f17d8e941b3df87bb8f3057e53af96bd7a9a9a`. Reviewer approval and independent QA
+remain UNVERIFIED; the last review query returned no submitted reviews. The new
+design-system changes are local and uncommitted; no feature is accepted as delivered.
 
 Use [FRONTEND_REVIEW_CHECKLIST.md](FRONTEND_REVIEW_CHECKLIST.md) for each task's
 review record. This tracker describes planned work; it does not authorize Git
@@ -41,7 +42,7 @@ evidence. Dependency on a future task alone does not make a task blocked.
 Each task also has independent gates:
 
 - Local verification: NOT RUN / PARTIAL / PASS / FAIL, with evidence and revision.
-- Teammate review before merge: PENDING / IN REVIEW / CHANGES REQUESTED / APPROVED.
+- Teammate review before merge: UNVERIFIED / PENDING / IN REVIEW / CHANGES REQUESTED / APPROVED.
 - Git: UNCOMMITTED / COMMITTED / PUSHED; record commit only when it exists.
 - Formal PR: NOT OPENED / OPEN / CHANGES REQUESTED / APPROVED / MERGED / CLOSED.
 - CI: UNVERIFIED / NOT RUN / RUNNING / PASS / FAIL; identify the checked commit.
@@ -66,7 +67,7 @@ There are 30 equal-weight Sprint 1 tasks below. Do not assign partial credit:
 
 | Scope             | Complete (all gates) | Implemented I | In progress IP | Blocked B | Not started NS | Total |
 | ----------------- | -------------------: | ------------: | -------------: | --------: | -------------: | ----: |
-| Sprint 1          |                    0 |             1 |              1 |         3 |             25 |    30 |
+| Sprint 1          |                    0 |             2 |              3 |         3 |             22 |    30 |
 | Future (excluded) |                    0 |             0 |              0 |         0 |              5 |     5 |
 
 Complete is an overlapping release measure, not an additional implementation
@@ -74,9 +75,9 @@ bucket. I + IP + B + NS = Total.
 
 | Measure                        | Evidence-backed numerator | Percentage |
 | ------------------------------ | ------------------------: | ---------: |
-| Sprint 1 implementation        |                      1/30 |       3.3% |
+| Sprint 1 implementation        |                      2/30 |       6.7% |
 | Teammate approval before merge |                      0/30 |       0.0% |
-| Merged into mvp                |                      0/30 |       0.0% |
+| Merged into mvp                |                      1/30 |       3.3% |
 | QA verified                    |                      0/30 |       0.0% |
 | Complete delivery              |                      0/30 |       0.0% |
 
@@ -90,14 +91,14 @@ IDs, evidence IDs, decision IDs (D), or backend dependency IDs (API).
 
 ### Foundation and design
 
-| ID    | Task                                              | Priority | Depends on   | Impl. | Acceptance criteria                                                                                                                                      | Verification/evidence                                  |
-| ----- | ------------------------------------------------- | -------- | ------------ | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| FE-01 | Scaffold and foundational configuration           | P0       | None         | I     | Vite/React/strict TS, Tailwind, router, ESLint/Prettier, scripts, public env example, maintained folders and placeholder shell; backend/Docker untouched | E1-E4; local PASS; review pending                      |
-| FE-02 | Figma screen and state inventory                  | P0       | D1           | IP    | Inventory current lecturer/officer frames, tokens, states and responsive targets; distinguish PRIMARY, REFERENCE, ARCHIVED and provisional frames        | E5 partial; full inventory outstanding                 |
-| FE-03 | Agree frontend/API contract and permission matrix | P0       | FE-02; D2-D8 | B     | Approved mapping for data, errors, drafts, returns, actions, identity, uploads and settlement; document any unsupported UI                               | E6 source inspection only; decisions unresolved        |
-| FE-04 | Full design token and asset foundations           | P1       | FE-02        | NS    | Figma palette/type/spacing/radius mapped to semantic tokens; local fonts/assets and correct dimensions; contrast verified                                | E0; current shell tokens are only a subset             |
-| FE-05 | Reusable accessible components                    | P1       | FE-04        | NS    | Buttons, inputs/selects, dialogs, tables, badges, alerts, skeletons, upload and history primitives; disabled/error/focus states                          | E0; component interaction and keyboard checks required |
-| FE-06 | Production application shell and routing states   | P1       | FE-02, FE-05 | NS    | Responsive lecturer/officer shells, active navigation, breadcrumbs, route errors/not-found and focus behavior match approved designs                     | E0; FE-01 shell is foundational only                   |
+| ID    | Task                                              | Priority | Depends on   | Impl. | Acceptance criteria                                                                                                                                      | Verification/evidence                                                       |
+| ----- | ------------------------------------------------- | -------- | ------------ | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| FE-01 | Scaffold and foundational configuration           | P0       | None         | I     | Vite/React/strict TS, Tailwind, router, ESLint/Prettier, scripts, public env example, maintained folders and placeholder shell; backend/Docker untouched | E1-E4/E7; local PASS; PR #8 merged; approval/QA unverified                  |
+| FE-02 | Figma screen and state inventory                  | P0       | D1           | IP    | Inventory current lecturer/officer frames, tokens, states and responsive targets; distinguish PRIMARY, REFERENCE, ARCHIVED and provisional frames        | E5 partial; full inventory outstanding                                      |
+| FE-03 | Agree frontend/API contract and permission matrix | P0       | FE-02; D2-D8 | B     | Approved mapping for data, errors, drafts, returns, actions, identity, uploads and settlement; document any unsupported UI                               | E6 source inspection only; decisions unresolved                             |
+| FE-04 | Full design token and asset foundations           | P1       | FE-02        | I     | Figma palette/type/spacing/radius mapped to semantic tokens; local fonts/assets and correct dimensions; contrast verified                                | E10; accessibility fixes locally validated; review/QA pending               |
+| FE-05 | Reusable accessible components                    | P1       | FE-04        | IP    | Buttons, inputs/selects, dialogs, tables, badges, alerts, skeletons, upload and history primitives; disabled/error/focus states                          | E9; core primitives implemented; full task inventory not complete           |
+| FE-06 | Production application shell and routing states   | P1       | FE-02, FE-05 | IP    | Responsive lecturer/officer shells, active navigation, breadcrumbs, route errors/not-found and focus behavior match approved designs                     | E9; layout variants implemented; route/error/focus acceptance still pending |
 
 ### Identity and lecturer workspace
 
@@ -139,7 +140,7 @@ IDs, evidence IDs, decision IDs (D), or backend dependency IDs (API).
 | ----- | ------------------------------------------------ | -------- | --------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | FE-26 | Typed API and shared data-state integration      | P0       | FE-03, FE-07; API1-API5           | NS    | Typed verified DTO mapping, base URL, auth/error handling, cancellation, safe retries and refresh after mutations; accessible loading/retry/empty states                    | E0; no frontend service integration currently                              |
 | FE-27 | Accessibility, responsive and Figma audit        | P1       | FE-04 through FE-25 as delivered  | NS    | WCAG 2.1 AA checks; keyboard/screen reader/focus/contrast; reduced motion; form/table/mobile layouts; screenshots matched to approved frames                                | E0; 390px scaffold check is not full accessibility QA                      |
-| FE-28 | Automated frontend and security regression suite | P0       | FE-13, FE-18, FE-21, FE-23, FE-26 | NS    | Component/integration/E2E tests for claims, totals, draft recovery, all stage actions, returns, IDOR/role boundaries and failure cases; agreed coverage measured            | E0; no frontend test runner or test script installed                       |
+| FE-28 | Automated frontend and security regression suite | P0       | FE-13, FE-18, FE-21, FE-23, FE-26 | NS    | Component/integration/E2E tests for claims, totals, draft recovery, all stage actions, returns, IDOR/role boundaries and failure cases; agreed coverage measured            | E9; 19 starter component tests; workflow suite not implemented             |
 | FE-29 | CI and reproducible frontend delivery checks     | P1       | FE-01, FE-28; D9                  | NS    | npm ci, lint, type-check, build, formatting and appropriate tests required on PRs; lockfile/runtime verified; hosting fallback and env documented                           | E0; existing CI lacks frontend test/format steps and permits some failures |
 | FE-30 | Integrated QA, UAT and Sprint 1 handoff          | P0       | FE-09 through FE-29               | NS    | Live backend six-role journey and failure/return paths verified; teammate and PR approvals, passing CI and mvp merges recorded; QA/UAT sign-off and known issues documented | E0; no frontend QA/UAT or merge evidence                                   |
 
@@ -148,11 +149,13 @@ IDs, evidence IDs, decision IDs (D), or backend dependency IDs (API).
 Each ID must retain its own gate values when it changes. The grouped defaults
 below apply individually, not as a combined approval. Expand ranges as work moves.
 
-| Task IDs            | Local verification | Teammate review              | Git             | Formal PR                                             | CI         | QA      |
-| ------------------- | ------------------ | ---------------------------- | --------------- | ----------------------------------------------------- | ---------- | ------- |
-| FE-01               | PASS, E2-E4 and E7 | PENDING; jayasahan requested | PUSHED, 101184c | OPEN, [#8](https://github.com/jayasahan/UTAAS/pull/8) | UNVERIFIED | NOT RUN |
-| FE-02               | PARTIAL, E5        | PENDING                      | UNCOMMITTED     | NOT OPENED                                            | NOT RUN    | NOT RUN |
-| FE-03 through FE-30 | NOT RUN            | PENDING                      | UNCOMMITTED     | NOT OPENED                                            | NOT RUN    | NOT RUN |
+| Task IDs                   | Local verification | Teammate review | Git             | Formal PR                                               | CI         | QA         |
+| -------------------------- | ------------------ | --------------- | --------------- | ------------------------------------------------------- | ---------- | ---------- |
+| FE-01                      | PASS, E2-E4/E7     | UNVERIFIED      | PUSHED, 101184c | MERGED, [#8](https://github.com/jayasahan/UTAAS/pull/8) | UNVERIFIED | UNVERIFIED |
+| FE-02                      | PARTIAL, E5        | PENDING         | UNCOMMITTED     | NOT OPENED                                              | NOT RUN    | NOT RUN    |
+| FE-03, FE-07 through FE-30 | NOT RUN            | PENDING         | UNCOMMITTED     | NOT OPENED                                              | NOT RUN    | NOT RUN    |
+| FE-04                      | PASS, E10          | PENDING         | UNCOMMITTED     | NOT OPENED                                              | NOT RUN    | NOT RUN    |
+| FE-05/FE-06                | PARTIAL, E9        | PENDING         | UNCOMMITTED     | NOT OPENED                                              | NOT RUN    | NOT RUN    |
 
 ## Evidence register
 
@@ -288,21 +291,21 @@ Complete gate met? (yes/no, evidence):
 | ---------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | 2026-10-21 | Initial tracker from repository inspection and prior scaffold session | FE-01 implemented/local PASS; FE-02 partial discovery; no approvals, commits, pushes, PRs, merges or QA sign-offs |
 
-## Current scaffold PR record
+## Scaffold PR record (merged; prior snapshot below is historical)
 
 - Workflow update (2026-10-21): user requires teammate approval before merging
   through the formal GitHub PR, superseding the earlier pre-push review rule.
 - Scaffold commit: `101184c7ad19d2ae4f9450aed56b101ced5425b3`,
   `chore(frontend): initialize React scaffold`; pushed to `origin/chore/frontend-scaffold`.
 - PR: [#8 — chore(frontend): initialize React scaffold](https://github.com/jayasahan/UTAAS/pull/8).
-- Verified PR base/head: `mvp` / `chore/frontend-scaffold`; state: OPEN, not draft.
-- Reviewer: `jayasahan`; GitHub review request verified. Review status: PENDING.
+- Verified PR base/head: `mvp` / `chore/frontend-scaffold`; state: MERGED at f9f17d8.
+- Reviewer request: `jayasahan` was requested. Reviewer approval: UNVERIFIED; no submitted review in last query.
 - E8 (2026-10-21): GitHub PR metadata and review submissions queried;
   head was `101184c7ad19d2ae4f9450aed56b101ced5425b3`, `merged` was false,
   requested reviewers included `jayasahan`, and submitted reviews were empty.
 - Git author identity: configured human team account `PrabodhaRanawaka`; no
   identity changes made. This does not change frontend ownership.
-- Teammate approval: PENDING. Merge: NOT MERGED. CI: UNVERIFIED. QA: NOT RUN.
+- Teammate approval: UNVERIFIED. Merge: MERGED (#8). CI: UNVERIFIED. QA: UNVERIFIED.
   CI was not checked in this documentation update; no passing result is claimed.
 - E7 (2026-10-21): fresh `npm run lint`, `npm run type-check`,
   `npm run format:check` and `npm run build` passed during PR preparation.
@@ -310,11 +313,71 @@ Complete gate met? (yes/no, evidence):
   realpath restriction. These are local checks, not teammate or CI approval.
 - Scope: frontend foundation and tracking documentation only. No business
   workflows, API integration or automated frontend test suite implemented.
-- This documentation update is submitted to the same feature branch so it is
-  included in PR #8. Approval, merge and QA remain separate evidence gates.
+- The PR #8 tracking update was included as commit 6ac09d7. New design-system work
+  will have its own PR to mvp after user confirmation. Approval and QA are separate gates.
 
 ### PR tracking update
 
 | Date       | Change                                                             | Evidence / gate impact                                                                                                                                                                     |
 | ---------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 2026-10-21 | Record actual PR #8, pushed scaffold commit and requested reviewer | E8 verifies open PR to mvp, jayasahan requested, no submitted reviews and no merge. FE-01 remains I/local PASS; implementation 3.3%, accepted delivery 0.0%. Only this tracker is changed. |
+
+## Design-system implementation evidence (E9, 2026-10-21)
+
+- Branch feature/frontend-design-system equals fetched origin/mvp at base f9f17d8;
+  all inspected backend feature tips are already merged. No synchronization needed.
+- Tokens, buttons, labelled native form controls, cards, feedback, table primitives,
+  request badges, form/workflow steppers, correction banner, controlled dialog and
+  lecturer/officer layout variants implemented as presentation-only components.
+- FE-04 implemented; FE-05 and FE-06 remain IP because broader task acceptance
+  includes additional UI/route-state work. Generic steppers do not complete FE-18
+  API-connected workflow tracking. Starter component tests do not complete FE-28.
+- Local suite: 19 component tests passed; lint, strict type checking and build
+  passed. Initial strict-type/jsdom failures were fixed; tests use an explicit
+  jsdom modal adapter and browser checks verify actual native behavior.
+- Browser: lecturer/officer specimens at 1440/768/390px had no page overflow;
+  form indicator 4/2/1 columns and workflow row/column adaptations observed.
+  Dialog focus wrap initially failed; explicit handler fixed forward/backward
+  wrap. Escape, focus restoration and skip-link focus passed. Existing five
+  routes rendered expected headings, with no page errors in route smoke check.
+- Semantic navy/blue/teal/amber/red against white: 13.57/5.17/5.47/5.02/6.47:1.
+  These targeted checks are not a full WCAG audit. Screen reader, full cross-browser
+  coverage, independent QA, frontend/backend integration and final Figma sign-off
+  have not been performed.
+- See [component usage and Figma sources](DESIGN_SYSTEM.md) and
+  [backend compatibility](BACKEND_COMPATIBILITY.md). Backend ownership restriction
+  applies to all future frontend tasks; incompatibilities are documented only.
+- Implementation 2/30 = 6.7%; merged 1/30 = 3.3%; accepted delivery 0.0%.
+  No design-system commit, push, PR, approval or merge is claimed.
+
+## Design-system review fixes (E10, 2026-10-21)
+
+- FE-04 was reassessed after review found input-boundary/sidebar-focus contrast
+  gaps. Those findings were fixed and targeted regression checks pass; FE-04
+  remains I/local PASS, not reviewer-approved or independently QA-verified.
+- jest-dom pinned 6.9.1, jsdom 28.1.0, Node typings 20.19.43, Rollup override
+  4.62.2. All 220 lockfile Node engine declarations accept Node 20.20.2, including
+  optional platform dependencies. No backend dependencies or CI config changed.
+- Verified prior frontend CI job used Node 20.20.2/npm 10.8.2; exact same versions
+  used locally for clean npm ci --engine-strict, tests, lint, strict types and build.
+  The clean install/audit reported zero vulnerabilities. Local platform is Windows;
+  a Linux CI run of these uncommitted changes is still pending.
+- 29 tests pass, covering exact badge labels and semantic variants, native dialog
+  close/reopening and duplicate-callback prevention, controlled prop closure,
+  actual-token non-text/text contrast, existing controls, navigation and steppers.
+  Vitest CSS inclusion is explicit so contrast tests do not read an empty mock.
+- Browser checked both layouts at 1440/768/390px: no page overflow; connected
+  stages adapt between desktop horizontal and vertical layouts. Native form
+  dismissal, Escape and close button all allow reopening and restore trigger
+  focus; Tab/Shift+Tab remain trapped. Skip link focus passes.
+- Input boundary #64748B has 4.76:1 against white and about 4.55:1 against
+  slate-50. Sidebar and active form-step white focus has 13.57:1 against navy;
+  blue light-surface focus has 5.17:1 against white. Invalid border stays red
+  under hover; disabled controls remain disabled.
+- Solid badges follow component specimen 3:77; soft queue badges follow PRIMARY
+  60:2. Table header variants use #DDEBEF/#E4EDF1. Connected tracking follows
+  PRIMARY 27:47 with the approved desktop horizontal adaptation. See updated
+  DESIGN_SYSTEM.md for deliberate readable typography and responsive differences.
+- No implementation approval, QA certification, new CI success or backend
+  integration success is claimed. Backend findings BC-01 through BC-11 remain
+  open and unchanged. No commit/push/PR/merge was performed.

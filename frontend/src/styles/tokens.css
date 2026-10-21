@@ -1,0 +1,27 @@
+/* Figma 3:16. Approved 36px display resolves the specimen's 40px label discrepancy. */
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --color-brand: #12304a;
+  --color-action: #2563eb;
+  --color-success: #0f766e;
+  --color-warning: #b45309;
+  --color-danger: #b91c1c;
+  --color-canvas: #f1f5f9;
+  --color-surface: #ffffff;
+  --color-ink: #334155;
+  --color-muted: #64748b;
+  --color-border: #cbd5e1;
+  --color-control-border: #64748b;
+  --color-table-header: #ddebef;
+  --color-table-header-officer: #e4edf1;
+  --color-info-subtle: #dbeafe;
+  --color-info-ink: #1d4ed8;
+  --color-warning-subtle: #fef3c7;
+  --color-warning-ink: #92400e;
+  --color-success-subtle: #e4f4ee;
+  --color-success-ink: #065f46;
+  --text-display: 2.25rem;
+  --text-display--line-height: 1.2;
+  --radius-control: 0.5rem;
+  --radius-card: 0.625rem;
+}

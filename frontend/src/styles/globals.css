@@ -2,30 +2,85 @@
 @import '@fontsource/inter/600.css';
 @import '@fontsource/inter/700.css';
 @import 'tailwindcss';
-
-/* Initial shell tokens from the official UTAAS primary lecturer frames. */
-@theme {
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --color-brand: #12304a;
-  --color-action: #2563eb;
-  --color-surface: #f1f5f9;
-}
+@import './tokens.css';
 
 @layer base {
   body {
-    @apply m-0 bg-surface font-sans text-slate-800 antialiased;
+    @apply m-0 bg-canvas font-sans text-ink antialiased;
   }
   a,
   button,
   input,
   select,
-  textarea {
-    @apply focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-action;
+  textarea,
+  [tabindex]:not([tabindex='-1']) {
+    @apply focus-visible:outline-2 focus-visible:outline-offset-4;
+    &:focus-visible {
+      outline-color: var(--focus-color, var(--color-action));
+    }
+  }
+  dialog::backdrop {
+    background: rgb(18 48 74 / 35%);
   }
 }
 
 @layer components {
+  .field-control {
+    @apply w-full rounded-control border border-control-border bg-slate-50 px-3 py-3 text-base text-ink placeholder:text-muted hover:border-ink disabled:cursor-not-allowed disabled:border-border disabled:bg-slate-100 disabled:text-muted aria-invalid:border-danger;
+  }
+  .focus-on-dark {
+    --focus-color: #ffffff;
+  }
+  .ds-table thead th {
+    background: var(--color-table-header);
+  }
+  .ds-table[data-variant='officer'] thead th {
+    background: var(--color-table-header-officer);
+  }
+  .workflow-stage {
+    @apply relative flex min-w-0 flex-1 gap-3 pb-6 last:pb-0 xl:flex-col xl:pb-0;
+  }
+  .workflow-stage:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 32px;
+    bottom: 0;
+    border-left: 2px solid var(--color-border);
+  }
+  .workflow-stage[data-state='completed']::after {
+    border-color: var(--color-success);
+  }
+  .workflow-stage[data-state='returned']::after {
+    border-color: var(--color-warning);
+  }
+  .workflow-stage[data-state='pending']::after {
+    border-style: dashed;
+  }
+  @media (min-width: 80rem) {
+    .workflow-stage:not(:last-child)::after {
+      top: 15px;
+      left: 32px;
+      right: 0;
+      bottom: auto;
+      border-left: 0;
+      border-top-width: 2px;
+      border-top-style: solid;
+    }
+    .workflow-stage[data-state='pending']::after {
+      border-top-style: dashed;
+    }
+  }
   .skip-link {
     @apply sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-3 focus:text-brand;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
