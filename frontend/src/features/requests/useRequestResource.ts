@@ -88,7 +88,7 @@ export function useRequestResource<T>(
       status: 'unavailable',
       data: null,
       message: !client
-        ? 'Sign in using the available development lecturer session to view your requests.'
+        ? 'Sign in through an available authenticated account to view these requests.'
         : 'This request identifier is invalid.',
       retry,
     };

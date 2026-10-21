@@ -45,6 +45,9 @@ function loginResult(expires = Math.floor(Date.now() / 1000) + 3600) {
     user: profile,
   };
 }
+function loginResultWithRole(role: string) {
+  return { ...loginResult(), user: { ...profile, role } };
+}
 function json(value: unknown, status = 200) {
   return new Response(JSON.stringify(value), { status });
 }
@@ -96,6 +99,37 @@ describe('development authentication and read-only integration', () => {
       'signed-out:no client',
     );
     expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it('uses the selected verified mock-login role for development officer access', async () => {
+    const fetcher = vi.fn().mockImplementation((url: string) => {
+      if (url.endsWith('/auth/mock-login/HOD'))
+        return Promise.resolve(json(loginResultWithRole('HOD'), 201));
+      throw new Error('Unexpected test request');
+    });
+    vi.stubGlobal('fetch', fetcher);
+    render(
+      <DevSessionProvider>
+        <Probe />
+      </DevSessionProvider>,
+    );
+    const user = userEvent.setup();
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Development role' }),
+      'HOD',
+    );
+    await user.click(
+      screen.getByRole('button', { name: 'Sign in as development HOD' }),
+    );
+    expect(
+      await screen.findByText(/Development Head of Department session active/),
+    ).toBeVisible();
+    expect(screen.getByTestId('session-state')).toHaveTextContent(
+      'authenticated:client available',
+    );
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://localhost:4000/api/v1/auth/mock-login/HOD',
+      expect.objectContaining({ method: 'POST' }),
+    );
   });
   it('ignores a late protected response after logout', async () => {
     let finish!: (value: Response) => void;
