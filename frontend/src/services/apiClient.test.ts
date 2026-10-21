@@ -4,6 +4,38 @@ import { decodeCircular, decodeProfile } from '../auth/contracts';
 
 afterEach(() => vi.unstubAllGlobals());
 describe('read-only API client', () => {
+  it('sends authenticated JSON POST payloads and query parameters', async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: 'draft-id', status: 'DRAFT' }), {
+        status: 201,
+      }),
+    );
+    vi.stubGlobal('fetch', fetcher);
+    const client = createApiClient(
+      'https://api.example.test/api/v1',
+      () => 'opaque-token',
+      vi.fn(),
+    );
+    const response = await client.post(
+      '/requests/paper-marking/draft',
+      { personal: { fullName: 'Lecturer' } },
+      (value) => value,
+      { draftId: 'draft-id' },
+    );
+    expect(response).toEqual({ id: 'draft-id', status: 'DRAFT' });
+    expect(fetcher).toHaveBeenCalledWith(
+      'https://api.example.test/api/v1/requests/paper-marking/draft?draftId=draft-id',
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer opaque-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ personal: { fullName: 'Lecturer' } }),
+        credentials: 'omit',
+      }),
+    );
+  });
   it('uses bearer headers without cookies, caching or redirects', async () => {
     const fetcher = vi
       .fn()

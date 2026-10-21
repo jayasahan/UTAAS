@@ -99,10 +99,14 @@ export function ApplicationsPage() {
                 <tr key={item.id}>
                   <TableCell>
                     <Link
-                      to={`/requests/${encodeURIComponent(item.id)}`}
+                      to={
+                        item.status === 'DRAFT'
+                          ? `/requests/new?draftId=${encodeURIComponent(item.id)}`
+                          : `/requests/${encodeURIComponent(item.id)}`
+                      }
                       className="font-semibold text-action underline"
                     >
-                      {title(item)}
+                      {item.status === 'DRAFT' ? 'Resume draft' : title(item)}
                     </Link>
                   </TableCell>
                   <TableCell>{item.trackingNumber}</TableCell>

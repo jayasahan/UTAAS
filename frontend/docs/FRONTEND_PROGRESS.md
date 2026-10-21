@@ -1,5 +1,15 @@
 # UTAAS frontend development progress
 
+## Persistence worktree continuation (2026-10-21)
+
+Current working branch: `feature/frontend-paper-marking-persistence-v2`, based on merged `origin/mvp` at `ba37ecce7fb2b9f0302434379621a7b374c7f878`. The original checkout at `E:\Academic Works\Sem 05\Software Project\UTAAS` remains untouched on its prior branch with all uncommitted tracked and untracked files preserved. Request tracking PR #13 and backend contract PR #14 are present in this base.
+
+Separate course code/title fields and validation were selectively carried forward. Stale request-tracking copies were not transferred; merged pages/contracts remain from `mvp`.
+
+Phase 3 evidence: authenticated POST draft create/update and GET-by-ID resume are implemented against PR #14 source contracts. My Requests surfaces DRAFT rows for resume. Mapping keeps per-paper rows separate, preserves course fields and does not send aggregate items. An untouched blank row is omitted; started untitled rows and locally selected files block save to avoid silent loss. Server fee values are not calculated in the browser. Submission and upload remain disabled: document download has no ownership check, and local files are not uploaded. Translation/candidate quantities remain unpriced in the inspected server calculator. These are source-based/mock-tested findings only; live backend behavior was unavailable and has not been verified. No roadmap document exists in the clean `mvp` base.
+
+Validation on Node 25.2.1: `npm ci` completed with 0 reported vulnerabilities; Vitest passed 104/104 across 10 files; ESLint and strict TypeScript passed; Prettier passed for every changed file using the checkout's CRLF-aware `--end-of-line auto` setting; production build passed. `127.0.0.1:4000` was not listening, so live integration was unavailable. Browser/responsive checks were not run. Independent review, CI, live integration and merge are pending.
+
 Snapshot: 2026-10-21 (Asia/Colombo). Owner: frontend developer, Fernando A.N.V.
 Current feature branch: `feature/frontend-request-tracking` from `origin/mvp` at `e1c3f7e`. Scaffold commit: `101184c7ad19d2ae4f9450aed56b101ced5425b3`.
 The scaffold is implemented, locally validated, committed and pushed.

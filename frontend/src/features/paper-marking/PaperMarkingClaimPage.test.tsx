@@ -23,6 +23,8 @@ async function payment(user: ReturnType<typeof userEvent.setup>) {
     'Academic year',
     'Semester',
     'Degree programme',
+    'Course code',
+    'Course title',
     'Examination type',
     'Examiner role',
   ])

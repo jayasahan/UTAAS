@@ -62,7 +62,10 @@ describe('claim validation and estimates', () => {
   it('requires academic fields, paper title, duration and a positive quantity', () => {
     const form = createForm();
     const errors = validateStep(form, 1);
-    expect(errors).toHaveLength(8);
+    expect(errors).toHaveLength(10);
+    expect(errors.map((error) => error.field)).toEqual(
+      expect.arrayContaining(['courseCode', 'courseTitle']),
+    );
     form.papers[0]!.assessmentQuantity = '1.5';
     expect(
       validateStep(form, 1).some((error) =>
