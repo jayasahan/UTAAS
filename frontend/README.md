@@ -5,7 +5,8 @@ there is no authentication, business workflow, or API integration yet.
 
 ## Local development
 
-Use Node.js 20.19+ (20.x) or 22.12+ and npm. From this directory:
+Use Node.js 20.20.2+ (20.x), 22.13+ (22.x), or 24+ and npm. CI currently uses
+Node 20.20.2 with npm 10.8.2. From this directory:
 
 ```sh
 npm ci
@@ -53,3 +54,8 @@ Future interactive views must include accessible loading, error, and empty state
 For production hosting, configure the web server to fall back to `index.html`
 for client-side routes. Run this frontend separately for now; the existing
 backend and Docker Compose configuration are unchanged.
+
+Design-system usage, visual variants and runtime constraints are documented in
+[DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md). Run `npm test` for component and
+contrast regression tests. Before API-connected work, consult
+[BACKEND_COMPATIBILITY.md](docs/BACKEND_COMPATIBILITY.md).
