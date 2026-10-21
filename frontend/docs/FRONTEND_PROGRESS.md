@@ -791,3 +791,40 @@ separately: UI is implemented; production history integration is blocked;
 automated tests are verified; teammate review, CI, QA, and merge are pending.
 No commit, push, or PR was created. Backend, CI, agent files, and other
 worktrees were not modified.
+
+## Officer Claim Review live read integration — 2026-10-22
+
+Branch: `feature/frontend-officer-review-integration`, based on
+`origin/mvp` at `e5270bed5c9447ed93750552d9c974bf77b3e9aa` (includes merged
+backend PR #25 and Officer Review History). GitHub [issue #23](https://github.com/jayasahan/UTAAS/issues/23)
+tracks this frontend integration; [PR #25](https://github.com/jayasahan/UTAAS/pull/25)
+was verified merged and its authorization implementation/tests were inspected.
+
+Implemented production reads for authenticated Paper Marking details, tracking,
+and audit history. Request-specific calls are gated by the existing officer
+profile/role/department check and strict UUID validation. The existing decoder
+combines the three responses only when their request ID, tracking number, and
+status agree. The existing Figma-aligned review view now renders real decoded
+data, with loading, missing-data, unauthorized, forbidden, network, invalid
+response, and retry states. Authenticated binary downloads are enabled only
+for safe filenames supplied by that request detail, through a bearer-auth
+binary client; private backend URLs are not displayed. Read-only scope is
+preserved.
+
+Validation evidence: focused tests passed 45/45 across Officer Claim Review,
+review contract decoding, and API-client binary download tests; the full suite
+passed 168/168 across 16 files. ESLint, strict TypeScript, production build,
+Prettier on all changed TypeScript/TSX files, and `git diff --check` passed.
+The newly appended documentation sections were formatted; a full-file
+Prettier check still flags historical formatting in both long-running Markdown
+documents. Browser smoke checks of the shared review presentation at CSS
+widths 390, 768, and 1440 found no document overflow; keyboard Tab navigation
+reached the development sign-in selector and skip link with visible focus.
+These checks used the fictional development preview only. No officer-
+authenticated local backend session was available (port 4000 was closed), so
+live integration remains unverified. Teammate review, CI, QA, commit, push,
+and PR are pending. No backend, CI, agent, or tracked files in other worktrees
+changed. Playwright generated an untracked console log and page snapshot in the
+original persistence checkout; both were left in place. Its pre-existing
+uncommitted changes and recovery stash remain intact. This feature is in a
+separate worktree.

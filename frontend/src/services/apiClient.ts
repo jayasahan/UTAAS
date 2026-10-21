@@ -225,6 +225,7 @@ export interface ApiClient {
     decode: (value: unknown) => T,
     requestId?: string,
   ): Promise<T>;
+  downloadDocument?(filename: string): Promise<Blob>;
 }
 export function createApiClient(
   base: string | undefined,
@@ -275,6 +276,51 @@ export function createApiClient(
         if (error instanceof ApiError && error.kind === 'unauthorized')
           onUnauthorized();
         throw error;
+      }
+    },
+    async downloadDocument(filename) {
+      if (
+        !/^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$/.test(filename) ||
+        filename.includes('..') ||
+        filename === '.' ||
+        filename === '..'
+      )
+        throw new ApiError('invalid-response');
+      const token = getToken();
+      if (!token) throw new ApiError('unauthorized');
+      const url = new URL(
+        endpoint(base, `/requests/documents/${encodeURIComponent(filename)}`),
+      );
+      let response: Response;
+      try {
+        response = await fetch(url.href, {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'omit',
+          cache: 'no-store',
+          redirect: 'error',
+          referrerPolicy: 'no-referrer',
+        });
+      } catch {
+        throw new ApiError('network');
+      }
+      if (!response.ok) {
+        const kind =
+          response.status === 401
+            ? 'unauthorized'
+            : response.status === 403
+              ? 'forbidden'
+              : response.status === 404
+                ? 'not-found'
+                : 'server';
+        const error = new ApiError(kind, response.status);
+        if (error.kind === 'unauthorized') onUnauthorized();
+        throw error;
+      }
+      try {
+        return await response.blob();
+      } catch {
+        throw new ApiError('network');
       }
     },
   };

@@ -117,8 +117,14 @@ function stageDisplay(review: OfficerClaimReview): WorkflowDisplayStage[] {
 
 export function OfficerClaimReviewView({
   review,
+  onDownload,
+  downloadingFilename,
+  downloadError,
 }: {
   review: OfficerClaimReview;
+  onDownload?: (document: OfficerClaimReview['documents'][number]) => void;
+  downloadingFilename?: string | null;
+  downloadError?: string | null;
 }) {
   return (
     <div className="space-y-6">
@@ -292,13 +298,15 @@ export function OfficerClaimReviewView({
                   description="Read-only document metadata from the submitted claim."
                 />
               </div>
-              <div
-                role="note"
-                className="rounded-control border border-warning/40 bg-amber-50 p-3 text-sm text-amber-950"
-              >
-                Document previews and downloads are disabled until request-level
-                reviewer authorization is verified by the backend.
-              </div>
+              <p className="text-sm text-muted">
+                Documents are retrieved through the authenticated request-scoped
+                backend authorization check.
+              </p>
+              {downloadError && (
+                <p role="alert" className="text-sm font-semibold text-danger">
+                  {downloadError}
+                </p>
+              )}
               {review.documents.length === 0 ? (
                 <EmptyState title="No supporting documents were returned" />
               ) : (
@@ -317,11 +325,28 @@ export function OfficerClaimReviewView({
                           {document.mimeType ? ` · ${document.mimeType}` : ''}
                         </p>
                       </div>
-                      <p className="shrink-0 text-sm text-muted">
-                        {document.size == null
-                          ? 'Size unavailable'
-                          : `${quantity.format(document.size / 1024)} KB`}
-                      </p>
+                      <div className="flex shrink-0 flex-wrap items-center gap-3">
+                        <p className="text-sm text-muted">
+                          {document.size == null
+                            ? 'Size unavailable'
+                            : `${quantity.format(document.size / 1024)} KB`}
+                        </p>
+                        {onDownload && document.downloadFilename && (
+                          <button
+                            type="button"
+                            disabled={
+                              downloadingFilename === document.downloadFilename
+                            }
+                            onClick={() => onDownload(document)}
+                            aria-label={`Download ${document.name}`}
+                            className="min-h-10 rounded-control border border-action px-3 py-2 text-sm font-semibold text-action hover:bg-info-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action disabled:cursor-wait disabled:opacity-60"
+                          >
+                            {downloadingFilename === document.downloadFilename
+                              ? 'Downloading…'
+                              : 'Download'}
+                          </button>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>

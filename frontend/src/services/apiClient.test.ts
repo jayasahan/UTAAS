@@ -4,6 +4,79 @@ import { decodeCircular, decodeProfile } from '../auth/contracts';
 
 afterEach(() => vi.unstubAllGlobals());
 describe('read-only API client', () => {
+  it('downloads an associated document with bearer auth and browser-safe request options', async () => {
+    const blob = new Blob(['fixture document'], { type: 'application/pdf' });
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(blob, {
+        status: 200,
+        headers: { 'Content-Type': 'application/pdf' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetcher);
+    const client = createApiClient(
+      'https://api.example.test/api/v1',
+      () => 'opaque-token',
+      vi.fn(),
+    );
+    const downloaded = await client.downloadDocument!(
+      'lecturer__c9fe8b42-0a12-4f54-8760-4bb1a6d9a700-schedule.pdf',
+    );
+    expect(downloaded.type).toBe('application/pdf');
+    expect(downloaded.size).toBeGreaterThan(0);
+    expect(fetcher).toHaveBeenCalledWith(
+      'https://api.example.test/api/v1/requests/documents/lecturer__c9fe8b42-0a12-4f54-8760-4bb1a6d9a700-schedule.pdf',
+      expect.objectContaining({
+        method: 'GET',
+        headers: { Authorization: 'Bearer opaque-token' },
+        credentials: 'omit',
+        cache: 'no-store',
+        redirect: 'error',
+        referrerPolicy: 'no-referrer',
+      }),
+    );
+  });
+
+  it.each(['../other.pdf', '%2fprivate.pdf', 'name?redirect=elsewhere'])(
+    'rejects unsafe document filename %s without making a request',
+    async (filename) => {
+      const fetcher = vi.fn();
+      vi.stubGlobal('fetch', fetcher);
+      const client = createApiClient(
+        'https://api.example.test/api/v1',
+        () => 'fixture-token',
+        vi.fn(),
+      );
+      await expect(client.downloadDocument!(filename)).rejects.toMatchObject({
+        kind: 'invalid-response',
+      });
+      expect(fetcher).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([401, 403, 404, 500])(
+    'maps document download HTTP %s without leaking response data',
+    async (status) => {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValue(new Response('private file error', { status })),
+      );
+      const onUnauthorized = vi.fn();
+      const error = await createApiClient(
+        'https://api.example.test/api/v1',
+        () => 'fixture-token',
+        onUnauthorized,
+      ).downloadDocument!(
+        'lecturer__c9fe8b42-0a12-4f54-8760-4bb1a6d9a700-schedule.pdf',
+      ).catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as ApiError).status).toBe(status);
+      expect((error as Error).message).not.toContain('private file error');
+      expect(onUnauthorized).toHaveBeenCalledTimes(status === 401 ? 1 : 0);
+    },
+  );
+
   it('sends authenticated JSON POST payloads and query parameters', async () => {
     const fetcher = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ id: 'draft-id', status: 'DRAFT' }), {

@@ -40,7 +40,7 @@ function responses() {
         supportingDocuments: [
           {
             name: 'schedule.pdf',
-            url: '/private/download/schedule.pdf',
+            url: '/api/v1/requests/documents/lecturer__c9fe8b42-0a12-4f54-8760-4bb1a6d9a700-schedule.pdf',
             documentType: 'Marking schedule',
             size: 1024,
             mimetype: 'application/pdf',
@@ -88,7 +88,7 @@ function decode(value = responses()): OfficerClaimReview {
 }
 
 describe('officer claim review contract decoder', () => {
-  it('preserves all paper rows and exposes document metadata without its URL', () => {
+  it('preserves paper rows and exposes only a validated opaque document filename', () => {
     const review = decode();
     expect(review.papers).toHaveLength(2);
     expect(review.papers.map((paper) => paper.assessmentUnit)).toEqual([
@@ -101,12 +101,25 @@ describe('officer claim review contract decoder', () => {
         documentType: 'Marking schedule',
         size: 1024,
         mimeType: 'application/pdf',
+        downloadFilename:
+          'lecturer__c9fe8b42-0a12-4f54-8760-4bb1a6d9a700-schedule.pdf',
       },
     ]);
     expect(review.documents[0]).not.toHaveProperty('url');
     expect(review.feeLines[0]?.subtotal).toBe(1500);
     expect(review.totalAmount).toBe(1500);
     expect(review.tracking.stages[0]?.status).toBe('IN_PROGRESS');
+  });
+
+  it.each([
+    'https://outside.example/private.pdf',
+    '/api/v1/requests/documents/../other-request.pdf',
+    '/api/v1/requests/documents/%2fprivate.pdf',
+    '/api/v1/requests/documents/a?redirect=outside',
+  ])('does not expose a download filename for an untrusted URL: %s', (url) => {
+    const value = responses();
+    value.detail.formData.supportingDocuments[0]!.url = url;
+    expect(decode(value).documents[0]?.downloadFilename).toBeNull();
   });
 
   it('represents absent optional claim sections as empty or not provided', () => {
