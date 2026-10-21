@@ -8,7 +8,12 @@ import {
   validateReview,
   validateStep,
 } from './validation';
-import { estimatePaper, estimateTotal, formatEstimate } from './estimates';
+import {
+  estimatePaper,
+  estimateTotal,
+  formatEstimate,
+  verifiedRatesFromCircular,
+} from './estimates';
 import type { VerifiedRates } from './estimates';
 
 describe('claim validation and estimates', () => {
@@ -92,23 +97,88 @@ describe('claim validation and estimates', () => {
       circularReference: 'test-only',
       setting: 10,
       moderation: 5,
+      translation: 4,
       marking: 2,
       secondMarking: 1,
       assessmentPerHour: 3,
+      assessmentPerCandidate: 6,
     };
     expect(estimatePaper(paper, rates)).toBe(10);
     paper.durationHours = '9';
     expect(estimatePaper(paper, rates)).toBe(10);
     paper.translationCount = '1';
-    expect(estimatePaper(paper, rates)).toBeNull();
-    paper.translationCount = '0';
+    expect(estimatePaper(paper, rates)).toBe(14);
     paper.assessmentQuantity = '2';
-    expect(estimatePaper(paper, rates)).toBeNull();
+    expect(estimatePaper(paper, rates)).toBe(26);
     paper.assessmentUnit = 'hours';
-    expect(estimatePaper(paper, rates)).toBe(16);
+    expect(estimatePaper(paper, rates)).toBe(20);
     expect(estimateTotal([paper, createPaper('two')])).toBeNull();
     expect(estimatePaper(paper, { ...rates, marking: NaN })).toBeNull();
     expect(formatEstimate(null)).toBe('Unavailable');
+    const fractional = createPaper('fractional');
+    fractional.assessmentUnit = 'hours';
+    fractional.assessmentQuantity = '0.00001';
+    const fractionalSecond = { ...fractional, id: 'fractional-2' };
+    const hourlyRates = { ...rates, assessmentPerHour: 500 };
+    expect(estimatePaper(fractional, hourlyRates)).toBe(0.01);
+    expect(estimatePaper(fractionalSecond, hourlyRates)).toBe(0.01);
+    // Backend aggregates quantity first, then rounds the assessment line once.
+    expect(estimateTotal([fractional, fractionalSecond], hourlyRates)).toBe(
+      0.01,
+    );
+  });
+  it('accepts estimates only when every backend rate key has its verified unit', () => {
+    const rates = verifiedRatesFromCircular({
+      circularReference: 'fixture-circular',
+      rates: {
+        PAPER_SETTING: { label: 'Setting', unit: 'per paper', rate: 3500 },
+        PAPER_MODERATION: {
+          label: 'Moderation',
+          unit: 'per paper',
+          rate: 2000,
+        },
+        PAPER_TRANSLATION: {
+          label: 'Translation',
+          unit: 'per paper',
+          rate: 1500,
+        },
+        SCRIPT_MARKING: { label: 'Marking', unit: 'per script', rate: 120 },
+        SECOND_MARKING: {
+          label: 'Second marking',
+          unit: 'per script',
+          rate: 60,
+        },
+        PRACTICAL_ASSESSMENT: {
+          label: 'Practical',
+          unit: 'per hour',
+          rate: 500,
+        },
+        CANDIDATE_ASSESSMENT: {
+          label: 'Candidates',
+          unit: 'per candidate',
+          rate: 120,
+        },
+      },
+    });
+    expect(rates).toMatchObject({
+      setting: 3500,
+      translation: 1500,
+      assessmentPerCandidate: 120,
+    });
+    expect(
+      verifiedRatesFromCircular({
+        circularReference: 'fixture-circular',
+        rates: {
+          ...{
+            PAPER_SETTING: {
+              label: 'Setting',
+              unit: 'per candidate',
+              rate: 3500,
+            },
+          },
+        },
+      }),
+    ).toBeUndefined();
   });
   it('validates file types, matching extensions, nonempty content and local size limits', () => {
     expect(

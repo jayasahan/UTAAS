@@ -128,6 +128,20 @@ describe('claim review regressions', () => {
     expect(result.current.fileErrors).toEqual([]);
     expect(result.current.form.documents[9]?.category).toBe('EXAM_TIMETABLE');
   });
+  it('counts previously uploaded documents against the ten-file local limit', () => {
+    const { result } = renderHook(useClaimForm);
+    act(() =>
+      result.current.selectDocuments(
+        [new File(['x'], 'eleventh.pdf', { type: 'application/pdf' })],
+        'APPOINTMENT_LETTER',
+        10,
+      ),
+    );
+    expect(result.current.form.documents).toEqual([]);
+    expect(result.current.fileErrors).toEqual([
+      'Select no more than 10 documents.',
+    ]);
+  });
   it('rejects invalid files without discarding an existing valid selection', () => {
     const { result } = renderHook(useClaimForm);
     act(() =>

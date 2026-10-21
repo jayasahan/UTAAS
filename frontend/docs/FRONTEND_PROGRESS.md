@@ -622,3 +622,42 @@ link received keyboard focus; an invalid request ID showed the safe fallback.
 These checks do not cover populated authenticated pages. The backend was not
 listening on 127.0.0.1:4000, so authenticated live GETs remain unverified. Teammate review, PR,
 CI and independent QA remain pending. No draft, submit or upload code is included.
+
+## Paper-marking uploads and final submission (E18, 2026-10-21)
+
+Implemented on the isolated `feature/frontend-paper-marking-submission` branch,
+based on `origin/mvp` at `dd9a48afd1350fc40c15df2b3f94db9521f4eded`. This adds
+authenticated multipart uploads and final claim submission to the existing
+four-step Paper Setting & Marking workflow. Uploaded files stay visibly pending
+until a matching server response is decoded; removal of an uploaded reference
+does not imply server-side deletion. Submission preserves every paper row and
+document reference, validates the declaration and upload state, guards against
+duplicate requests, surfaces sanitized server validation errors, and shows the
+tracking number and amount only after a valid `UNDER_REVIEW` response. Final
+amounts come from the backend response; estimates use only exact inspected rate
+keys and units, with unresolved line items shown as unavailable.
+
+Source inspection covers the merged upload, download and paper-marking submit
+contracts. `BACKEND_COMPATIBILITY.md` records the request/response shapes,
+authorization observations and integration limits. A local health probe to
+`127.0.0.1:4000` was refused, so no live authenticated upload, draft operation,
+or submission was tested. Contract tests are mocked evidence only.
+
+Validation in the feature worktree: Vitest 113/113 across 10 files; ESLint,
+strict TypeScript, Prettier formatting check (`--end-of-line auto`),
+`git diff --check`, and production build passed. Tests cover multipart bearer
+requests and sanitized errors, file/response decoding, safe payload mapping,
+multi-paper preservation, verified rate units and rounding, document constraints,
+upload retry, declaration gating, validation and confirmed-submission handling.
+The Node 20 local backend was unavailable. Browser responsive/keyboard checks
+were not performed for this phase, and real authenticated integration,
+independent review, CI and QA remain pending. No backend, CI or agent files were
+changed. Existing persistence checkout remains separate and untouched.
+
+Current status: upload and submit UI/API paths are implemented against inspected
+source contracts, but live integration and independent QA are unverified. Draft
+save/resume remains implemented from the existing merged feature. Translation
+is retained in the request but not priced by the current backend; the estimate
+is unavailable when such an unsupported line is present. Backend follow-up
+remains for broad non-lecturer document access, durable storage/orphan cleanup,
+and official translation pricing. No PR, commit or push was created in this task.

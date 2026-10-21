@@ -105,7 +105,11 @@ export function useClaimForm() {
     setAnnouncement('Paper row removed.');
     changed();
   }
-  function selectDocuments(files: File[], category: DocumentCategory) {
+  function selectDocuments(
+    files: File[],
+    category: DocumentCategory,
+    existingCount = 0,
+  ) {
     const failures: string[] = [];
     const selected = [...form.documents];
     for (const file of files) {
@@ -125,7 +129,7 @@ export function useClaimForm() {
         failures.push(`${file.name}: already selected.`);
         continue;
       }
-      if (selected.length >= MAX_DOCUMENTS) {
+      if (selected.length + existingCount >= MAX_DOCUMENTS) {
         failures.push('Select no more than 10 documents.');
         continue;
       }
@@ -163,10 +167,10 @@ export function useClaimForm() {
     },
     [],
   );
-  function navigate(target: number): boolean {
+  function navigate(target: number, uploadedDocumentCount = 0): boolean {
     if (target > step) {
       const found = Array.from({ length: target }, (_, index) =>
-        validateStep(form, index),
+        validateStep(form, index, uploadedDocumentCount),
       ).flat();
       if (found.length) {
         // Keep summary links on the first invalid, visible step.

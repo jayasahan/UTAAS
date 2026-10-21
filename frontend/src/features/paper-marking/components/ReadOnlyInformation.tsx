@@ -78,11 +78,12 @@ export function ReadOnlyInformation({
                 <p>No rates are available in this circular.</p>
               )}
               <p className="text-sm text-muted">
-                Reference rates returned by the backend. The endpoint does not
-                declare currency or effective dates. Claim estimates remain
-                unavailable until multi-paper calculation mapping is agreed;
-                translation and candidate assessment are unsupported. No amount
-                is confirmed for payment.
+                The merged backend calculator identifies these as LKR rates and
+                uses the same keys and units for per-paper, per-script,
+                per-hour, translation, and per-candidate lines. Estimates below
+                are based on this returned circular; only a successful submit
+                response confirms a claim total. The endpoint does not return an
+                effective date.
               </p>
             </div>
           )}

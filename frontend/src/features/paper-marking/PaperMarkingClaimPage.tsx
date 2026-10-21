@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { FormStepper } from '../../components/tracking/Steppers';
@@ -14,12 +15,42 @@ import './paper-marking.css';
 import { useReadOnlyData } from './useReadOnlyData';
 import { ReadOnlyInformation } from './components/ReadOnlyInformation';
 import {
+  decodeSubmittedClaim,
+  decodeUploadedDocument,
   decodePersistedClaim,
   restoreFormData,
   toDraftPayload,
+  toSubmissionPayload,
 } from './persistence';
 import type { PersistedDocument } from './persistence';
 import { ApiError } from '../../services/apiClient';
+import { verifiedRatesFromCircular } from './estimates';
+import type { PersistedClaim } from './persistence';
+
+function apiFailureMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiError)
+    return error.validationMessages.join(' ') || error.message;
+  return error instanceof Error ? error.message : fallback;
+}
+
+function SubmissionNavigation({
+  claim,
+}: {
+  claim: Pick<PersistedClaim, 'id' | 'trackingNumber' | 'totalAmount'>;
+}) {
+  const navigate = useNavigate();
+  useEffect(() => {
+    navigate(`/requests/${encodeURIComponent(claim.id)}`, {
+      state: {
+        submissionConfirmed: {
+          trackingNumber: claim.trackingNumber,
+          totalAmount: claim.totalAmount,
+        },
+      },
+    });
+  }, [claim, navigate]);
+  return <p role="status">Opening the submitted request details…</p>;
+}
 
 export function PaperMarkingClaimPage() {
   const claim = useClaimForm();
@@ -32,6 +63,18 @@ export function PaperMarkingClaimPage() {
   const [persistedDocuments, setPersistedDocuments] = useState<
     PersistedDocument[]
   >([]);
+  const [uploadStatus, setUploadStatus] = useState<
+    Record<string, 'uploading' | 'error'>
+  >({});
+  const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
+  const [submitBusy, setSubmitBusy] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [submittedClaim, setSubmittedClaim] = useState<Pick<
+    PersistedClaim,
+    'id' | 'trackingNumber' | 'totalAmount'
+  > | null>(null);
+  const uploadLocks = useRef(new Set<string>());
+  const submitLock = useRef(false);
   const [savedClaim, setSavedClaim] = useState<{
     id: string;
     trackingNumber: string;
@@ -41,6 +84,24 @@ export function PaperMarkingClaimPage() {
   const { applyProfile, restore } = claim;
   const loadedProfile = integration.profile.data;
   const hasSession = Boolean(integration.session.client);
+  const lecturerSession =
+    hasSession && integration.profile.data?.role === 'LECTURER';
+  const verifiedRates = verifiedRatesFromCircular(integration.circular.data);
+  const navigateClaim = (target: number) =>
+    claim.navigate(target, persistedDocuments.length);
+  const actionHelp = !hasSession
+    ? 'Sign in with the development lecturer account to upload documents, save drafts, or submit.'
+    : !integration.profile.data
+      ? 'Actions remain unavailable until the backend confirms the authenticated lecturer profile.'
+      : !lecturerSession
+        ? 'This claim workflow is available to an authenticated lecturer account only.'
+        : claim.form.documents.length > 0
+          ? 'Upload every locally selected document before saving or submitting.'
+          : claim.step === 3 && persistedDocuments.length === 0
+            ? 'Upload at least one supporting document before submission.'
+            : claim.step === 3 && !claim.form.declaration
+              ? 'Accept the declaration before submission.'
+              : persistenceUnavailable;
   useEffect(() => {
     const client = integration.session.client;
     if (!draftId || loadedDraft.current === draftId) return;
@@ -70,11 +131,7 @@ export function PaperMarkingClaimPage() {
       .catch((error: unknown) => {
         if (!controller.signal.aborted) {
           setDraftError(
-            error instanceof ApiError
-              ? error.message
-              : error instanceof Error
-                ? error.message
-                : 'Draft could not be restored.',
+            apiFailureMessage(error, 'Draft could not be restored.'),
           );
           setDraftLoaded(true);
         }
@@ -151,7 +208,11 @@ export function PaperMarkingClaimPage() {
         trackingNumber: saved.trackingNumber,
         totalAmount: saved.totalAmount,
       });
+      setPersistedDocuments((documents) =>
+        documents.map((document) => ({ ...document, attachedToClaim: true })),
+      );
       setDraftMessage(`Draft saved on the server (${saved.trackingNumber}).`);
+      loadedDraft.current = saved.id;
       if (!savedClaim)
         window.history.replaceState(
           {},
@@ -159,17 +220,106 @@ export function PaperMarkingClaimPage() {
           `${window.location.pathname}?draftId=${encodeURIComponent(saved.id)}`,
         );
     } catch (error) {
-      setDraftError(
-        error instanceof ApiError
-          ? error.message
-          : error instanceof Error
-            ? error.message
-            : 'Draft could not be saved.',
-      );
+      setDraftError(apiFailureMessage(error, 'Draft could not be saved.'));
     } finally {
       setDraftBusy(false);
     }
   }
+  async function uploadDocument(
+    document: (typeof claim.form.documents)[number],
+  ) {
+    const client = integration.session.client;
+    if (!client || !lecturerSession || uploadLocks.current.has(document.id))
+      return;
+    uploadLocks.current.add(document.id);
+    setUploadStatus((old) => ({ ...old, [document.id]: 'uploading' }));
+    setUploadErrors((old) => ({ ...old, [document.id]: '' }));
+    try {
+      const uploaded = await client.upload(
+        '/requests/upload',
+        document.file,
+        document.category,
+        decodeUploadedDocument,
+      );
+      if (
+        uploaded.name !== document.file.name ||
+        uploaded.mimetype !== document.file.type ||
+        uploaded.size !== document.file.size ||
+        uploaded.documentType !== document.category
+      )
+        throw new Error(
+          'The server upload response did not match the selected file.',
+        );
+      setPersistedDocuments((old) => [
+        ...old.filter((item) => item.url !== uploaded.url),
+        { ...uploaded, attachedToClaim: false },
+      ]);
+      setUploadStatus((old) => {
+        const next = { ...old };
+        delete next[document.id];
+        return next;
+      });
+      setUploadErrors((old) => {
+        const next = { ...old };
+        delete next[document.id];
+        return next;
+      });
+      claim.removeDocument(document.id);
+    } catch (error) {
+      const message = apiFailureMessage(
+        error,
+        'The document could not be uploaded.',
+      );
+      setUploadStatus((old) => ({ ...old, [document.id]: 'error' }));
+      setUploadErrors((old) => ({ ...old, [document.id]: message }));
+    } finally {
+      uploadLocks.current.delete(document.id);
+    }
+  }
+  function removeUploadedDocument(url: string) {
+    setPersistedDocuments((old) =>
+      old.filter((document) => document.url !== url),
+    );
+    setDraftMessage(
+      'Document reference removed from this form. Save the draft to persist this change.',
+    );
+  }
+  async function submitClaim() {
+    const client = integration.session.client;
+    if (!client || !lecturerSession || submitLock.current || submitBusy) return;
+    const errors = validateReview(claim.form, persistedDocuments.length);
+    if (errors.length) {
+      claim.setErrors(errors);
+      const firstStep = Math.min(...errors.map((error) => error.step));
+      claim.navigate(firstStep, persistedDocuments.length);
+      return;
+    }
+    if (uploadLocks.current.size > 0) return;
+    submitLock.current = true;
+    setSubmitBusy(true);
+    setSubmitError('');
+    setDraftMessage('');
+    try {
+      const submitted = await client.post(
+        '/requests/paper-marking/submit',
+        toSubmissionPayload(claim.form, persistedDocuments),
+        decodeSubmittedClaim,
+        savedClaim ? { draftId: savedClaim.id } : undefined,
+      );
+      setSubmittedClaim(submitted);
+    } catch (error) {
+      setSubmitError(
+        apiFailureMessage(
+          error,
+          'The claim was not confirmed as submitted. Try again after checking its status.',
+        ),
+      );
+    } finally {
+      submitLock.current = false;
+      setSubmitBusy(false);
+    }
+  }
+  if (submittedClaim) return <SubmissionNavigation claim={submittedClaim} />;
   if (draftId && integration.session.client && draftBusy && !draftLoaded)
     return (
       <section aria-live="polite">
@@ -224,6 +374,26 @@ export function PaperMarkingClaimPage() {
           {draftMessage}
         </p>
       )}
+      {submitError && (
+        <div
+          role="alert"
+          className="rounded-control border border-danger bg-red-50 p-4 text-danger"
+        >
+          <p>{submitError}</p>
+          <p className="mt-1 text-sm">
+            No successful submission is shown unless the backend confirms it.
+          </p>
+        </div>
+      )}
+      {hasSession && integration.profile.data && !lecturerSession && (
+        <div
+          role="alert"
+          className="rounded-control border border-warning bg-amber-50 p-4"
+        >
+          This claim workflow is available to an authenticated lecturer account
+          only.
+        </div>
+      )}
       {savedClaim && (
         <p className="text-sm text-muted">
           Draft reference: {savedClaim.trackingNumber} · Server-calculated
@@ -243,14 +413,14 @@ export function PaperMarkingClaimPage() {
         </p>
       </div>
       {claim.step === 3 ? (
-        <ReviewProgress onEdit={claim.navigate} />
+        <ReviewProgress onEdit={navigateClaim} />
       ) : (
         <FormStepper
           steps={steps}
           currentStepId={steps[claim.step]!.id}
           onStepChange={(id) => {
             const index = steps.findIndex((step) => step.id === id);
-            if (index >= 0) claim.navigate(index);
+            if (index >= 0) navigateClaim(index);
           }}
         />
       )}
@@ -277,7 +447,7 @@ export function PaperMarkingClaimPage() {
                     event.preventDefault();
                     if (claim.step !== error.step) {
                       pendingFocus.current = error.field;
-                      claim.navigate(error.step);
+                      navigateClaim(error.step);
                     } else document.getElementById(error.field)?.focus();
                   }}
                 >
@@ -292,8 +462,11 @@ export function PaperMarkingClaimPage() {
         noValidate
         onSubmit={(event) => {
           event.preventDefault();
-          if (claim.step < 3) claim.navigate(claim.step + 1);
-          else claim.setErrors(validateReview(claim.form));
+          if (claim.step < 3) navigateClaim(claim.step + 1);
+          else
+            claim.setErrors(
+              validateReview(claim.form, persistedDocuments.length),
+            );
         }}
       >
         <Card className="space-y-8">
@@ -314,6 +487,7 @@ export function PaperMarkingClaimPage() {
               />
               <PaymentTable
                 papers={claim.form.papers}
+                {...(verifiedRates ? { rates: verifiedRates } : {})}
                 errors={[...claim.errors, ...claim.quantityErrors]}
                 onChange={claim.updatePaper}
                 onAdd={() => {
@@ -332,38 +506,35 @@ export function PaperMarkingClaimPage() {
                 documents={claim.form.documents}
                 errors={claim.errors}
                 fileErrors={claim.fileErrors}
-                onSelect={claim.selectDocuments}
+                onSelect={(files, category) =>
+                  claim.selectDocuments(
+                    files,
+                    category,
+                    persistedDocuments.length,
+                  )
+                }
                 category={claim.form.selectedDocumentCategory}
                 onCategoryChange={claim.setDocumentCategory}
+                uploadedDocuments={persistedDocuments}
+                uploadStatus={uploadStatus}
+                uploadErrors={uploadErrors}
+                onUpload={(document) => void uploadDocument(document)}
+                onRemoveUploaded={removeUploadedDocument}
+                uploadsEnabled={Boolean(lecturerSession)}
                 onRemove={(id) => {
                   pendingFocus.current = 'documents';
                   claim.removeDocument(id);
                 }}
               />
-              {persistedDocuments.length > 0 && (
-                <section
-                  aria-label="Previously uploaded documents"
-                  className="rounded-control border border-border p-4"
-                >
-                  <h3 className="font-semibold">
-                    Documents already attached to this draft
-                  </h3>
-                  <ul className="mt-2 list-disc pl-5">
-                    {persistedDocuments.map((doc) => (
-                      <li key={doc.url}>
-                        {doc.name} · {doc.documentType}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
             </>
           )}
           {claim.step === 3 && (
             <ReviewStep
               form={claim.form}
+              {...(verifiedRates ? { rates: verifiedRates } : {})}
+              uploadedDocuments={persistedDocuments}
               errors={claim.errors}
-              onEdit={claim.navigate}
+              onEdit={navigateClaim}
               onDeclaration={claim.setDeclaration}
             />
           )}
@@ -388,7 +559,7 @@ export function PaperMarkingClaimPage() {
           {claim.step > 0 && (
             <Button
               variant="ghost"
-              onClick={() => claim.navigate(claim.step - 1)}
+              onClick={() => navigateClaim(claim.step - 1)}
             >
               ← Previous
             </Button>
@@ -397,7 +568,7 @@ export function PaperMarkingClaimPage() {
             variant="secondary"
             pending={draftBusy}
             disabled={
-              !integration.session.client ||
+              !lecturerSession ||
               claim.form.documents.length > 0 ||
               Boolean(draftId && draftBusy)
             }
@@ -407,17 +578,37 @@ export function PaperMarkingClaimPage() {
             Save draft
           </Button>
           {claim.step < 3 ? (
-            <Button type="submit" className="sm:ml-auto">
+            <Button
+              type="submit"
+              className="sm:ml-auto"
+              disabled={
+                submitBusy ||
+                Object.values(uploadStatus).some(
+                  (status) => status === 'uploading',
+                )
+              }
+            >
               {claim.step === 2 ? 'Review application →' : 'Continue →'}
             </Button>
           ) : (
             <>
-              <Button type="submit">Validate local review</Button>
+              <Button type="submit" disabled={submitBusy}>
+                Validate review
+              </Button>
               <Button
                 variant="success"
-                disabled
+                pending={submitBusy}
+                disabled={
+                  !lecturerSession ||
+                  claim.form.documents.length > 0 ||
+                  Object.values(uploadStatus).some(
+                    (status) => status === 'uploading',
+                  ) ||
+                  persistedDocuments.length === 0
+                }
                 aria-describedby="persistence-reason"
                 className="sm:ml-auto"
+                onClick={() => void submitClaim()}
               >
                 Submit Application
               </Button>
@@ -425,12 +616,7 @@ export function PaperMarkingClaimPage() {
           )}
         </footer>
         <p id="persistence-reason" className="mt-4 text-sm text-muted">
-          {claim.form.documents.length > 0
-            ? 'Remove locally selected files before saving. They are not uploaded and will not be included in a server draft.'
-            : persistenceUnavailable}
-          {claim.step === 3 && !claim.form.declaration
-            ? ' The declaration must also be accepted.'
-            : ''}
+          {actionHelp} Local files are not sent with claim data.
         </p>
       </form>
     </div>

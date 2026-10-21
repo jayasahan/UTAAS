@@ -113,4 +113,4 @@ export function createForm(): ClaimForm {
   };
 }
 export const persistenceUnavailable =
-  'Draft saving uses the authenticated backend. Claim submission remains unavailable until supporting documents can be uploaded and securely associated. Locally selected files are never included in a server draft.';
+  'Draft saving, document upload, and submission use authenticated backend contracts. Every selected document must upload successfully before it can be attached to a saved draft or submitted claim.';

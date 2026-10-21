@@ -35,7 +35,11 @@ export function isMoney(value: number): boolean {
     Math.abs(value * 100 - Math.round(value * 100)) < 0.000001
   );
 }
-export function validateStep(form: ClaimForm, step: number): FieldError[] {
+export function validateStep(
+  form: ClaimForm,
+  step: number,
+  uploadedDocumentCount = 0,
+): FieldError[] {
   const errors: FieldError[] = [];
   const add = (field: string, message: string) =>
     errors.push({ field, message, step });
@@ -107,15 +111,26 @@ export function validateStep(form: ClaimForm, step: number): FieldError[] {
         );
     });
   }
-  if (step === 2 && form.documents.length === 0)
+  if (step === 2 && form.documents.length + uploadedDocumentCount === 0)
     add(
       'documents',
       'Select at least one supporting document for local review.',
     );
   return errors;
 }
-export function validateReview(form: ClaimForm): FieldError[] {
-  const errors = [0, 1, 2].flatMap((step) => validateStep(form, step));
+export function validateReview(
+  form: ClaimForm,
+  uploadedDocumentCount = 0,
+): FieldError[] {
+  const errors = [0, 1, 2].flatMap((step) =>
+    validateStep(form, step, uploadedDocumentCount),
+  );
+  if (form.documents.length > 0)
+    errors.push({
+      field: 'documents',
+      message: 'Upload every selected document before submission.',
+      step: 2,
+    });
   if (!form.declaration)
     errors.push({
       field: 'declaration',

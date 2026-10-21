@@ -259,6 +259,62 @@ Empty stage comments are accepted as display data. The live backend remained
 unavailable at 127.0.0.1:4000 during this worktree's validation, so these
 source-derived cases still need real response verification.
 
+### Paper-marking uploads and final submission — 2026-10-21
+
+Inspected the current backend contract merged to `origin/mvp` at
+`dd9a48afd1350fc40c15df2b3f94db9521f4eded` (including backend PR #16, commit
+`9de962a`). This section records frontend integration against those source
+contracts; it does not claim a live server integration test.
+
+- `POST /api/v1/requests/upload` requires a bearer JWT and multipart fields
+  `file` and `category`; `requestId` is optional. The response contract is
+  `{ name, url, documentType, size, mimetype, requestId }`. The service enforces
+  a 10 MiB stream limit and accepts PDF, PNG, JPEG/JPG MIME types. The frontend
+  sends the file and category, deliberately omits `requestId` because the
+  inspected service only echoes it, and accepts the response only when its
+  filename, category, size and MIME type match the selected file. It never
+  fabricates an uploaded URL or document ID.
+- `GET /api/v1/requests/documents/:filename` requires a bearer JWT. For lecturers,
+  the inspected service checks uploader ownership or an applicant-owned claim
+  reference. Other roles currently receive access without a department/claim
+  scope check. That reviewer-role scope requires backend-owner/security review;
+  this feature does not add a document-download UI.
+- The upload service writes into a process-local `uploads` directory. No delete
+  endpoint was found. Removing a selected/uploaded document from the form only
+  removes the local selection or claim reference; it cannot delete the stored
+  file. Durable storage and orphan cleanup remain backend/deployment questions.
+- `POST /api/v1/requests/paper-marking/submit[?draftId=<uuid>]` is JWT-protected.
+  It accepts the preserved `papers[]` model, `supportingDocuments[]` references
+  (`name`, `url`, `documentType`), personal/metadata fields, and declaration.
+  The response is a Request entity; the service creates workflow/audit records,
+  returns status `UNDER_REVIEW` and a tracking number, and calculates the
+  canonical amount from backend rates. The frontend submits individual paper
+  rows and uploaded document references, decodes only a valid `UNDER_REVIEW`
+  response with identifier/tracking/amount, and displays success only after that
+  response. It never locally calculates or substitutes the final server amount.
+- The backend calculation recognizes paper setting, moderation, script marking,
+  second marking, practical assessment hours and candidate assessment. It
+  aggregates each supported quantity and rounds line amounts before summing.
+  The frontend adapts only exact verified rate keys/units for display estimates;
+  translation is retained in each paper row but is not priced by the current
+  backend calculation. Any unresolved line makes the estimate unavailable. The
+  submitted amount remains backend-authoritative.
+- Draft create/update remains the existing `POST /draft` behavior. On a
+  confirmed draft response, the frontend preserves document references and
+  resumes using the returned draft ID. No upload is considered associated with
+  a claim until its returned reference is included in the draft/submit payload.
+- API contract and UI tests use mocked responses. During this task,
+  `http://127.0.0.1:4000/api/v1/health` refused the connection. No authenticated
+  upload, download, draft or submission was exercised against a running backend;
+  live integration remains unverified. The local build and tests are not backend
+  evidence.
+
+Backend follow-up: confirm reviewer-role document access is appropriately scoped;
+confirm durable upload storage and cleanup/deletion policy; verify upload MIME
+and size enforcement with real HTTP behavior; and clarify whether translation
+should be priced or remain excluded from the official total. No GitHub issue was
+created during this frontend task.
+
 ### PR #14 persistence contract verification — 2026-10-21
 
 Inspected the merged backend at `origin/mvp` `ba37ecce7fb2b9f0302434379621a7b374c7f878` (PR #14, backend multi-paper/draft contract). Historical pre-PR #14 blockers above are retained as history; this section records the current source state.

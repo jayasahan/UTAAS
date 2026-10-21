@@ -30,6 +30,16 @@ function makeClient(): ApiClient {
         formData: body,
       }),
     ),
+    upload: vi.fn(async (_path, file, category, decode) =>
+      decode({
+        name: file.name,
+        url: `/api/v1/requests/documents/test__${file.name}`,
+        documentType: category,
+        size: file.size,
+        mimetype: file.type,
+        requestId: null,
+      }),
+    ),
   };
 }
 

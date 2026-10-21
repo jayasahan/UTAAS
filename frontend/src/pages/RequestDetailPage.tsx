@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { Card } from '../components/common/Card';
 import { Alert, EmptyState, Skeleton } from '../components/common/Feedback';
 import { RequestStatusBadge } from '../components/tracking/RequestStatusBadge';
@@ -22,6 +22,23 @@ const date = new Intl.DateTimeFormat('en-LK', {
   dateStyle: 'medium',
   timeStyle: 'short',
 });
+
+function submissionConfirmation(value: unknown): {
+  trackingNumber: string;
+  totalAmount: number;
+} | null {
+  if (!value || typeof value !== 'object') return null;
+  const data = value as Record<string, unknown>;
+  if (
+    typeof data.trackingNumber !== 'string' ||
+    !data.trackingNumber.trim() ||
+    typeof data.totalAmount !== 'number' ||
+    !Number.isFinite(data.totalAmount) ||
+    data.totalAmount < 0
+  )
+    return null;
+  return { trackingNumber: data.trackingNumber, totalAmount: data.totalAmount };
+}
 
 function RequestLoadState({
   title,
@@ -59,6 +76,9 @@ function RequestLoadState({
 
 export function RequestDetailPage() {
   const { requestId = '' } = useParams();
+  const location = useLocation();
+  const routeState = location.state as { submissionConfirmed?: unknown } | null;
+  const confirmation = submissionConfirmation(routeState?.submissionConfirmed);
   const validId = uuidPattern.test(requestId);
   const pathId = validId ? encodeURIComponent(requestId) : null;
   const detail = useRequestResource(
@@ -90,6 +110,18 @@ export function RequestDetailPage() {
 
   return (
     <section aria-labelledby="request-title" className="space-y-6">
+      {confirmation && (
+        <div
+          role="status"
+          className="rounded-control border border-success bg-teal-50 p-4 text-brand"
+        >
+          <h2 className="font-bold">Claim submitted successfully</h2>
+          <p>
+            Reference {confirmation.trackingNumber} · Server-confirmed total:{' '}
+            {amount.format(confirmation.totalAmount)}
+          </p>
+        </div>
+      )}
       <Link
         to="/requests"
         className="inline-block font-semibold text-action underline"
