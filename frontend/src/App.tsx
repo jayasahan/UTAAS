@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { AppLayout } from './components/layout/AppLayout';
 import { DashboardPage } from './pages/DashboardPage';
@@ -7,10 +8,12 @@ import { RequestDetailPage } from './pages/RequestDetailPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { DesignSystemPage } from './pages/DesignSystemPage';
 import { OfficerPortalLayout } from './features/officer-queue/OfficerPortalLayout';
-import {
-  OfficerQueuePage,
-  OfficerRequestDetailPage,
-} from './features/officer-queue/OfficerQueuePage';
+import { OfficerQueuePage } from './features/officer-queue/OfficerQueuePage';
+import { OfficerClaimReviewPage } from './features/officer-review/OfficerClaimReviewPage';
+
+const DevOfficerClaimReviewPreview = import.meta.env.DEV
+  ? lazy(() => import('./features/officer-review/DevOfficerClaimReviewPreview'))
+  : null;
 
 export default function App() {
   return (
@@ -29,7 +32,7 @@ export default function App() {
         <Route path="officer/queue" element={<OfficerQueuePage />} />
         <Route
           path="officer/queue/:requestId"
-          element={<OfficerRequestDetailPage />}
+          element={<OfficerClaimReviewPage />}
         />
       </Route>
       {import.meta.env.DEV && (
@@ -44,11 +47,26 @@ export default function App() {
                   label: 'Component examples',
                   end: true,
                 },
+                {
+                  to: '/design-system/officer/claim-review',
+                  label: 'Claim review preview',
+                  end: true,
+                },
               ]}
             />
           }
         >
           <Route path="design-system/officer" element={<DesignSystemPage />} />
+          {DevOfficerClaimReviewPreview && (
+            <Route
+              path="design-system/officer/claim-review"
+              element={
+                <Suspense fallback={<p role="status">Loading preview…</p>}>
+                  <DevOfficerClaimReviewPreview />
+                </Suspense>
+              }
+            />
+          )}
         </Route>
       )}
     </Routes>

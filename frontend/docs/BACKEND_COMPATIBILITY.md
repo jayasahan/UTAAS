@@ -1,6 +1,6 @@
 # Backend compatibility register
 
-Inspected 2026-10-21 (Asia/Colombo). Current frontend branch: `feature/frontend-paper-marking-integration`.
+Inspected 2026-10-21 (Asia/Colombo). Current frontend branch: `feature/frontend-officer-claim-review`.
 Backend ownership: another team member. This register records findings only.
 Never modify backend sources, configuration, schemas, dependencies or seeds as
 part of a frontend task. Report incompatibilities to the backend owner.
@@ -337,3 +337,93 @@ Inspected the NestJS source present in `origin/mvp` at `1ab2c26a31ff4c32f3d4b4aa
 - Frontend response decoding rejects malformed identifiers, non-`UNDER_REVIEW` statuses, invalid amounts, malformed timestamps, and inconsistent pagination metadata. UI tests use mocked responses; no endpoint success or real authorization result has been verified against a running backend.
 
 Backend follow-up: enforce HOD department scope when department identity is absent; enforce stage/resource authorization for officer request details and tracking/history; provide runtime sanitized responses and clarify whether ADMIN's all-stage queue is intended. No GitHub issue was found in the repository issue search for these specific queue/detail scope concerns, and no issue was created.
+
+### Historical officer claim review authorization check before PR #21 — 2026-10-21
+
+Rechecked relevant request-detail, tracking, audit-history and document-access
+source at `origin/mvp` commit `a583ec892de1d3fcafb15028f37021ab85acfb93`
+(includes merged Officer Approval Queue PR #20). The reviewer-scope concerns
+remain unresolved. Existing follow-ups are open:
+[issue #18](https://github.com/jayasahan/UTAAS/issues/18) covers HOD department
+scope when a profile has no department ID; [issue #19](https://github.com/jayasahan/UTAAS/issues/19)
+covers reviewer scope for request detail, tracking and history. This updates the
+earlier queue note that no issue was found at that inspection time; no issue was
+created for this frontend task.
+
+- `GET /api/v1/requests/paper-marking/:id` is protected by `JwtAuthGuard` and
+  returns a Request entity with `formData`, applicant, stage history and audit
+  events. The service checks lecturer ownership and only conditionally checks
+  HOD department mismatch; it does not establish stage/resource scope for every
+  reviewer role. A known request ID is not sufficient authorization.
+- `formData.papers` preserves separate Paper Marking rows and their quantities
+  and units. `formData.feeCalculation.items` contains server `key`, `label`,
+  `unit`, `rate`, `count`, `subtotal`; request `totalAmount` is server supplied.
+  The review decoder preserves paper rows and the UI does not calculate totals.
+- `GET /api/v1/requests/:id/tracking` returns current stage and ordered stages
+  with required role, status, actor, timestamps and comments. `GET
+/api/v1/requests/:id/history` returns audit events. Their shared service
+  authorization repeats the conditional HOD check and does not consistently
+  enforce reviewer department/stage scope.
+- `GET /api/v1/requests/documents/:filename` is JWT-protected, but source allows
+  any non-lecturer role to retrieve a known filename without request-level
+  ownership/reviewer scope. Document viewing/downloading is disabled. The
+  frontend fixture decoder intentionally strips document URLs and displays
+  metadata only.
+- Officer layout reads `/api/v1/auth/me` for the authenticated role and HOD
+  department identity. The claim review route makes no request-specific detail,
+  tracking, history or document call while issue #19 is unresolved. Frontend
+  role checks are not a security boundary.
+
+These are source-inspected contracts only. No live authenticated officer
+detail, tracking, history or document request was attempted. The development
+visual preview is clearly synthetic, makes no backend requests and is excluded
+from production routing. Backend, CI, and agent files were not changed.
+
+### PR #21 authorization re-check — 2026-10-21
+
+Inspected the actual source at `origin/mvp` commit
+`3cadf234683af423d2741713461a76f06791430c`, including merged Officer Approval
+Queue PR #20 and backend authorization PR #21. GitHub marks
+[issue #18](https://github.com/jayasahan/UTAAS/issues/18) and
+[issue #19](https://github.com/jayasahan/UTAAS/issues/19) closed. Source review
+verifies the #18 pending-queue fix, but finds residual reviewer stage/resource
+gaps in the detail/tracking/history behavior described by #19. Issue state alone
+does not establish that those conditions are enforced. No backend source was
+modified for this frontend task.
+
+- `GET /api/v1/requests/pending-queue?page=&limit=` is protected by
+  `JwtAuthGuard`. An HOD without a department ID receives an empty result; an
+  HOD with a department ID is filtered to `HEAD_OF_DEPARTMENT` and the
+  applicant's matching department. Dean, Examination Officer, Financial
+  Officer and Assistant Bursar are filtered to their current stages; Admin sees
+  all pending stages. This verifies the source behavior addressed by #18. No
+  live request was made.
+- `GET /api/v1/requests/paper-marking/:id` is JWT-protected and returns a Request
+  entity containing `formData`, applicant, stage history and audit events; it
+  is not a narrowly sanitized reviewer DTO. `getClaimById` permits Admin,
+  restricts Lecturers to their own request, keeps drafts private to applicants,
+  and requires HOD department IDs to exist and match. It does not verify that
+  the HOD is assigned to the current stage. Dean, Examination Officer,
+  Financial Officer and Assistant Bursar have no request-level role/stage check
+  in this method.
+- `GET /api/v1/requests/:id/tracking` and `GET
+/api/v1/requests/:id/history` use the same access conditions and therefore
+  have the same reviewer-to-stage gaps. PR #21 tests cover draft privacy and
+  missing/mismatched HOD department IDs, but do not test wrong-stage HOD access
+  or the other reviewer roles.
+- `GET /api/v1/requests/documents/:filename` is JWT-protected, but every
+  authenticated non-Lecturer role can retrieve a known filename without
+  request ownership, reviewer, department or workflow-stage checks. Document
+  viewing/downloading remains disabled. The UI shows metadata only, with no
+  document URLs.
+- The production review route reads `/api/v1/auth/me` through the existing
+  officer layout but makes no request-specific detail, tracking, history or
+  document calls. Frontend role checks cannot compensate for missing backend
+  resource authorization. The development preview is synthetic, makes no API
+  calls and is excluded from production routing.
+
+Conclusion: #18 is source-verified for pending-queue department scope. #19 is
+closed in GitHub but additional backend stage/resource enforcement is still
+needed before production detail, tracking or history can be enabled. Document
+downloads separately need request-level authorization. These findings are
+source-inspected only, not live integration evidence.

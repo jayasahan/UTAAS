@@ -671,3 +671,74 @@ The officer portal supports the backend's verified development personas (HOD, De
 Figma reference: current PRIMARY frame `60:2` (“PRIMARY / Shared Officer Approval Queue”). The implementation follows the navy officer shell, institutional header, role/scope banner, pending count, table hierarchy, teal review action and responsive shared table treatment. Search and status/type/date filters, assignment controls, and returned/resubmitted/urgent summary cards are intentionally omitted because the inspected endpoint does not support them. The single displayed pending count is the server's `meta.total`, not a locally inferred number.
 
 Validation evidence: focused tests passed (25 tests across 3 files); the full suite passed 129/129 across 12 files. ESLint, strict TypeScript and production build passed. Full-project Prettier check passed with `--end-of-line auto` after formatting the changed documentation and source files. Browser checks used the signed-out/development-login and unavailable-backend state: the document had no horizontal overflow at CSS viewport widths 390, 768 and 1440, and keyboard Tab reached the labeled development-role selector. The authenticated populated queue was not browser-verified because `127.0.0.1:4000` was unavailable; no live authenticated GET was performed. Mocked tests do not establish live integration. Independent review, CI and QA are pending. No backend, CI or agent files were changed. No commit, push or PR has been created.
+
+## Read-only Officer Claim Review (2026-10-21)
+
+Work is in progress on isolated branch `feature/frontend-officer-claim-review`,
+created from `origin/mvp` at `a583ec892de1d3fcafb15028f37021ab85acfb93` and
+fast-forwarded to `3cadf234683af423d2741713461a76f06791430c` after backend PR #21
+merged. Officer Approval Queue PR #20 remains in the branch history. Existing
+worktrees, including the original persistence checkout, were preserved. The
+uncommitted feature files were backed up in recoverable stash
+`8b798f94cf73fdd5623b205f634f60913e87d831` before the fast-forward and reapplied;
+the stash was retained as a backup.
+This feature work remains uncommitted and unpushed; no PR has been created.
+
+The queue detail route stops after verifying the authenticated officer profile.
+It does not call request detail, tracking, history or document endpoints. PR #21
+now fails closed for HOD pending-queue requests when department identity is
+missing (issue #18, closed and verified in source), and applies HOD department
+matching plus draft privacy to detail/tracking/history. Those read endpoints
+still do not verify reviewer access to the current workflow stage: HOD can read
+same-department requests at other stages, and other reviewer roles lack a
+request-level stage check. Issue #19 is marked closed in GitHub, but this source
+re-check identifies remaining scope work. Document downloads remain disabled
+because any authenticated non-Lecturer can retrieve a known filename without
+request-level authorization. No approval, rejection, correction, editing or
+document viewing actions exist.
+
+The reusable read-only view follows the PRIMARY Officer Review hierarchy:
+application header, numbered personal and claim sections, distinct Paper
+Marking rows, server-returned fee lines and total, supporting-document metadata
+without URLs, approval progress, and activity history. It reuses the officer
+portal shell, design-system cards, tables, status badge and workflow stepper. A
+separate DEVELOPMENT-ONLY route shows clearly labeled fictional fixture data
+for visual checks and makes no backend requests. It is not live request data or
+an authorization bypass.
+
+Figma source: current PRIMARY frames on page 06 Officer Screens: HOD `56:2`,
+Dean `56:83`, Examination Officer `56:162`, Financial Officer `56:241`, and
+Assistant Bursar `56:320` in the [UTAAS file](https://www.figma.com/design/BzLWUOHB9HGDnUV6fNGbrG/UTAAS?node-id=56-2).
+The shared navy officer shell, institutional header, typography, numbered
+review sections, status treatment and workflow/history hierarchy are retained.
+Intentional read-only differences: decision/edit controls are omitted; document
+links are omitted until authorization is fixed; the claim section shows the
+Paper Marking row model (the primary role frames use other claim examples).
+
+Contract tests cover multiple paper rows, document URL stripping, server fee
+values, workflow/history, absent optional data, invalid quantities and
+mismatched responses. UI tests verify that the production route reads only
+`/auth/me` and makes no request-specific calls for officer roles until the
+remaining stage/resource authorization is implemented. These mocked tests do
+not verify backend authorization at runtime.
+
+Earlier validation on Node 25.2.1: focused review tests passed 8/8; the full
+Vitest suite passed 137/137 across 14 files; ESLint, strict TypeScript,
+changed-file Prettier and production build passed. Production JavaScript contains none of the
+synthetic preview marker, fixture applicant, filename or URL. Playwright tested
+the dev-only fixture at CSS widths 390, 768 and 1440: document scroll width
+matched each viewport, with wide paper rows contained in the labeled horizontal
+scroll region. Keyboard Tab reached the development role selector, skip link,
+sidebar links and Back to Queue with visible focus outlines. No `/api/` requests
+or browser console errors were observed during the preview. The backend port
+check for `127.0.0.1:4000` failed; live authenticated detail access remains
+unverified and intentionally disabled. Updated validation after PR #21
+synchronization on Node 25.2.1: focused review tests passed 14/14 across 2
+files; the full suite passed 143/143 across 14 files; ESLint, strict TypeScript,
+repository-wide Prettier, production build, and `git diff --check` passed. The
+production assets contain none of the selected synthetic fixture markers. A
+Playwright preview at CSS viewport widths 390, 768 and 1440 had no document
+overflow; keyboard Tab reached the development role selector with a visible
+1.6px focus outline. The preview made no `/api/` requests and produced no
+browser errors. Independent QA, teammate review, CI, PR and merge remain
+pending. No backend, CI or agent files are changed.
