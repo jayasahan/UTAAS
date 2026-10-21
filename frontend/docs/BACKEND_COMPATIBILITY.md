@@ -1,6 +1,6 @@
 # Backend compatibility register
 
-Inspected 2026-10-21 (Asia/Colombo). Current frontend branch: `feature/frontend-paper-marking-claim`.
+Inspected 2026-10-21 (Asia/Colombo). Current frontend branch: `feature/frontend-paper-marking-integration`.
 Backend ownership: another team member. This register records findings only.
 Never modify backend sources, configuration, schemas, dependencies or seeds as
 part of a frontend task. Report incompatibilities to the backend owner.
@@ -30,6 +30,50 @@ later claim planning/implementation sections preserve their own scope and eviden
 | workflow-engine              | 0938f89 |                   0 |
 
 ## Observed contracts (source-present, runtime unverified)
+
+### Phase 2 development authentication and read-only integration — 2026-10-21
+
+Base origin/mvp b0f713d (Phase 1 PR #10 merged); backend remains bd4836e.
+Only auth controller/service/provider/DTO/JWT guard/strategy, circular controller/
+fee service and relevant frontend files were reassessed. No backend changes.
+
+| Operation                                         | Verified source contract                                                                                                                               | Frontend handling                                                                                                                                                                      |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST /api/v1/auth/mock-login/LECTURER             | No body/credentials; role maps to backend lecturer persona; response `{ accessToken, user }`. Swagger says 200; Nest default may be 201.               | DEV-only button; accept successful 2xx then validate token/lecturer profile and JWT expiry. No invented email, credentials or token.                                                   |
+| GET /api/v1/auth/me                               | Bearer JWT; `{ id, email, fullName, role, departmentCode?, departmentId? }`; department fields nullable. Active database user checked by JWT strategy. | Decode/whitelist response. Populate untouched fullName and department with its returned code. Missing department becomes unavailable/blank; designation/staff ID are never fabricated. |
+| GET /api/v1/requests/paper-marking/rates/circular | Bearer JWT; `{ circularReference, rates: Record<string,{ label,unit,rate:number }> }`; no extra role guard.                                            | Show actual finite, non-negative rates, labels and units. Empty rates are explicitly unavailable. No invented currency/effective dates.                                                |
+
+Observed known rate keys/units: PAPER_SETTING and PAPER_MODERATION per paper,
+SCRIPT_MARKING and SECOND_MARKING per script, PRACTICAL_ASSESSMENT per hour.
+The endpoint omits currency/effective-date/version-policy fields. The existing
+service multiplies supported aggregate quantities and rounds each line to two
+decimals; it does not establish a multi-paper mapping. Phase 2 displays reference
+rates only. It does not inject them into claim totals, flatten paper rows, apply
+hourly rates to candidates or add translation rules. Amounts remain unavailable.
+
+Session ownership: React provider private memory only; no localStorage,
+sessionStorage, cookie persistence, token UI, token logging, environment token or
+automatic restoration. Logout, expiry, unauthorized protected responses and reload
+clear the session. JWT expiry parsing is only a client lifecycle hint; the server
+remains the authority. Each request omits cookies/cache, rejects redirects and
+uses the configured API base. HTTP localhost is accepted only in development;
+other bases require HTTPS. Unsafe/missing configuration fails closed.
+
+Error states cover loading, signed out, expired session, 401 unauthorized,
+403 forbidden, 404 unavailable, malformed JSON/contracts, network and server errors.
+Backend error bodies are not reflected/logged. Requests cancel on dependency
+changes/unmount; stale responses are ignored. Missing authentication hides fetched
+data immediately; untouched autofills clear while user edits remain local.
+Production has no mock-login module/UI and no authenticated provider; the form
+continues in explicit unavailable/local-preparation mode without API requests.
+
+Live testing limitation: a safe unauthenticated probe of 127.0.0.1:4000/auth/me
+(with /api/v1 prefix) could not connect. The development browser sign-in likewise
+reported network unavailable. No backend/database was started or modified, no
+real JWT was obtained and neither authenticated GET succeeded live. Mocked tests
+are contract/UI regression evidence only, not successful real-backend integration.
+BC-01 through BC-11 remain open; production authentication, complete staff profile,
+rate governance and multi-paper calculation mapping still require backend agreement.
 
 ### Paper-marking claim planning reassessment — 2026-10-21
 
@@ -130,6 +174,12 @@ They do not block this presentation-only branch; reassess before connected work.
   tracking/history services; user/request/stage entities and main.ts.
 
 ## Mandatory update process for each API-connected task
+
+Resumed Phase 2 verification (2026-10-21): the local backend at
+`http://127.0.0.1:4000/api/v1/auth/me` was still unreachable. No backend was
+started or modified and no authenticated live success is claimed. Existing
+contracts and blockers remain unchanged. All 91 mocked/component tests passed
+with one Vitest worker after the default parallel run timed out starting workers.
 
 ### Claim Phase 1 implementation boundary — 2026-10-21
 

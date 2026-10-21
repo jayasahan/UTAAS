@@ -1,14 +1,16 @@
 # UTAAS frontend development progress
 
 Snapshot: 2026-10-21 (Asia/Colombo). Owner: frontend developer, Fernando A.N.V.
-Current branch: `feature/frontend-paper-marking-claim` (dependent base `ab47148`, integration base `f9f17d8`). Scaffold commit: `101184c7ad19d2ae4f9450aed56b101ced5425b3`.
+Current branch: `feature/frontend-paper-marking-integration` (base `origin/mvp` at `b0f713d`). Scaffold commit: `101184c7ad19d2ae4f9450aed56b101ced5425b3`.
 The scaffold is implemented, locally validated, committed and pushed.
 [PR #8](https://github.com/jayasahan/UTAAS/pull/8) merged into `mvp` at
 `f9f17d8e941b3df87bb8f3057e53af96bd7a9a9a`. Reviewer approval and independent QA
-remain UNVERIFIED; the last review query returned no submitted reviews. The new
-design system is committed/pushed at `ab47148` with [PR #9](https://github.com/jayasahan/UTAAS/pull/9)
-OPEN targeting mvp; jayasahan is requested as reviewer. Approval and QA remain
-unverified. Claim Phase 1 changes are local and uncommitted; no feature is accepted as delivered.
+remain UNVERIFIED. Design-system [PR #9](https://github.com/jayasahan/UTAAS/pull/9)
+merged at `4208d2e`; Phase 1 commit `b5e2689` merged through
+[PR #10](https://github.com/jayasahan/UTAAS/pull/10) at `b0f713d`.
+Phase 2 authentication/read-only changes are local and uncommitted. Independent
+review approval, QA and CI gates are not inferred from merge alone; no feature
+is accepted as fully delivered. Earlier evidence entries retain historical status.
 
 Use [FRONTEND_REVIEW_CHECKLIST.md](FRONTEND_REVIEW_CHECKLIST.md) for each task's
 review record. This tracker describes planned work; it does not authorize Git
@@ -69,7 +71,7 @@ There are 30 equal-weight Sprint 1 tasks below. Do not assign partial credit:
 
 | Scope             | Complete (all gates) | Implemented I | In progress IP | Blocked B | Not started NS | Total |
 | ----------------- | -------------------: | ------------: | -------------: | --------: | -------------: | ----: |
-| Sprint 1          |                    0 |             2 |              7 |         3 |             18 |    30 |
+| Sprint 1          |                    0 |             2 |              9 |         3 |             16 |    30 |
 | Future (excluded) |                    0 |             0 |              0 |         0 |              5 |     5 |
 
 Complete is an overlapping release measure, not an additional implementation
@@ -79,7 +81,7 @@ bucket. I + IP + B + NS = Total.
 | ------------------------------ | ------------------------: | ---------: |
 | Sprint 1 implementation        |                      2/30 |       6.7% |
 | Teammate approval before merge |                      0/30 |       0.0% |
-| Merged into mvp                |                      1/30 |       3.3% |
+| Merged into mvp                |                      2/30 |       6.7% |
 | QA verified                    |                      0/30 |       0.0% |
 | Complete delivery              |                      0/30 |       0.0% |
 
@@ -104,13 +106,13 @@ IDs, evidence IDs, decision IDs (D), or backend dependency IDs (API).
 
 ### Identity and lecturer workspace
 
-| ID    | Task                                       | Priority | Depends on                    | Impl. | Acceptance criteria                                                                                                                             | Verification/evidence                                 |
-| ----- | ------------------------------------------ | -------- | ----------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| FE-07 | Authentication UI and session handling     | P0       | FE-03, FE-06; API1            | NS    | Agreed sign-in, session restoration/expiry, logout and error states; mock identity visibly limited to development; no fictitious production SSO | E0; identity/error-path tests required                |
-| FE-08 | Role-based navigation and route protection | P0       | FE-07; D3                     | NS    | Lecturer/HOD/Dean/Exam/Finance/Bursar routes/actions reflect permissions; forbidden routes handled; no reliance on UI as security boundary      | E0; role and department test matrix required          |
-| FE-09 | Lecturer dashboard                         | P1       | FE-08, FE-26; API4            | NS    | Relevant summary and recent applications use real data; loading/error/empty states; no fabricated metrics                                       | E0; design/data mapping and browser checks required   |
-| FE-10 | My Applications list and discovery         | P1       | FE-08, FE-26; API4, D5        | NS    | Own applications, supported pagination/filtering/search, accessible links and status; private reference title only if agreed                    | E0; contract-supported filtering and ownership checks |
-| FE-11 | Save, list and resume drafts               | P0       | FE-12, FE-13, FE-26; API2, D4 | NS    | Save intended partial data, reopen same draft, retain values between steps; clear unsaved/error states; no unintended submit                    | E0; reload and existing-draft update tests            |
+| ID    | Task                                       | Priority | Depends on                    | Impl. | Acceptance criteria                                                                                                                             | Verification/evidence                                                            |
+| ----- | ------------------------------------------ | -------- | ----------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| FE-07 | Authentication UI and session handling     | P0       | FE-03, FE-06; API1            | IP    | Agreed sign-in, session restoration/expiry, logout and error states; mock identity visibly limited to development; no fictitious production SSO | E13; development memory-only session; production auth/live validation unresolved |
+| FE-08 | Role-based navigation and route protection | P0       | FE-07; D3                     | NS    | Lecturer/HOD/Dean/Exam/Finance/Bursar routes/actions reflect permissions; forbidden routes handled; no reliance on UI as security boundary      | E0; role and department test matrix required                                     |
+| FE-09 | Lecturer dashboard                         | P1       | FE-08, FE-26; API4            | NS    | Relevant summary and recent applications use real data; loading/error/empty states; no fabricated metrics                                       | E0; design/data mapping and browser checks required                              |
+| FE-10 | My Applications list and discovery         | P1       | FE-08, FE-26; API4, D5        | NS    | Own applications, supported pagination/filtering/search, accessible links and status; private reference title only if agreed                    | E0; contract-supported filtering and ownership checks                            |
+| FE-11 | Save, list and resume drafts               | P0       | FE-12, FE-13, FE-26; API2, D4 | NS    | Save intended partial data, reopen same draft, retain values between steps; clear unsaved/error states; no unintended submit                    | E0; reload and existing-draft update tests                                       |
 
 ### Four-step Paper Setting & Marking form
 
@@ -138,27 +140,31 @@ IDs, evidence IDs, decision IDs (D), or backend dependency IDs (API).
 
 ### Integration and release quality
 
-| ID    | Task                                             | Priority | Depends on                        | Impl. | Acceptance criteria                                                                                                                                                         | Verification/evidence                                                      |
-| ----- | ------------------------------------------------ | -------- | --------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| FE-26 | Typed API and shared data-state integration      | P0       | FE-03, FE-07; API1-API5           | NS    | Typed verified DTO mapping, base URL, auth/error handling, cancellation, safe retries and refresh after mutations; accessible loading/retry/empty states                    | E0; no frontend service integration currently                              |
-| FE-27 | Accessibility, responsive and Figma audit        | P1       | FE-04 through FE-25 as delivered  | NS    | WCAG 2.1 AA checks; keyboard/screen reader/focus/contrast; reduced motion; form/table/mobile layouts; screenshots matched to approved frames                                | E0; 390px scaffold check is not full accessibility QA                      |
-| FE-28 | Automated frontend and security regression suite | P0       | FE-13, FE-18, FE-21, FE-23, FE-26 | IP    | Component/integration/E2E tests for claims, totals, draft recovery, all stage actions, returns, IDOR/role boundaries and failure cases; agreed coverage measured            | E11; 52 local tests; connected workflow/security suite remains outstanding |
-| FE-29 | CI and reproducible frontend delivery checks     | P1       | FE-01, FE-28; D9                  | NS    | npm ci, lint, type-check, build, formatting and appropriate tests required on PRs; lockfile/runtime verified; hosting fallback and env documented                           | E0; existing CI lacks frontend test/format steps and permits some failures |
-| FE-30 | Integrated QA, UAT and Sprint 1 handoff          | P0       | FE-09 through FE-29               | NS    | Live backend six-role journey and failure/return paths verified; teammate and PR approvals, passing CI and mvp merges recorded; QA/UAT sign-off and known issues documented | E0; no frontend QA/UAT or merge evidence                                   |
+| ID    | Task                                             | Priority | Depends on                        | Impl. | Acceptance criteria                                                                                                                                                         | Verification/evidence                                                       |
+| ----- | ------------------------------------------------ | -------- | --------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| FE-26 | Typed API and shared data-state integration      | P0       | FE-03, FE-07; API1-API5           | IP    | Typed verified DTO mapping, base URL, auth/error handling, cancellation, safe retries and refresh after mutations; accessible loading/retry/empty states                    | E13; profile/circular reads implemented; live authenticated GETs unverified |
+| FE-27 | Accessibility, responsive and Figma audit        | P1       | FE-04 through FE-25 as delivered  | NS    | WCAG 2.1 AA checks; keyboard/screen reader/focus/contrast; reduced motion; form/table/mobile layouts; screenshots matched to approved frames                                | E0; 390px scaffold check is not full accessibility QA                       |
+| FE-28 | Automated frontend and security regression suite | P0       | FE-13, FE-18, FE-21, FE-23, FE-26 | IP    | Component/integration/E2E tests for claims, totals, draft recovery, all stage actions, returns, IDOR/role boundaries and failure cases; agreed coverage measured            | E13; 91 local tests; live workflow/security integration remains outstanding |
+| FE-29 | CI and reproducible frontend delivery checks     | P1       | FE-01, FE-28; D9                  | NS    | npm ci, lint, type-check, build, formatting and appropriate tests required on PRs; lockfile/runtime verified; hosting fallback and env documented                           | E0; existing CI lacks frontend test/format steps and permits some failures  |
+| FE-30 | Integrated QA, UAT and Sprint 1 handoff          | P0       | FE-09 through FE-29               | NS    | Live backend six-role journey and failure/return paths verified; teammate and PR approvals, passing CI and mvp merges recorded; QA/UAT sign-off and known issues documented | E0; no frontend QA/UAT or merge evidence                                    |
 
 ## Gate ledger
 
 Each ID must retain its own gate values when it changes. The grouped defaults
 below apply individually, not as a combined approval. Expand ranges as work moves.
 
-| Task IDs                                                     | Local verification | Teammate review | Git             | Formal PR                                               | CI         | QA         |
-| ------------------------------------------------------------ | ------------------ | --------------- | --------------- | ------------------------------------------------------- | ---------- | ---------- |
-| FE-01                                                        | PASS, E2-E4/E7     | UNVERIFIED      | PUSHED, 101184c | MERGED, [#8](https://github.com/jayasahan/UTAAS/pull/8) | UNVERIFIED | UNVERIFIED |
-| FE-02                                                        | PARTIAL, E5        | PENDING         | UNCOMMITTED     | NOT OPENED                                              | NOT RUN    | NOT RUN    |
-| FE-03, FE-07 through FE-11, FE-16 through FE-27, FE-29/FE-30 | NOT RUN            | PENDING         | UNCOMMITTED     | NOT OPENED                                              | NOT RUN    | NOT RUN    |
-| FE-04                                                        | PASS, E10          | PENDING         | PUSHED, ab47148 | OPEN, [#9](https://github.com/jayasahan/UTAAS/pull/9)   | UNVERIFIED | NOT RUN    |
-| FE-05/FE-06                                                  | PARTIAL, E9/E10    | PENDING         | PUSHED, ab47148 | OPEN, [#9](https://github.com/jayasahan/UTAAS/pull/9)   | UNVERIFIED | NOT RUN    |
-| FE-12/FE-13/FE-14/FE-15/FE-28                                | PARTIAL, E11/E12   | PENDING         | UNCOMMITTED     | NOT OPENED                                              | NOT RUN    | NOT RUN    |
+| Task IDs                                                            | Local verification   | Teammate review     | Git                                         | Formal PR                                               | CI                                  | QA         |
+| ------------------------------------------------------------------- | -------------------- | ------------------- | ------------------------------------------- | ------------------------------------------------------- | ----------------------------------- | ---------- |
+| FE-01                                                               | PASS, E2-E4/E7       | UNVERIFIED          | PUSHED, 101184c                             | MERGED, [#8](https://github.com/jayasahan/UTAAS/pull/8) | UNVERIFIED                          | UNVERIFIED |
+| FE-02                                                               | PARTIAL, E5          | PENDING             | UNCOMMITTED                                 | NOT OPENED                                              | NOT RUN                             | NOT RUN    |
+| FE-03, FE-08 through FE-11, FE-16 through FE-25, FE-27, FE-29/FE-30 | NOT RUN              | PENDING             | UNCOMMITTED                                 | NOT OPENED                                              | NOT RUN                             | NOT RUN    |
+| FE-04                                                               | PASS, E10            | UNVERIFIED          | PUSHED, ab47148                             | MERGED, [#9](https://github.com/jayasahan/UTAAS/pull/9) | UNVERIFIED                          | NOT RUN    |
+| FE-05/FE-06                                                         | PARTIAL, E9/E10      | UNVERIFIED          | PUSHED, ab47148                             | Partial scope merged in #9; full tasks remain IP        | UNVERIFIED                          | NOT RUN    |
+| FE-12/FE-13/FE-14/FE-15/FE-28                                       | PARTIAL, E11/E12/E13 | PENDING for Phase 2 | Phase 1 PUSHED b5e2689; Phase 2 UNCOMMITTED | UI scope MERGED #10; Phase 2 NOT OPENED                 | UNVERIFIED for #10; NOT RUN Phase 2 | NOT RUN    |
+| FE-07/FE-26                                                         | PARTIAL, E13         | PENDING             | UNCOMMITTED                                 | NOT OPENED                                              | NOT RUN                             | NOT RUN    |
+
+Merged percentage counts fully implemented tasks FE-01 and FE-04; merging partial
+UI scope does not mark the remaining integrated tasks as merged/complete.
 
 ## Evidence register
 
@@ -472,3 +478,60 @@ review requested from jayasahan. No merge/rebase, commit, push or PR creation.
   calls, DTO flattening, uploads, persistence or successful submission claims.
   FE-12/13/15/28 remain IP, FE-14 remains B; task counts/percentages are unchanged.
   Teammate approval, new CI, independent QA and live integration remain unverified.
+
+## Phase 2 development session and authenticated reads (E13, 2026-10-21)
+
+Scope: uncommitted frontend auth/API client, claim read-only data/components,
+configuration example, focused tests and documentation on
+feature/frontend-paper-marking-integration, based on origin/mvp b0f713d.
+Phase 1 PR #10 and design-system PR #9 are merged; their branches were untouched.
+No backend/CI/agent/dependency files, commit, push, PR, merge or rebase changes.
+
+- The human approved development-only lecturer sign-in using the existing mock
+  endpoint. Runtime authentication obtains a real backend token or fails; no fake
+  response, token, identity or rates fallback is used in the application.
+- Mock-login POST requires no credentials/body and returns accessToken/user.
+  GET /auth/me and /requests/paper-marking/rates/circular require bearer JWT.
+  Controllers, profile DTO, guards/strategy and provider/rates services were read;
+  contracts and source/runtime distinctions are recorded in BACKEND_COMPATIBILITY.md.
+- JWT stays in a private React ref, with logout/expiry/401/unmount clearing,
+  cancelled requests and no storage/cookies/logging/UI exposure. Reload does not
+  restore a session. Development module is conditionally imported only under DEV.
+  Production authentication is explicitly unavailable, without authenticated reads.
+- Validated profile data fills untouched fullName and returned department code.
+  Designation/staff ID are never invented or autofilled. Manual edits, including
+  intentional blanks, survive delayed responses and logout; untouched autofills
+  clear when authentication disappears. Late responses after logout are ignored.
+- Actual circular rates/labels/units are displayed as reference data only. The
+  endpoint has no currency/effective-date fields; multi-paper mapping, translation
+  and candidate calculations remain unresolved. Estimates stay unavailable and
+  no aggregate DTO is fabricated. Save Draft/Submit/uploads/resubmission stay blocked.
+- Node 20.20.2/npm 10.8.2: 91 tests pass in 7 files (23 new API/auth tests plus
+  the 68 previous tests). ESLint, strict TypeScript, Prettier and production build
+  passed. A build retry hit Windows ENOTEMPTY while preview was running; stopping
+  preview/dev servers and rebuilding passed without source changes. Mocked tests
+  cover request headers, status/network/config/
+  contract errors, loading, successful reads, retries, expiry, logout, reload,
+  cancellation/late results, user-edit preservation, nullable staff fields and
+  unsupported rate units. These are not real-backend integration passes.
+- Initial testing-library option type errors were corrected. Two long Phase 1
+  journeys timed out under the expanded suite; their fixture setup now uses change
+  events instead of per-character typing. Interaction assertions and original
+  timeouts remain; the full suite then passed.
+- Production JS was searched for the mock-login endpoint, development login labels,
+  provider name and mock-session fixture marker: all absent. Isolated headless Edge
+  production preview showed no login bar/button, zero API requests, unavailable
+  authentication, disabled Save Draft, no page errors and no overflow at 390px.
+- Development browser verified a real connection failure against localhost:4000,
+  sanitized network feedback and enabled retry, with no overflow at 390/768/1440px.
+  The backend was not listening; no backend/database was started or mutated, no
+  real JWT was obtained, and live authenticated GET success remains UNVERIFIED.
+- FE-07 and FE-26 become IP. Summary I=2, IP=9, B=3, NS=16; implementation 6.7%,
+  fully implemented tasks merged 6.7%, delivery 0.0%. No new task is I/Complete;
+  Phase 2 independent review, CI, QA and live integration remain unverified.
+- Resumed verification (2026-10-21): existing implementation was preserved.
+  Default parallel Vitest failed to start its workers before any tests ran;
+  `npm run test -- --maxWorkers=1` then passed all 91 tests in 7 files.
+  ESLint, strict TypeScript, Prettier and production build passed again on Node 20.
+  Production bundle markers remained absent. A fresh localhost:4000 probe failed
+  to connect; live authenticated integration remains unverified.
