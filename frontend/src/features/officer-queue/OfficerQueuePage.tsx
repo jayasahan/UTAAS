@@ -5,7 +5,6 @@ import { Card } from '../../components/common/Card';
 import { Alert, EmptyState, Skeleton } from '../../components/common/Feedback';
 import { Table, TableCell, TableHead } from '../../components/common/Table';
 import { RequestStatusBadge } from '../../components/tracking/RequestStatusBadge';
-import { RequestDetailPage } from '../../pages/RequestDetailPage';
 import { useRequestResource } from '../requests/useRequestResource';
 import { decodePendingQueue } from './contracts';
 import { OfficerAccessFeedback } from './OfficerPortalLayout';
@@ -216,14 +215,6 @@ export function OfficerQueuePage() {
   return (
     <OfficerAccessFeedback>
       {allowed && profile.data ? <AuthorizedQueue /> : null}
-    </OfficerAccessFeedback>
-  );
-}
-
-export function OfficerRequestDetailPage() {
-  return (
-    <OfficerAccessFeedback>
-      <RequestDetailPage />
     </OfficerAccessFeedback>
   );
 }
