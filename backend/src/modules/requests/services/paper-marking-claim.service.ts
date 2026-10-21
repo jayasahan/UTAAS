@@ -244,15 +244,25 @@ export class PaperMarkingClaimService {
     }
 
     // Role-based access validation
+    if (user.role === UserRole.ADMIN) {
+      return request;
+    }
+
     if (user.role === UserRole.LECTURER && request.applicantId !== user.id) {
       throw new ForbiddenException('Access denied: You can only view your own claims');
     }
 
+    // Draft claims are private to the applicant until submitted
+    if (request.status === RequestStatus.DRAFT && request.applicantId !== user.id) {
+      throw new ForbiddenException('Access denied: Draft claims can only be viewed by the applicant');
+    }
+
+    // Strict department boundary isolation for HODs (fail-closed)
     if (user.role === UserRole.HOD) {
       const applicantDeptId = request.applicant?.departmentId;
       const userDeptId = user.departmentId;
 
-      if (applicantDeptId && userDeptId && applicantDeptId !== userDeptId) {
+      if (!userDeptId || !applicantDeptId || applicantDeptId !== userDeptId) {
         throw new ForbiddenException(
           'Department access restriction: You can only inspect claims from your department',
         );

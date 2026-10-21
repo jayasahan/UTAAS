@@ -147,6 +147,46 @@ describe('TrackingHistoryService', () => {
       );
     });
 
+    it('should throw ForbiddenException if reviewer attempts to view request in DRAFT state', async () => {
+      const draftRequest = { ...sampleRequest, status: RequestStatus.DRAFT };
+      mockRequestRepo.findOne.mockResolvedValue(draftRequest);
+      const hodUser: User = { ...mockApplicant, id: 'hod-1', role: UserRole.HOD, departmentId: 'dept-com-1' };
+
+      await expect(service.getTrackingInfo('req-uuid-1', hodUser)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('should allow applicant to view their own request in DRAFT state', async () => {
+      const draftRequest = { ...sampleRequest, status: RequestStatus.DRAFT };
+      mockRequestRepo.findOne.mockResolvedValue(draftRequest);
+
+      const tracking = await service.getTrackingInfo('req-uuid-1', mockApplicant);
+      expect(tracking.status).toBe(RequestStatus.DRAFT);
+    });
+
+    it('should throw ForbiddenException if HOD has missing departmentId (fail-closed)', async () => {
+      mockRequestRepo.findOne.mockResolvedValue(sampleRequest);
+      const hodWithoutDept: User = { ...mockApplicant, id: 'hod-nodept', role: UserRole.HOD, departmentId: null as any };
+
+      await expect(service.getTrackingInfo('req-uuid-1', hodWithoutDept)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('should throw ForbiddenException if applicant has missing departmentId for HOD check (fail-closed)', async () => {
+      const reqNoDept: Request = {
+        ...sampleRequest,
+        applicant: { ...mockApplicant, departmentId: null as any },
+      };
+      mockRequestRepo.findOne.mockResolvedValue(reqNoDept);
+      const hodUser: User = { ...mockApplicant, id: 'hod-1', role: UserRole.HOD, departmentId: 'dept-com-1' };
+
+      await expect(service.getTrackingInfo('req-uuid-1', hodUser)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
     it('should throw NotFoundException if request does not exist', async () => {
       mockRequestRepo.findOne.mockResolvedValue(null);
 
@@ -198,6 +238,19 @@ describe('TrackingHistoryService', () => {
     it('should return empty queue for LECTURER role', async () => {
       const result = await service.getPendingQueue(mockApplicant);
       expect(result.data).toHaveLength(0);
+    });
+
+    it('should return empty queue for HOD when departmentId is missing (fail-closed)', async () => {
+      const hodWithoutDept: User = {
+        ...mockApplicant,
+        id: 'hod-nodept',
+        role: UserRole.HOD,
+        departmentId: null as any,
+      };
+
+      const result = await service.getPendingQueue(hodWithoutDept, 1, 10);
+      expect(result.data).toHaveLength(0);
+      expect(result.meta.total).toBe(0);
     });
   });
 });

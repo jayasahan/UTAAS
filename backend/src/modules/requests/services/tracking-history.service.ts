@@ -196,14 +196,16 @@ export class TrackingHistoryService {
     // Filter by stage corresponding to reviewer role
     switch (user.role) {
       case UserRole.HOD:
+        // Enforce strict department boundary: if HOD does not have a confirmed departmentId, return empty list (fail-closed)
+        if (!user.departmentId) {
+          return { data: [], meta: { total: 0, page, limit, totalPages: 0 } };
+        }
         queryBuilder.andWhere('request.currentStageKey = :stageKey', {
           stageKey: 'HEAD_OF_DEPARTMENT',
         });
-        if (user.departmentId) {
-          queryBuilder.andWhere('applicant.departmentId = :deptId', {
-            deptId: user.departmentId,
-          });
-        }
+        queryBuilder.andWhere('applicant.departmentId = :deptId', {
+          deptId: user.departmentId,
+        });
         break;
 
       case UserRole.DEAN:
@@ -269,17 +271,22 @@ export class TrackingHistoryService {
       return;
     }
 
-    // IDOR protection for lecturers
+    // IDOR protection for lecturers: can only view tracking and history for their own requests
     if (user.role === UserRole.LECTURER && request.applicantId !== user.id) {
       throw new ForbiddenException('Access denied: You can only view tracking and history for your own requests');
     }
 
-    // Department boundary isolation for HODs
+    // Draft privacy protection: claims in DRAFT status can only be accessed by the applicant (or admin)
+    if (request.status === RequestStatus.DRAFT && request.applicantId !== user.id) {
+      throw new ForbiddenException('Access denied: Draft claims can only be viewed by the applicant');
+    }
+
+    // Strict department boundary isolation for HODs (fail-closed)
     if (user.role === UserRole.HOD) {
       const applicantDeptId = request.applicant?.departmentId;
       const userDeptId = user.departmentId;
 
-      if (applicantDeptId && userDeptId && applicantDeptId !== userDeptId) {
+      if (!userDeptId || !applicantDeptId || applicantDeptId !== userDeptId) {
         throw new ForbiddenException(
           'Department boundary violation: You can only inspect requests submitted within your department',
         );
