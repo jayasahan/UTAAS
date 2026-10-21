@@ -370,7 +370,7 @@ export class WorkflowStateMachineService {
       const applicantDeptId = request.applicant?.departmentId;
       const actorDeptId = actor.departmentId;
 
-      if (applicantDeptId && actorDeptId && applicantDeptId !== actorDeptId) {
+      if (!actorDeptId || !applicantDeptId || applicantDeptId !== actorDeptId) {
         throw new ForbiddenException(
           'Department restriction: HOD can only review claims submitted by faculty within their department',
         );
