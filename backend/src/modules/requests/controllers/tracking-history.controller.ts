@@ -17,6 +17,7 @@ import {
 import { TrackingHistoryService } from '../services/tracking-history.service';
 import { TrackingResponseDto } from '../dto/tracking-response.dto';
 import { HistoryResponseDto } from '../dto/history-response.dto';
+import { ReviewHistoryResponseDto } from '../dto/review-history-response.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { User } from '../../../database/entities/user.entity';
@@ -59,6 +60,37 @@ export class TrackingHistoryController {
     @Query('limit') limit = 10,
   ) {
     return await this.trackingHistoryService.getPendingQueue(user, Number(page), Number(limit));
+  }
+
+  @Get('review-history')
+  @ApiOperation({
+    summary: 'Get Reviewer Completed Review History',
+    description:
+      'Returns paginated list of claims previously reviewed, approved, or returned by the authenticated officer role',
+  })
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 10 })
+  @ApiQuery({ name: 'decision', required: false, example: 'all' })
+  @ApiQuery({ name: 'search', required: false })
+  @ApiResponse({
+    status: 200,
+    description: 'List of completed review history entries',
+    type: ReviewHistoryResponseDto,
+  })
+  async getReviewHistory(
+    @CurrentUser() user: User,
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+    @Query('decision') decision?: string,
+    @Query('search') search?: string,
+  ): Promise<ReviewHistoryResponseDto> {
+    return await this.trackingHistoryService.getReviewHistory(
+      user,
+      Number(page),
+      Number(limit),
+      decision,
+      search,
+    );
   }
 
   @Get(':id/tracking')

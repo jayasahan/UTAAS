@@ -17,6 +17,12 @@ import {
   CurrentStageInfoDto,
 } from '../dto/tracking-response.dto';
 import { HistoryResponseDto, AuditEventItemDto } from '../dto/history-response.dto';
+import {
+  ReviewHistoryResponseDto,
+  ReviewHistoryEntryDto,
+  ReviewHistoryEventDto,
+  ReviewHistorySummaryCountsDto,
+} from '../dto/review-history-response.dto';
 
 @Injectable()
 export class TrackingHistoryService {
@@ -263,6 +269,170 @@ export class TrackingHistoryService {
         page,
         limit,
         totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * Retrieves paginated review history for the logged-in reviewer role.
+   * Includes claims previously acted upon by the officer, scoped by department where applicable.
+   */
+  async getReviewHistory(
+    user: User,
+    page = 1,
+    limit = 10,
+    decisionFilter?: string,
+    search?: string,
+  ): Promise<ReviewHistoryResponseDto> {
+    const emptyResponse: ReviewHistoryResponseDto = {
+      data: [],
+      meta: {
+        total: 0,
+        page,
+        limit,
+        totalPages: 0,
+        summaryCounts: { approved: 0, returned: 0, rejected: 0 },
+      },
+    };
+
+    // Lecturers don't have an officer review history
+    if (user.role === UserRole.LECTURER) {
+      return emptyResponse;
+    }
+
+    // Fail closed if HOD lacks departmentId
+    if (user.role === UserRole.HOD && !user.departmentId) {
+      return emptyResponse;
+    }
+
+    const stageKeyMap: Record<string, string> = {
+      [UserRole.HOD]: 'HEAD_OF_DEPARTMENT',
+      [UserRole.DEAN]: 'DEAN',
+      [UserRole.EXAMINATION_OFFICER]: 'EXAMINATION_OFFICE',
+      [UserRole.FINANCIAL_OFFICER]: 'FINANCIAL_OFFICE',
+      [UserRole.ASSISTANT_BURSAR]: 'ASSISTANT_BURSAR',
+    };
+
+    const targetStageKey = stageKeyMap[user.role];
+    if (!targetStageKey && user.role !== UserRole.ADMIN) {
+      return emptyResponse;
+    }
+
+    const qb = this.requestRepo
+      .createQueryBuilder('request')
+      .leftJoinAndSelect('request.applicant', 'applicant')
+      .leftJoinAndSelect('applicant.department', 'department')
+      .leftJoinAndSelect('request.requestType', 'requestType')
+      .leftJoinAndSelect('request.stageHistory', 'stageHistory')
+      .leftJoinAndSelect('request.auditEvents', 'auditEvents');
+
+    // Subquery to find requests where this reviewer role completed an action
+    if (user.role === UserRole.ADMIN) {
+      qb.where((subQb) => {
+        const subQuery = subQb
+          .subQuery()
+          .select('sh.requestId')
+          .from(RequestStageHistory, 'sh')
+          .where('sh.completedAt IS NOT NULL');
+        return `request.id IN ${subQuery.getQuery()}`;
+      });
+    } else {
+      qb.where((subQb) => {
+        const subQuery = subQb
+          .subQuery()
+          .select('sh.requestId')
+          .from(RequestStageHistory, 'sh')
+          .where('sh.stageKey = :targetStageKey')
+          .andWhere('sh.completedAt IS NOT NULL');
+        return `request.id IN ${subQuery.getQuery()}`;
+      }).setParameter('targetStageKey', targetStageKey);
+    }
+
+    // Department boundary isolation for HOD
+    if (user.role === UserRole.HOD) {
+      qb.andWhere('applicant.departmentId = :deptId', { deptId: user.departmentId });
+    }
+
+    // Optional search filter
+    if (search && search.trim()) {
+      qb.andWhere(
+        '(request.trackingNumber ILIKE :search OR applicant.fullName ILIKE :search)',
+        { search: `%${search.trim()}%` },
+      );
+    }
+
+    qb.orderBy('request.updatedAt', 'DESC');
+
+    const allReviewedRequests = await qb.getMany();
+
+    // Map each request to ReviewHistoryEntry
+    const mappedEntries: ReviewHistoryEntryDto[] = allReviewedRequests.map((req) => {
+      const myStage = user.role === UserRole.ADMIN
+        ? (req.stageHistory || []).find((s) => s.completedAt !== null)
+        : (req.stageHistory || []).find((s) => s.stageKey === targetStageKey);
+
+      let decision: 'APPROVED' | 'RETURNED_FOR_CORRECTION' | 'REJECTED' = 'APPROVED';
+      if (myStage?.action === StageAction.REJECT_RETURN || req.status === RequestStatus.RETURNED_FOR_CORRECTION) {
+        decision = 'RETURNED_FOR_CORRECTION';
+      } else if (req.status === RequestStatus.REJECTED) {
+        decision = 'REJECTED';
+      } else {
+        decision = 'APPROVED';
+      }
+
+      const decisionDate = myStage?.completedAt
+        ? myStage.completedAt.toISOString()
+        : req.updatedAt.toISOString();
+
+      const events: ReviewHistoryEventDto[] = (req.auditEvents || [])
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+        .map((evt) => ({
+          id: evt.id,
+          action: evt.actionType,
+          actor: evt.actorName || 'System',
+          role: evt.actorRole || 'System',
+          occurredAt: evt.createdAt.toISOString(),
+          summary: evt.comment || evt.actionType,
+        }));
+
+      return {
+        id: req.id,
+        trackingNumber: req.trackingNumber,
+        applicant: req.applicant?.fullName || 'Unknown Applicant',
+        claimType: req.requestType?.name || 'Paper Setting & Marking Claim',
+        department: req.applicant?.department?.name || 'Engineering Faculty',
+        departmentCode: req.applicant?.department?.code || null,
+        decision,
+        decisionDate,
+        totalAmount: Number(req.totalAmount) || 0,
+        events,
+      };
+    });
+
+    // Summary counts before decision filtering
+    const summaryCounts: ReviewHistorySummaryCountsDto = {
+      approved: mappedEntries.filter((e) => e.decision === 'APPROVED').length,
+      returned: mappedEntries.filter((e) => e.decision === 'RETURNED_FOR_CORRECTION').length,
+      rejected: mappedEntries.filter((e) => e.decision === 'REJECTED').length,
+    };
+
+    // Filter by decision if specified
+    const filteredEntries = decisionFilter && decisionFilter !== 'all'
+      ? mappedEntries.filter((e) => e.decision === decisionFilter)
+      : mappedEntries;
+
+    const total = filteredEntries.length;
+    const skip = (page - 1) * limit;
+    const paginatedEntries = filteredEntries.slice(skip, skip + limit);
+
+    return {
+      data: paginatedEntries,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit) || (total === 0 ? 0 : 1),
+        summaryCounts,
       },
     };
   }
