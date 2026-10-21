@@ -1,16 +1,19 @@
 # UTAAS frontend development progress
 
 Snapshot: 2026-10-21 (Asia/Colombo). Owner: frontend developer, Fernando A.N.V.
-Current branch: `feature/frontend-paper-marking-integration` (base `origin/mvp` at `b0f713d`). Scaffold commit: `101184c7ad19d2ae4f9450aed56b101ced5425b3`.
+Current feature branch: `feature/frontend-request-tracking` from `origin/mvp` at `e1c3f7e`. Scaffold commit: `101184c7ad19d2ae4f9450aed56b101ced5425b3`.
 The scaffold is implemented, locally validated, committed and pushed.
 [PR #8](https://github.com/jayasahan/UTAAS/pull/8) merged into `mvp` at
 `f9f17d8e941b3df87bb8f3057e53af96bd7a9a9a`. Reviewer approval and independent QA
 remain UNVERIFIED. Design-system [PR #9](https://github.com/jayasahan/UTAAS/pull/9)
 merged at `4208d2e`; Phase 1 commit `b5e2689` merged through
 [PR #10](https://github.com/jayasahan/UTAAS/pull/10) at `b0f713d`.
-Phase 2 authentication/read-only changes are local and uncommitted. Independent
-review approval, QA and CI gates are not inferred from merge alone; no feature
-is accepted as fully delivered. Earlier evidence entries retain historical status.
+Phase 2 authentication/read-only changes merged through
+[PR #12](https://github.com/jayasahan/UTAAS/pull/12) at `e1c3f7e`. Source and
+mocked tests are present; live authenticated integration remains unverified.
+PR #12 has no reported status checks; independent QA is not inferred from merge.
+No feature is accepted as fully delivered. Earlier evidence entries retain
+historical status.
 
 Use [FRONTEND_REVIEW_CHECKLIST.md](FRONTEND_REVIEW_CHECKLIST.md) for each task's
 review record. This tracker describes planned work; it does not authorize Git
@@ -71,7 +74,7 @@ There are 30 equal-weight Sprint 1 tasks below. Do not assign partial credit:
 
 | Scope             | Complete (all gates) | Implemented I | In progress IP | Blocked B | Not started NS | Total |
 | ----------------- | -------------------: | ------------: | -------------: | --------: | -------------: | ----: |
-| Sprint 1          |                    0 |             2 |              9 |         3 |             16 |    30 |
+| Sprint 1          |                    0 |             2 |             13 |         3 |             12 |    30 |
 | Future (excluded) |                    0 |             0 |              0 |         0 |              5 |     5 |
 
 Complete is an overlapping release measure, not an additional implementation
@@ -106,13 +109,13 @@ IDs, evidence IDs, decision IDs (D), or backend dependency IDs (API).
 
 ### Identity and lecturer workspace
 
-| ID    | Task                                       | Priority | Depends on                    | Impl. | Acceptance criteria                                                                                                                             | Verification/evidence                                                            |
-| ----- | ------------------------------------------ | -------- | ----------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| FE-07 | Authentication UI and session handling     | P0       | FE-03, FE-06; API1            | IP    | Agreed sign-in, session restoration/expiry, logout and error states; mock identity visibly limited to development; no fictitious production SSO | E13; development memory-only session; production auth/live validation unresolved |
-| FE-08 | Role-based navigation and route protection | P0       | FE-07; D3                     | NS    | Lecturer/HOD/Dean/Exam/Finance/Bursar routes/actions reflect permissions; forbidden routes handled; no reliance on UI as security boundary      | E0; role and department test matrix required                                     |
-| FE-09 | Lecturer dashboard                         | P1       | FE-08, FE-26; API4            | NS    | Relevant summary and recent applications use real data; loading/error/empty states; no fabricated metrics                                       | E0; design/data mapping and browser checks required                              |
-| FE-10 | My Applications list and discovery         | P1       | FE-08, FE-26; API4, D5        | NS    | Own applications, supported pagination/filtering/search, accessible links and status; private reference title only if agreed                    | E0; contract-supported filtering and ownership checks                            |
-| FE-11 | Save, list and resume drafts               | P0       | FE-12, FE-13, FE-26; API2, D4 | NS    | Save intended partial data, reopen same draft, retain values between steps; clear unsaved/error states; no unintended submit                    | E0; reload and existing-draft update tests                                       |
+| ID    | Task                                       | Priority | Depends on                    | Impl. | Acceptance criteria                                                                                                                             | Verification/evidence                                                                        |
+| ----- | ------------------------------------------ | -------- | ----------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| FE-07 | Authentication UI and session handling     | P0       | FE-03, FE-06; API1            | IP    | Agreed sign-in, session restoration/expiry, logout and error states; mock identity visibly limited to development; no fictitious production SSO | E13; development memory-only session; production auth/live validation unresolved             |
+| FE-08 | Role-based navigation and route protection | P0       | FE-07; D3                     | NS    | Lecturer/HOD/Dean/Exam/Finance/Bursar routes/actions reflect permissions; forbidden routes handled; no reliance on UI as security boundary      | E0; role and department test matrix required                                                 |
+| FE-09 | Lecturer dashboard                         | P1       | FE-08, FE-26; API4            | NS    | Relevant summary and recent applications use real data; loading/error/empty states; no fabricated metrics                                       | E0; design/data mapping and browser checks required                                          |
+| FE-10 | My Applications list and discovery         | P1       | FE-08, FE-26; API4, D5        | IP    | Own applications, supported pagination/filtering/search, accessible links and status; private reference title only if agreed                    | E14-E15; paginated GET and mocked list states tested; live ownership/draft discovery pending |
+| FE-11 | Save, list and resume drafts               | P0       | FE-12, FE-13, FE-26; API2, D4 | NS    | Save intended partial data, reopen same draft, retain values between steps; clear unsaved/error states; no unintended submit                    | E0; reload and existing-draft update tests                                                   |
 
 ### Four-step Paper Setting & Marking form
 
@@ -126,17 +129,17 @@ IDs, evidence IDs, decision IDs (D), or backend dependency IDs (API).
 
 ### Tracking, correction and officer screens
 
-| ID    | Task                                    | Priority | Depends on                    | Impl. | Acceptance criteria                                                                                                                                             | Verification/evidence                                         |
-| ----- | --------------------------------------- | -------- | ----------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| FE-17 | Request detail and status header        | P0       | FE-16, FE-26; API2, API4      | NS    | Code/type/title/submission time/status and current reviewer from server; all request statuses incl. APPROVED/REJECTED/SETTLED mapped without conflating them    | E0; status fixtures and live response checks                  |
-| FE-18 | Workflow stepper and timeline           | P0       | FE-17; API4                   | NS    | Data-driven six-stage sequence; completed/active/future/returned distinct with text/icons; desktop horizontal and mobile vertical; prior approvals retained     | E0; all stage states and repeated returns checked             |
-| FE-19 | Approval and audit history              | P0       | FE-17; API4                   | NS    | Chronological immutable event display with actor/role/action/time/comments and available diffs; accessible expand/collapse; no audit editing                    | E0; ordering, timestamps and note rendering tests             |
-| FE-20 | Correction detail and permitted editing | P0       | FE-17, FE-19; D3, D5          | NS    | Returning reviewer/reason prominent; correction sections/fields follow agreed permissions; retain existing documents and approvals                              | E0; returned-by-HOD/Exam/Finance scenarios                    |
-| FE-21 | Review and resubmit corrections         | P0       | FE-20, FE-15; API5            | NS    | Review corrected values and reconfirm declaration; resubmit to same returning officer/stage; no replay of approved stages; refresh history                      | E0; Exam/Finance direct-resubmission E2E evidence required    |
-| FE-22 | Officer work queues                     | P0       | FE-08, FE-26; API4            | NS    | HOD/Dean/Exam/Finance/Bursar queues and request links; correct department/faculty scope; loading/error/empty and supported pagination                           | E0; all reviewer roles and forbidden-scope cases              |
-| FE-23 | Officer detail and review actions       | P0       | FE-22, FE-17, FE-19; API5, D3 | NS    | Read-only claim/evidence review; approved role/stage actions only; comments required for return; confirmation, pending and failure states                       | E0; no invented reject action; transition/authorization tests |
-| FE-24 | Finance/Bursar settlement visibility    | P0       | FE-23, FE-18; API5, D8        | NS    | Distinguish finance payout authorization from Bursar settlement; show server amount/status and available settlement history; no claim of payment before SETTLED | E0; full six-stage forward path and settled read-only view    |
-| FE-25 | Direct link/query UI                    | P1       | FE-17; API5, D7               | B     | Lecturer-to-Exam/Finance clarification behavior, recipient, thread/history and permissions agreed; querying does not change active approval stage               | E0; DIRECT_QUERY exists, conversation contract unresolved     |
+| ID    | Task                                    | Priority | Depends on                    | Impl. | Acceptance criteria                                                                                                                                             | Verification/evidence                                                                                      |
+| ----- | --------------------------------------- | -------- | ----------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| FE-17 | Request detail and status header        | P0       | FE-16, FE-26; API2, API4      | IP    | Code/type/title/submission time/status and current reviewer from server; all request statuses incl. APPROVED/REJECTED/SETTLED mapped without conflating them    | E14-E15; detail route/basic status fixture tested; all status/live response checks remain                  |
+| FE-18 | Workflow stepper and timeline           | P0       | FE-17; API4                   | IP    | Data-driven six-stage sequence; completed/active/future/returned distinct with text/icons; desktop horizontal and mobile vertical; prior approvals retained     | E14-E15; current-stage adapter/active-stage fixture tested; six-stage and populated browser checks pending |
+| FE-19 | Approval and audit history              | P0       | FE-17; API4                   | IP    | Chronological immutable event display with actor/role/action/time/comments and available diffs; accessible expand/collapse; no audit editing                    | E14-E15; event/diff rendering and empty-comment contract tested; ordering/live response pending            |
+| FE-20 | Correction detail and permitted editing | P0       | FE-17, FE-19; D3, D5          | NS    | Returning reviewer/reason prominent; correction sections/fields follow agreed permissions; retain existing documents and approvals                              | E0; returned-by-HOD/Exam/Finance scenarios                                                                 |
+| FE-21 | Review and resubmit corrections         | P0       | FE-20, FE-15; API5            | NS    | Review corrected values and reconfirm declaration; resubmit to same returning officer/stage; no replay of approved stages; refresh history                      | E0; Exam/Finance direct-resubmission E2E evidence required                                                 |
+| FE-22 | Officer work queues                     | P0       | FE-08, FE-26; API4            | NS    | HOD/Dean/Exam/Finance/Bursar queues and request links; correct department/faculty scope; loading/error/empty and supported pagination                           | E0; all reviewer roles and forbidden-scope cases                                                           |
+| FE-23 | Officer detail and review actions       | P0       | FE-22, FE-17, FE-19; API5, D3 | NS    | Read-only claim/evidence review; approved role/stage actions only; comments required for return; confirmation, pending and failure states                       | E0; no invented reject action; transition/authorization tests                                              |
+| FE-24 | Finance/Bursar settlement visibility    | P0       | FE-23, FE-18; API5, D8        | NS    | Distinguish finance payout authorization from Bursar settlement; show server amount/status and available settlement history; no claim of payment before SETTLED | E0; full six-stage forward path and settled read-only view                                                 |
+| FE-25 | Direct link/query UI                    | P1       | FE-17; API5, D7               | B     | Lecturer-to-Exam/Finance clarification behavior, recipient, thread/history and permissions agreed; querying does not change active approval stage               | E0; DIRECT_QUERY exists, conversation contract unresolved                                                  |
 
 ### Integration and release quality
 
@@ -144,7 +147,7 @@ IDs, evidence IDs, decision IDs (D), or backend dependency IDs (API).
 | ----- | ------------------------------------------------ | -------- | --------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | FE-26 | Typed API and shared data-state integration      | P0       | FE-03, FE-07; API1-API5           | IP    | Typed verified DTO mapping, base URL, auth/error handling, cancellation, safe retries and refresh after mutations; accessible loading/retry/empty states                    | E13; profile/circular reads implemented; live authenticated GETs unverified |
 | FE-27 | Accessibility, responsive and Figma audit        | P1       | FE-04 through FE-25 as delivered  | NS    | WCAG 2.1 AA checks; keyboard/screen reader/focus/contrast; reduced motion; form/table/mobile layouts; screenshots matched to approved frames                                | E0; 390px scaffold check is not full accessibility QA                       |
-| FE-28 | Automated frontend and security regression suite | P0       | FE-13, FE-18, FE-21, FE-23, FE-26 | IP    | Component/integration/E2E tests for claims, totals, draft recovery, all stage actions, returns, IDOR/role boundaries and failure cases; agreed coverage measured            | E13; 91 local tests; live workflow/security integration remains outstanding |
+| FE-28 | Automated frontend and security regression suite | P0       | FE-13, FE-18, FE-21, FE-23, FE-26 | IP    | Component/integration/E2E tests for claims, totals, draft recovery, all stage actions, returns, IDOR/role boundaries and failure cases; agreed coverage measured            | E17; 97 local tests; live workflow/security integration remains outstanding |
 | FE-29 | CI and reproducible frontend delivery checks     | P1       | FE-01, FE-28; D9                  | NS    | npm ci, lint, type-check, build, formatting and appropriate tests required on PRs; lockfile/runtime verified; hosting fallback and env documented                           | E0; existing CI lacks frontend test/format steps and permits some failures  |
 | FE-30 | Integrated QA, UAT and Sprint 1 handoff          | P0       | FE-09 through FE-29               | NS    | Live backend six-role journey and failure/return paths verified; teammate and PR approvals, passing CI and mvp merges recorded; QA/UAT sign-off and known issues documented | E0; no frontend QA/UAT or merge evidence                                    |
 
@@ -153,15 +156,16 @@ IDs, evidence IDs, decision IDs (D), or backend dependency IDs (API).
 Each ID must retain its own gate values when it changes. The grouped defaults
 below apply individually, not as a combined approval. Expand ranges as work moves.
 
-| Task IDs                                                            | Local verification   | Teammate review     | Git                                         | Formal PR                                               | CI                                  | QA         |
-| ------------------------------------------------------------------- | -------------------- | ------------------- | ------------------------------------------- | ------------------------------------------------------- | ----------------------------------- | ---------- |
-| FE-01                                                               | PASS, E2-E4/E7       | UNVERIFIED          | PUSHED, 101184c                             | MERGED, [#8](https://github.com/jayasahan/UTAAS/pull/8) | UNVERIFIED                          | UNVERIFIED |
-| FE-02                                                               | PARTIAL, E5          | PENDING             | UNCOMMITTED                                 | NOT OPENED                                              | NOT RUN                             | NOT RUN    |
-| FE-03, FE-08 through FE-11, FE-16 through FE-25, FE-27, FE-29/FE-30 | NOT RUN              | PENDING             | UNCOMMITTED                                 | NOT OPENED                                              | NOT RUN                             | NOT RUN    |
-| FE-04                                                               | PASS, E10            | UNVERIFIED          | PUSHED, ab47148                             | MERGED, [#9](https://github.com/jayasahan/UTAAS/pull/9) | UNVERIFIED                          | NOT RUN    |
-| FE-05/FE-06                                                         | PARTIAL, E9/E10      | UNVERIFIED          | PUSHED, ab47148                             | Partial scope merged in #9; full tasks remain IP        | UNVERIFIED                          | NOT RUN    |
-| FE-12/FE-13/FE-14/FE-15/FE-28                                       | PARTIAL, E11/E12/E13 | PENDING for Phase 2 | Phase 1 PUSHED b5e2689; Phase 2 UNCOMMITTED | UI scope MERGED #10; Phase 2 NOT OPENED                 | UNVERIFIED for #10; NOT RUN Phase 2 | NOT RUN    |
-| FE-07/FE-26                                                         | PARTIAL, E13         | PENDING             | UNCOMMITTED                                 | NOT OPENED                                              | NOT RUN                             | NOT RUN    |
+| Task IDs                                                                  | Local verification                         | Teammate review     | Git                                    | Formal PR                                                 | CI                                    | QA         |
+| ------------------------------------------------------------------------- | ------------------------------------------ | ------------------- | -------------------------------------- | --------------------------------------------------------- | ------------------------------------- | ---------- |
+| FE-01                                                                     | PASS, E2-E4/E7                             | UNVERIFIED          | PUSHED, 101184c                        | MERGED, [#8](https://github.com/jayasahan/UTAAS/pull/8)   | UNVERIFIED                            | UNVERIFIED |
+| FE-02                                                                     | PARTIAL, E5                                | PENDING             | UNCOMMITTED                            | NOT OPENED                                                | NOT RUN                               | NOT RUN    |
+| FE-03, FE-08/FE-09, FE-11, FE-16, FE-20 through FE-25, FE-27, FE-29/FE-30 | NOT RUN                                    | PENDING             | UNCOMMITTED                            | NOT OPENED                                                | NOT RUN                               | NOT RUN    |
+| FE-04                                                                     | PASS, E10                                  | UNVERIFIED          | PUSHED, ab47148                        | MERGED, [#9](https://github.com/jayasahan/UTAAS/pull/9)   | UNVERIFIED                            | NOT RUN    |
+| FE-05/FE-06                                                               | PARTIAL, E9/E10                            | UNVERIFIED          | PUSHED, ab47148                        | Partial scope merged in #9; full tasks remain IP          | UNVERIFIED                            | NOT RUN    |
+| FE-12/FE-13/FE-14/FE-15/FE-28                                             | PARTIAL, E11/E12/E13                       | PENDING for Phase 3 | Phase 1 PUSHED b5e2689; Phase 2 MERGED | UI scope MERGED #10; Phase 2 MERGED #12                   | PR checks unavailable; local E13 pass | NOT RUN    |
+| FE-07/FE-26                                                               | PARTIAL, E13                               | PENDING             | MERGED via #12                         | MERGED, [#12](https://github.com/jayasahan/UTAAS/pull/12) | No reported checks; local E13 pass    | UNVERIFIED |
+| FE-10/FE-17/FE-18/FE-19                                                   | PARTIAL, E14-E15 mocked/browser scope only | PENDING             | LOCAL, UNCOMMITTED                     | NOT OPENED                                                | NOT RUN                               | UNVERIFIED |
 
 Merged percentage counts fully implemented tasks FE-01 and FE-04; merging partial
 UI scope does not mark the remaining integrated tasks as merged/complete.
@@ -535,3 +539,76 @@ No backend/CI/agent/dependency files, commit, push, PR, merge or rebase changes.
   ESLint, strict TypeScript, Prettier and production build passed again on Node 20.
   Production bundle markers remained absent. A fresh localhost:4000 probe failed
   to connect; live authenticated integration remains unverified.
+
+## Authenticated lecturer request reads (E14, 2026-10-21)
+
+On `feature/frontend-request-tracking`, replaced the My Applications
+and Request Details placeholders with authenticated read-only integrations for
+the paginated applicant list, claim detail, tracking timeline and audit history.
+The API client now accepts typed query parameters. Response decoders validate
+documented fields; page state handles loading, error, retry and empty results.
+Request identifiers are UUID-validated before requests. Server LKR totals and
+workflow status are displayed as returned. No draft, submission, upload or
+workflow mutation is enabled.
+
+Strict TypeScript, ESLint, Prettier and production build pass. No automated tests
+or browser checks were run for E14. No live backend response has been verified;
+the Phase 2 localhost probe had failed to connect. User ownership and HOD scope
+remain enforced by backend endpoints. This implementation is local and
+uncommitted; teammate review, CI and QA are pending.
+
+## Request reads: tests and responsive check (E15, 2026-10-21)
+
+The read-only work began as uncommitted Phase 3 work on
+`feature/frontend-paper-marking-persistence`; origin was fetched with prune and
+confirmed the branch remains based on latest `origin/mvp` at `e1c3f7e`. No
+commit, rebase, merge or push occurred. The backend source revision is unchanged;
+no backend, CI or agent files were changed.
+
+Added five mocked request-page tests for authenticated list query/bearer header,
+detail plus tracking/history reads, invalid UUID call prevention, sanitized 401
+feedback and an empty list. The detail view now uses the request type returned by
+tracking rather than a hardcoded Paper Marking label, and audit history renders
+backend-provided field differences in a keyboard-operable disclosure. Tests
+also verify the request type and a sample field diff. These tests uncovered a
+history decoder bug: an empty string comment is valid display data, but the
+shared non-empty text decoder rejected it. Comments now accept empty strings
+while other required text fields remain strict. Fixture responses do not verify
+live server behavior.
+
+Node 20.20.2 validation: 96 tests pass in 8 files; ESLint, strict TypeScript,
+Prettier check and production build pass. Browser viewport checks on the signed-
+out `/requests` route found no horizontal document overflow at CSS widths 390,
+768 and 1440px. This checks shell/unavailable states only; authenticated
+content, the populated table and timeline were not browser-tested. The local
+backend probe at `127.0.0.1:4000` returned unavailable, so live API integration
+remains unverified. Independent QA, CI and reviewer approval remain unverified.
+Phase 3 persistence blockers BC-01 to BC-04 and save/submit/upload restrictions
+remain unchanged.
+
+Task status update: FE-10/17/18/19 are IP with limited evidence; FE-28 has 96
+local tests but remains incomplete for mutation, role/security and live
+integration scenarios. Counts: I=2, IP=13, B=3, NS=12 of 30 tasks;
+implementation 6.7% (`I` only), merged 6.7%, accepted delivery 0.0%.
+
+## Request-tracking separation and validation (E17, 2026-10-21)
+
+Separated only authenticated request list, detail, tracking and history reads
+onto `feature/frontend-request-tracking` from `origin/mvp` at `e1c3f7e` in an
+independent worktree. The original persistence checkout and its uncommitted
+course fields, documentation and other work remain untouched. The audit decoder
+now accepts a null previous status allowed by the backend entity, and empty
+stage comments, showing “Initial state” when there is no previous status.
+Regression cases cover nullable audit status, empty stage comments and pagination with mocked responses; they are not live backend evidence.
+
+Node 20 validation in this worktree: Vitest 97/97 tests passed across 8 files;
+ESLint, strict TypeScript, changed-file Prettier and production build passed.
+The checkout-wide Prettier command reported 60 unchanged files because Git
+checked them out with CRLF line endings; the same checkout passed Prettier with
+`--end-of-line auto`, and changed files passed the repository's normal check.
+A production-preview browser check found no document overflow at CSS widths
+390, 768 and 1440px on the signed-out My Requests route. The skip-to-content
+link received keyboard focus; an invalid request ID showed the safe fallback.
+These checks do not cover populated authenticated pages. The backend was not
+listening on 127.0.0.1:4000, so authenticated live GETs remain unverified. Teammate review, PR,
+CI and independent QA remain pending. No draft, submit or upload code is included.
