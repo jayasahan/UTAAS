@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom';
 import { Card } from '../../components/common/Card';
-import { EmptyState } from '../../components/common/Feedback';
+import { Alert, EmptyState } from '../../components/common/Feedback';
 import { Table, TableCell, TableHead } from '../../components/common/Table';
 import { RequestStatusBadge } from '../../components/tracking/RequestStatusBadge';
 import { WorkflowStepper } from '../../components/tracking/Steppers';
 import type { WorkflowDisplayStage } from '../../components/tracking/Steppers';
 import type { OfficerClaimReview } from './contracts';
+import { OfficerDecisionSection } from './OfficerDecisionSection';
+import type { WorkflowActionRequest } from './workflowActions';
 
 const amount = new Intl.NumberFormat('en-LK', {
   style: 'currency',
@@ -120,11 +122,17 @@ export function OfficerClaimReviewView({
   onDownload,
   downloadingFilename,
   downloadError,
+  decisionNotice,
+  onExecuteDecision,
+  actionsEnabled = true,
 }: {
   review: OfficerClaimReview;
   onDownload?: (document: OfficerClaimReview['documents'][number]) => void;
   downloadingFilename?: string | null;
   downloadError?: string | null;
+  decisionNotice?: string | null;
+  onExecuteDecision?: (request: WorkflowActionRequest) => Promise<void>;
+  actionsEnabled?: boolean;
 }) {
   return (
     <div className="space-y-6">
@@ -411,6 +419,18 @@ export function OfficerClaimReviewView({
               </ol>
             )}
           </section>
+          {decisionNotice && (
+            <Alert title="Decision recorded" tone="success">
+              <p>{decisionNotice}</p>
+            </Alert>
+          )}
+          {onExecuteDecision && (
+            <OfficerDecisionSection
+              review={review}
+              onExecute={onExecuteDecision}
+              actionsEnabled={actionsEnabled}
+            />
+          )}
         </aside>
       </div>
     </div>

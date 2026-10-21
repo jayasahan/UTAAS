@@ -58,12 +58,15 @@ export interface ReviewDocumentMetadata {
   downloadFilename: string | null;
 }
 
+export type ReviewTrackingStage = RequestTracking['stages'][number];
+
 export interface OfficerClaimReview {
   id: string;
   trackingNumber: string;
   applicantName: string | null;
   requestType: string;
   status: RequestStatus;
+  currentStageKey: string;
   submittedAt: string;
   totalAmount: number;
   personal: ReviewPersonalInfo;
@@ -207,7 +210,8 @@ export function decodeOfficerClaimReview(
     tracking.trackingNumber !== detail.trackingNumber ||
     history.trackingNumber !== detail.trackingNumber ||
     history.requestId !== detail.id ||
-    tracking.status !== detail.status
+    tracking.status !== detail.status ||
+    tracking.currentStage.key !== detail.currentStageKey
   )
     throw new Error('Mismatched claim review responses');
 
@@ -226,6 +230,7 @@ export function decodeOfficerClaimReview(
     applicantName,
     requestType: tracking.requestType,
     status: detail.status,
+    currentStageKey: detail.currentStageKey,
     submittedAt: detail.createdAt,
     totalAmount: detail.totalAmount,
     personal: mapStrings(personal, personalKeys),
