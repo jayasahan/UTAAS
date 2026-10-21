@@ -1,0 +1,5 @@
+/* PRIMARY 42:110 secondary headings; scoped to this feature, not shared tables. */
+.paper-payment-table .ds-table thead tr:nth-child(2) th {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+}
