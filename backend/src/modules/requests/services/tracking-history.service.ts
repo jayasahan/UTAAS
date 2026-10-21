@@ -10,6 +10,7 @@ import { Request, RequestStatus } from '../../../database/entities/request.entit
 import { RequestStageHistory, StageAction } from '../../../database/entities/request-stage-history.entity';
 import { AuditEvent } from '../../../database/entities/audit-event.entity';
 import { User, UserRole } from '../../../database/entities/user.entity';
+import { enforceRequestAccessControl } from '../utils/access-control.util';
 import {
   TrackingResponseDto,
   StageStepperItemDto,
@@ -110,7 +111,7 @@ export class TrackingHistoryService {
   async getAuditHistory(requestId: string, user: User): Promise<HistoryResponseDto> {
     const request = await this.requestRepo.findOne({
       where: { id: requestId },
-      relations: ['auditEvents', 'applicant', 'applicant.department'],
+      relations: ['auditEvents', 'stageHistory', 'applicant', 'applicant.department'],
       order: {
         auditEvents: {
           createdAt: 'ASC',
@@ -267,30 +268,6 @@ export class TrackingHistoryService {
   }
 
   private enforceAccessControl(request: Request, user: User) {
-    if (user.role === UserRole.ADMIN) {
-      return;
-    }
-
-    // IDOR protection for lecturers: can only view tracking and history for their own requests
-    if (user.role === UserRole.LECTURER && request.applicantId !== user.id) {
-      throw new ForbiddenException('Access denied: You can only view tracking and history for your own requests');
-    }
-
-    // Draft privacy protection: claims in DRAFT status can only be accessed by the applicant (or admin)
-    if (request.status === RequestStatus.DRAFT && request.applicantId !== user.id) {
-      throw new ForbiddenException('Access denied: Draft claims can only be viewed by the applicant');
-    }
-
-    // Strict department boundary isolation for HODs (fail-closed)
-    if (user.role === UserRole.HOD) {
-      const applicantDeptId = request.applicant?.departmentId;
-      const userDeptId = user.departmentId;
-
-      if (!userDeptId || !applicantDeptId || applicantDeptId !== userDeptId) {
-        throw new ForbiddenException(
-          'Department boundary violation: You can only inspect requests submitted within your department',
-        );
-      }
-    }
+    enforceRequestAccessControl(request, user);
   }
 }

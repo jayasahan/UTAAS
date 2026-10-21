@@ -385,5 +385,77 @@ describe('PaperMarkingClaimService', () => {
         NotFoundException,
       );
     });
+
+    it('should allow HOD to access claim when request is at HEAD_OF_DEPARTMENT stage and department matches', async () => {
+      const hodUser: User = { ...mockUser, id: 'hod-1', role: UserRole.HOD, departmentId: 'dept-com-1' };
+      mockRequestRepo.findOne.mockResolvedValue({
+        id: 'claim-hod-ok',
+        applicantId: 'lecturer-id',
+        applicant: { id: 'lecturer-id', departmentId: 'dept-com-1' },
+        status: RequestStatus.UNDER_REVIEW,
+        currentStageKey: 'HEAD_OF_DEPARTMENT',
+        stageHistory: [
+          { stageKey: 'HEAD_OF_DEPARTMENT', requiredRole: UserRole.HOD, enteredAt: new Date() },
+        ],
+      });
+
+      const claim = await service.getClaimById('claim-hod-ok', hodUser);
+      expect(claim.id).toBe('claim-hod-ok');
+    });
+
+    it('should allow reviewer (e.g. DEAN) to access claim when request is currently at DEAN stage', async () => {
+      const deanUser: User = { ...mockUser, id: 'dean-1', role: UserRole.DEAN };
+      mockRequestRepo.findOne.mockResolvedValue({
+        id: 'claim-dean-ok',
+        applicantId: 'lecturer-id',
+        applicant: { id: 'lecturer-id', departmentId: 'dept-com-1' },
+        status: RequestStatus.UNDER_REVIEW,
+        currentStageKey: 'DEAN',
+        stageHistory: [
+          { stageKey: 'HEAD_OF_DEPARTMENT', requiredRole: UserRole.HOD, enteredAt: new Date(), completedAt: new Date() },
+          { stageKey: 'DEAN', requiredRole: UserRole.DEAN, enteredAt: new Date() },
+        ],
+      });
+
+      const claim = await service.getClaimById('claim-dean-ok', deanUser);
+      expect(claim.id).toBe('claim-dean-ok');
+    });
+
+    it('should allow prior reviewer (e.g. HOD) to access claim when request has advanced to DEAN stage', async () => {
+      const hodUser: User = { ...mockUser, id: 'hod-1', role: UserRole.HOD, departmentId: 'dept-com-1' };
+      mockRequestRepo.findOne.mockResolvedValue({
+        id: 'claim-adv',
+        applicantId: 'lecturer-id',
+        applicant: { id: 'lecturer-id', departmentId: 'dept-com-1' },
+        status: RequestStatus.UNDER_REVIEW,
+        currentStageKey: 'DEAN',
+        stageHistory: [
+          { stageKey: 'HEAD_OF_DEPARTMENT', requiredRole: UserRole.HOD, enteredAt: new Date(), completedAt: new Date() },
+          { stageKey: 'DEAN', requiredRole: UserRole.DEAN, enteredAt: new Date() },
+        ],
+      });
+
+      const claim = await service.getClaimById('claim-adv', hodUser);
+      expect(claim.id).toBe('claim-adv');
+    });
+
+    it('should throw ForbiddenException if reviewer attempts to access claim that has not reached their stage', async () => {
+      const bursarUser: User = { ...mockUser, id: 'bursar-1', role: UserRole.ASSISTANT_BURSAR };
+      mockRequestRepo.findOne.mockResolvedValue({
+        id: 'claim-early',
+        applicantId: 'lecturer-id',
+        applicant: { id: 'lecturer-id', departmentId: 'dept-com-1' },
+        status: RequestStatus.UNDER_REVIEW,
+        currentStageKey: 'HEAD_OF_DEPARTMENT',
+        stageHistory: [
+          { stageKey: 'HEAD_OF_DEPARTMENT', requiredRole: UserRole.HOD, enteredAt: new Date() },
+          { stageKey: 'ASSISTANT_BURSAR', requiredRole: UserRole.ASSISTANT_BURSAR, enteredAt: null },
+        ],
+      });
+
+      await expect(service.getClaimById('claim-early', bursarUser)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
   });
 });

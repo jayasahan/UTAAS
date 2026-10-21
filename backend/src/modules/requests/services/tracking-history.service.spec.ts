@@ -194,6 +194,23 @@ describe('TrackingHistoryService', () => {
         NotFoundException,
       );
     });
+
+    it('should allow HOD to access tracking info when request is at HEAD_OF_DEPARTMENT stage and department matches', async () => {
+      const hodUser: User = { ...mockApplicant, id: 'hod-1', role: UserRole.HOD, departmentId: 'dept-com-1' };
+      mockRequestRepo.findOne.mockResolvedValue(sampleRequest);
+
+      const tracking = await service.getTrackingInfo('req-uuid-1', hodUser);
+      expect(tracking.trackingNumber).toBe(sampleRequest.trackingNumber);
+    });
+
+    it('should throw ForbiddenException if reviewer (e.g. DEAN) attempts to access tracking when request is still at HOD stage', async () => {
+      const deanUser: User = { ...mockApplicant, id: 'dean-1', role: UserRole.DEAN };
+      mockRequestRepo.findOne.mockResolvedValue(sampleRequest);
+
+      await expect(service.getTrackingInfo('req-uuid-1', deanUser)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
   });
 
   describe('getAuditHistory', () => {
