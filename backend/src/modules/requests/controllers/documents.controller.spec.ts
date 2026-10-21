@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DocumentsController } from './documents.controller';
-import { Request } from '../../../database/entities/request.entity';
+import { Request, RequestStatus } from '../../../database/entities/request.entity';
 import { User } from '../../../database/entities/user.entity';
 import { UserRole } from '../../../database/entities/user-role.enum';
 import * as fs from 'fs';
@@ -28,11 +28,13 @@ describe('DocumentsController', () => {
     id: 'user-hod-1',
     email: 'hod@eng.ruh.ac.lk',
     role: UserRole.HOD,
+    departmentId: 'dept-com-1',
   } as User;
 
   beforeEach(async () => {
     mockRequestRepo = {
       createQueryBuilder: jest.fn().mockReturnValue({
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getOne: jest.fn().mockResolvedValue(null),
@@ -132,11 +134,26 @@ describe('DocumentsController', () => {
       }
     });
 
-    it('should allow reviewer (e.g. HOD) to access any claim document', async () => {
+    it('should allow reviewer (e.g. HOD) to access claim document when authorized for department and stage', async () => {
       const uploadDir = path.resolve(process.cwd(), 'uploads');
       const testFilename = `${mockLecturer.id}__test-hod.pdf`;
       const testFilePath = path.join(uploadDir, testFilename);
       fs.writeFileSync(testFilePath, 'dummy-content');
+
+      mockRequestRepo.createQueryBuilder.mockReturnValue({
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue({
+          id: 'claim-1',
+          applicantId: mockLecturer.id,
+          applicant: { id: mockLecturer.id, departmentId: 'dept-com-1' },
+          status: RequestStatus.UNDER_REVIEW,
+          currentStageKey: 'HEAD_OF_DEPARTMENT',
+          stageHistory: [
+            { stageKey: 'HEAD_OF_DEPARTMENT', requiredRole: UserRole.HOD, enteredAt: new Date() },
+          ],
+        }),
+      });
 
       const mockRes = {
         sendFile: jest.fn().mockReturnValue(true),
@@ -145,6 +162,67 @@ describe('DocumentsController', () => {
       try {
         await controller.getDocument(testFilename, mockHod, mockRes);
         expect(mockRes.sendFile).toHaveBeenCalledWith(testFilePath);
+      } finally {
+        if (fs.existsSync(testFilePath)) {
+          fs.unlinkSync(testFilePath);
+        }
+      }
+    });
+
+    it('should throw ForbiddenException if reviewer attempts to access document for a claim outside their department', async () => {
+      const uploadDir = path.resolve(process.cwd(), 'uploads');
+      const testFilename = `${mockLecturer.id}__other-dept.pdf`;
+      const testFilePath = path.join(uploadDir, testFilename);
+      fs.writeFileSync(testFilePath, 'dummy-content');
+
+      mockRequestRepo.createQueryBuilder.mockReturnValue({
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue({
+          id: 'claim-2',
+          applicantId: mockLecturer.id,
+          applicant: { id: mockLecturer.id, departmentId: 'dept-civ-2' },
+          status: RequestStatus.UNDER_REVIEW,
+          currentStageKey: 'HEAD_OF_DEPARTMENT',
+        }),
+      });
+
+      const mockRes = { sendFile: jest.fn() } as any;
+
+      try {
+        await expect(controller.getDocument(testFilename, mockHod, mockRes)).rejects.toThrow(
+          ForbiddenException,
+        );
+      } finally {
+        if (fs.existsSync(testFilePath)) {
+          fs.unlinkSync(testFilePath);
+        }
+      }
+    });
+
+    it('should throw ForbiddenException if reviewer attempts to access document of a draft claim', async () => {
+      const uploadDir = path.resolve(process.cwd(), 'uploads');
+      const testFilename = `${mockLecturer.id}__draft-doc.pdf`;
+      const testFilePath = path.join(uploadDir, testFilename);
+      fs.writeFileSync(testFilePath, 'dummy-content');
+
+      mockRequestRepo.createQueryBuilder.mockReturnValue({
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue({
+          id: 'claim-draft',
+          applicantId: mockLecturer.id,
+          applicant: { id: mockLecturer.id, departmentId: 'dept-com-1' },
+          status: RequestStatus.DRAFT,
+        }),
+      });
+
+      const mockRes = { sendFile: jest.fn() } as any;
+
+      try {
+        await expect(controller.getDocument(testFilename, mockHod, mockRes)).rejects.toThrow(
+          ForbiddenException,
+        );
       } finally {
         if (fs.existsSync(testFilePath)) {
           fs.unlinkSync(testFilePath);

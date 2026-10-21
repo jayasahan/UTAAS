@@ -16,6 +16,7 @@ import {
 } from '../../../database/entities/request-stage-history.entity';
 import { AuditEvent } from '../../../database/entities/audit-event.entity';
 import { User, UserRole } from '../../../database/entities/user.entity';
+import { enforceRequestAccessControl } from '../utils/access-control.util';
 import { FeeCalculationService } from './fee-calculation.service';
 import { TrackingNumberService } from './tracking-number.service';
 import { CreatePaperMarkingClaimDto } from '../dto/create-paper-marking-claim.dto';
@@ -243,31 +244,8 @@ export class PaperMarkingClaimService {
       throw new NotFoundException(`Claim with ID ${id} not found`);
     }
 
-    // Role-based access validation
-    if (user.role === UserRole.ADMIN) {
-      return request;
-    }
-
-    if (user.role === UserRole.LECTURER && request.applicantId !== user.id) {
-      throw new ForbiddenException('Access denied: You can only view your own claims');
-    }
-
-    // Draft claims are private to the applicant until submitted
-    if (request.status === RequestStatus.DRAFT && request.applicantId !== user.id) {
-      throw new ForbiddenException('Access denied: Draft claims can only be viewed by the applicant');
-    }
-
-    // Strict department boundary isolation for HODs (fail-closed)
-    if (user.role === UserRole.HOD) {
-      const applicantDeptId = request.applicant?.departmentId;
-      const userDeptId = user.departmentId;
-
-      if (!userDeptId || !applicantDeptId || applicantDeptId !== userDeptId) {
-        throw new ForbiddenException(
-          'Department access restriction: You can only inspect claims from your department',
-        );
-      }
-    }
+    // Role-based access validation, draft privacy, department scoping, and reviewer stage enforcement
+    enforceRequestAccessControl(request, user);
 
     return request;
   }

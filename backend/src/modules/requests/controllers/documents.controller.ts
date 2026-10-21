@@ -28,6 +28,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { User } from '../../../database/entities/user.entity';
 import { UserRole } from '../../../database/entities/user-role.enum';
+import { enforceRequestAccessControl } from '../utils/access-control.util';
 import { Request } from '../../../database/entities/request.entity';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -130,28 +131,31 @@ export class DocumentsController {
       throw new ForbiddenException('Authentication required to access documents');
     }
 
-    // Role-based authorization: Reviewers and Admin roles have authorization to view claim documents
-    const isReviewerOrAdmin = user.role !== UserRole.LECTURER;
-    if (isReviewerOrAdmin) {
+    // Admin has unrestricted access to all documents
+    if (user.role === UserRole.ADMIN) {
       return res.sendFile(filePath);
     }
 
-    // For LECTURER: Verify that user is the original uploader (encoded in filename)
+    // Original uploader always has access to their own uploaded file
     if (safeFilename.startsWith(`${user.id}__`)) {
       return res.sendFile(filePath);
     }
 
-    // Check if the document is referenced in any of the lecturer's claims in PostgreSQL
+    // Check if the document is referenced in any claim in PostgreSQL
     const claim = await this.requestRepo
       .createQueryBuilder('request')
-      .where('request.applicantId = :applicantId', { applicantId: user.id })
-      .andWhere("request.formData::text LIKE :docMatch", { docMatch: `%${safeFilename}%` })
+      .leftJoinAndSelect('request.applicant', 'applicant')
+      .leftJoinAndSelect('request.stageHistory', 'stageHistory')
+      .where("request.formData::text LIKE :docMatch", { docMatch: `%${safeFilename}%` })
       .getOne();
 
-    if (claim) {
-      return res.sendFile(filePath);
+    if (!claim) {
+      throw new ForbiddenException('You do not have permission to access this document');
     }
 
-    throw new ForbiddenException('You do not have permission to access this document');
+    // Enforce role, draft privacy, department boundary, and workflow stage access
+    enforceRequestAccessControl(claim, user);
+
+    return res.sendFile(filePath);
   }
 }
