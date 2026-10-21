@@ -1,0 +1,110 @@
+import {
+  Controller,
+  Post,
+  Get,
+  Param,
+  Body,
+  UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+  NotFoundException,
+  Res,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import * as fs from 'fs';
+import * as path from 'path';
+import { randomUUID } from 'crypto';
+
+@ApiTags('Supporting Documents')
+@Controller('requests')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
+export class DocumentsController {
+  private readonly uploadDir = path.resolve(process.cwd(), 'uploads');
+
+  constructor() {
+    if (!fs.existsSync(this.uploadDir)) {
+      fs.mkdirSync(this.uploadDir, { recursive: true });
+    }
+  }
+
+  @Post('upload')
+  @ApiOperation({ summary: 'Upload Supporting Document (PDF, PNG, JPEG, max 10MB)' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        category: {
+          type: 'string',
+          enum: ['APPOINTMENT_LETTER', 'EXAM_TIMETABLE', 'ATTENDANCE_MARKS_SHEET'],
+        },
+        requestId: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'File uploaded successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid file format or size exceeds 10MB' })
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadFile(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('category') category?: string,
+    @Body('requestId') requestId?: string,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No file provided for upload');
+    }
+
+    const allowedMimeTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new BadRequestException(
+        `Invalid file format: ${file.mimetype}. Allowed formats: PDF, PNG, JPEG.`,
+      );
+    }
+
+    const maxBytes = 10 * 1024 * 1024; // 10 MiB
+    if (file.size > maxBytes) {
+      throw new BadRequestException('File exceeds maximum size limit of 10 MiB');
+    }
+
+    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const storedFilename = `${randomUUID()}-${safeName}`;
+    const destinationPath = path.join(this.uploadDir, storedFilename);
+
+    await fs.promises.writeFile(destinationPath, file.buffer);
+
+    return {
+      name: file.originalname,
+      url: `/api/v1/requests/documents/${storedFilename}`,
+      documentType: category || 'APPOINTMENT_LETTER',
+      size: file.size,
+      mimetype: file.mimetype,
+      requestId: requestId || null,
+    };
+  }
+
+  @Get('documents/:filename')
+  @ApiOperation({ summary: 'Retrieve Uploaded Supporting Document' })
+  async getDocument(@Param('filename') filename: string, @Res() res: Response) {
+    const safeFilename = path.basename(filename);
+    const filePath = path.join(this.uploadDir, safeFilename);
+
+    if (!fs.existsSync(filePath)) {
+      throw new NotFoundException('Document not found');
+    }
+
+    return res.sendFile(filePath);
+  }
+}

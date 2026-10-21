@@ -48,6 +48,8 @@ Thumbs.db
 docker-compose.override.yml
 tmp/
 temp/
+uploads/
+backend/uploads/
 
 # Agentic Development & AI Configuration Files
 AGENTS.md

@@ -16,6 +16,7 @@ import { TrackingHistoryService } from './services/tracking-history.service';
 import { PaperMarkingController } from './controllers/paper-marking.controller';
 import { WorkflowController } from './controllers/workflow.controller';
 import { TrackingHistoryController } from './controllers/tracking-history.controller';
+import { DocumentsController } from './controllers/documents.controller';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { TrackingHistoryController } from './controllers/tracking-history.contro
     PaperMarkingController,
     WorkflowController,
     TrackingHistoryController,
+    DocumentsController,
   ],
   providers: [
     FeeCalculationService,
