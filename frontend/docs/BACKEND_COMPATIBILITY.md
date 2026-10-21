@@ -427,3 +427,44 @@ closed in GitHub but additional backend stage/resource enforcement is still
 needed before production detail, tracking or history can be enabled. Document
 downloads separately need request-level authorization. These findings are
 source-inspected only, not live integration evidence.
+
+## Officer Review History — contract inspection (2026-10-21)
+
+Inspected the backend present in latest fetched `origin/mvp` at
+`570db438f0dc60386678b28e8322830f4776364f` (includes merged Officer Claim
+Review PR #22). This is source inspection, not live integration.
+
+- The request controller exposes `GET /api/v1/requests/pending-queue?page=&limit=`
+  for currently pending work, not previously handled applications. It does not
+  expose completed officer decisions as a history listing.
+- `GET /api/v1/requests/my-requests?page=&limit=` is the authenticated
+  applicant's own request list; it is not an officer history endpoint.
+- `GET /api/v1/requests/:id/history` is a per-known-request audit history. It
+  returns request ID, tracking number and events (action, actor/role, previous
+  and new status, optional change/comment, timestamp). It cannot enumerate an
+  officer's decisions because it requires a request ID. The tracking and
+  request-detail routes likewise address a known request rather than provide a
+  history list.
+- These endpoints use JWT authentication and shared request access checks.
+  HOD department matching and draft privacy are checked, but the source does
+  not provide an officer-specific decision-history scope contract or a safe
+  list that establishes which completed records a reviewer may see. A known
+  request ID is not treated as sufficient authorization by the frontend.
+- No officer-history pagination, search, decision/department/date filters,
+  decision actor attribution list, or response DTO for a completed-review list
+  was found. The filters in the development preview operate only on fictional
+  local fixtures and do not imply backend support.
+- GitHub [issue #19](https://github.com/jayasahan/UTAAS/issues/19) is closed
+  as completed (last updated 2026-10-21 17:02 UTC), but closure does not supply
+  the missing officer-history listing contract or prove reviewer-stage
+  authorization for this use case. Request-specific
+  details, history navigation, and document access remain unavailable from the
+  production history page. Document downloads remain disabled pending
+  request-level authorization evidence.
+
+Backend questions for a follow-up contract: provide a reviewer-scoped list
+endpoint and DTO; define role/department/current-stage or historical decision
+scope; specify stable pagination and supported filters; define whether each
+record represents an officer decision or a broader audit entry; and provide a
+request-detail authorization contract for any navigation action. No backend
+code or issue was changed or created for this frontend feature.
