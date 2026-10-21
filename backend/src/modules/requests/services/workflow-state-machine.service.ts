@@ -15,6 +15,7 @@ import {
 import { AuditEvent } from '../../../database/entities/audit-event.entity';
 import { User, UserRole } from '../../../database/entities/user.entity';
 import { TransitionActionDto, WorkflowActionType } from '../dto/transition-action.dto';
+import { FeeCalculationService } from './fee-calculation.service';
 
 @Injectable()
 export class WorkflowStateMachineService {
@@ -29,6 +30,7 @@ export class WorkflowStateMachineService {
     private readonly auditEventRepo: Repository<AuditEvent>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    private readonly feeCalculationService: FeeCalculationService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -98,6 +100,21 @@ export class WorkflowStateMachineService {
     const currentStage = this.findActiveStage(request);
     this.verifyActorRole(actor, currentStage.requiredRole);
     this.verifyDepartmentScope(actor, request);
+
+    // HOD Direct Editing Support:
+    // If updatedFormData is provided during APPROVE, only HOD (at HEAD_OF_DEPARTMENT stage) or ADMIN may edit claim data.
+    if (dto.updatedFormData) {
+      if (currentStage.stageKey !== 'HEAD_OF_DEPARTMENT' && actor.role !== UserRole.ADMIN) {
+        throw new ForbiddenException('Direct claim editing is only permitted for Head of Department review');
+      }
+
+      this.applyAndRecalculateFormData(request, dto.updatedFormData);
+
+      await this.recordAuditEvent(manager, request, actor, 'HOD_DIRECT_EDIT', 'UNDER_REVIEW', 'UNDER_REVIEW', {
+        newTotalAmount: request.totalAmount,
+        editedByHOD: true,
+      }, dto.comments || 'Head of Department updated claim details before recommendation');
+    }
 
     // Close current stage
     currentStage.actorId = actor.id;
@@ -220,27 +237,46 @@ export class WorkflowStateMachineService {
       throw new BadRequestException(`Cannot return request in status '${request.status}'`);
     }
 
+    if (!dto.comments || !dto.comments.trim()) {
+      throw new BadRequestException('Comments are mandatory when returning a claim for correction');
+    }
+
     const currentStage = this.findActiveStage(request);
     this.verifyActorRole(actor, currentStage.requiredRole);
     this.verifyDepartmentScope(actor, request);
 
+    // Defined Return Targets:
+    // When HOD returns, destination is LECTURER_CORRECTION.
+    // When subsequent offices return, destination is either HEAD_OF_DEPARTMENT or LECTURER_CORRECTION.
+    let destinationStageKey: string;
+    if (currentStage.stageKey === 'HEAD_OF_DEPARTMENT') {
+      if (dto.targetReturnRole && dto.targetReturnRole !== UserRole.LECTURER) {
+        throw new BadRequestException('Head of Department can only return claims to the lecturer for correction');
+      }
+      destinationStageKey = 'LECTURER_CORRECTION';
+    } else {
+      if (dto.targetReturnRole) {
+        if (dto.targetReturnRole === UserRole.LECTURER) {
+          destinationStageKey = 'LECTURER_CORRECTION';
+        } else if (dto.targetReturnRole === UserRole.HOD) {
+          destinationStageKey = 'HEAD_OF_DEPARTMENT';
+        } else {
+          throw new BadRequestException("Subsequent review stages can only return claims to 'HOD' or 'LECTURER'");
+        }
+      } else {
+        destinationStageKey = 'HEAD_OF_DEPARTMENT';
+      }
+    }
+
     currentStage.actorId = actor.id;
     currentStage.action = StageAction.REJECT_RETURN;
     currentStage.completedAt = new Date();
-    currentStage.comments = dto.comments || 'Returned for clarification or correction';
+    currentStage.comments = dto.comments.trim();
     await manager.save(RequestStageHistory, currentStage);
 
     request.status = RequestStatus.RETURNED_FOR_CORRECTION;
     request.returningOfficerId = actor.id;
-
-    // Routing destination per SVG specification:
-    // HOD returns to Lecturer.
-    // Exam Office / Finance Office returns to HOD (or directly to Lecturer if targeted).
-    if (currentStage.stageKey === 'HEAD_OF_DEPARTMENT' || dto.targetReturnRole === UserRole.LECTURER) {
-      request.currentStageKey = 'LECTURER_CORRECTION';
-    } else {
-      request.currentStageKey = 'HEAD_OF_DEPARTMENT';
-    }
+    request.currentStageKey = destinationStageKey;
 
     const savedRequest = await manager.save(Request, request);
 
@@ -248,7 +284,8 @@ export class WorkflowStateMachineService {
       returnedFromStage: currentStage.stageKey,
       returnTarget: request.currentStageKey,
       returningOfficerId: actor.id,
-    }, dto.comments);
+      targetReturnRole: dto.targetReturnRole || (destinationStageKey === 'HEAD_OF_DEPARTMENT' ? UserRole.HOD : UserRole.LECTURER),
+    }, dto.comments.trim());
 
     return savedRequest;
   }
@@ -262,20 +299,35 @@ export class WorkflowStateMachineService {
     actor: User,
     dto: TransitionActionDto,
   ): Promise<Request> {
-    if (request.applicantId !== actor.id && actor.role !== UserRole.ADMIN) {
-      throw new ForbiddenException('Only the original applicant can resubmit a returned claim');
-    }
-
     if (request.status !== RequestStatus.RETURNED_FOR_CORRECTION) {
       throw new BadRequestException(`Cannot resubmit request in status '${request.status}'`);
     }
 
-    // Apply corrected form data if provided
+    // Role-based authorization for resubmission depending on active correction stage
+    if (request.currentStageKey === 'LECTURER_CORRECTION') {
+      if (request.applicantId !== actor.id && actor.role !== UserRole.ADMIN) {
+        throw new ForbiddenException('Only the original applicant can resubmit a claim returned to lecturer');
+      }
+    } else if (request.currentStageKey === 'HEAD_OF_DEPARTMENT') {
+      if (actor.role === UserRole.HOD) {
+        const applicantDeptId = request.applicant?.departmentId;
+        if (!actor.departmentId || !applicantDeptId || applicantDeptId !== actor.departmentId) {
+          throw new ForbiddenException(
+            'Department restriction: HOD can only resubmit claims for applicants within their department',
+          );
+        }
+      } else if (request.applicantId !== actor.id && actor.role !== UserRole.ADMIN) {
+        throw new ForbiddenException('Only the Head of Department or applicant can resubmit this claim');
+      }
+    } else {
+      if (request.applicantId !== actor.id && actor.role !== UserRole.ADMIN) {
+        throw new ForbiddenException('Only the original applicant can resubmit a returned claim');
+      }
+    }
+
+    // Apply corrected form data if provided and recalculate statutory fees server-side
     if (dto.updatedFormData) {
-      request.formData = {
-        ...request.formData,
-        ...dto.updatedFormData,
-      };
+      this.applyAndRecalculateFormData(request, dto.updatedFormData);
     }
 
     // Determine routing: route directly back to returning office if set, or HOD
@@ -290,6 +342,12 @@ export class WorkflowStateMachineService {
           targetStageKey = 'EXAMINATION_OFFICE';
         } else if (returningOfficer.role === UserRole.FINANCIAL_OFFICER) {
           targetStageKey = 'FINANCIAL_OFFICE';
+        } else if (returningOfficer.role === UserRole.DEAN) {
+          targetStageKey = 'DEAN';
+        } else if (returningOfficer.role === UserRole.ASSISTANT_BURSAR) {
+          targetStageKey = 'ASSISTANT_BURSAR';
+        } else if (returningOfficer.role === UserRole.HOD) {
+          targetStageKey = 'HEAD_OF_DEPARTMENT';
         }
       }
     }
@@ -299,7 +357,7 @@ export class WorkflowStateMachineService {
     const previousReturningOfficerId = request.returningOfficerId;
     request.returningOfficerId = null;
 
-    // Update the stage in stage history to mark resubmitted
+    // Update target stage in stage history to mark pending again
     const targetStage = request.stageHistory.find((s) => s.stageKey === targetStageKey);
     if (targetStage) {
       targetStage.enteredAt = new Date();
@@ -313,6 +371,7 @@ export class WorkflowStateMachineService {
     await this.recordAuditEvent(manager, request, actor, 'RESUBMIT', 'RETURNED_FOR_CORRECTION', 'UNDER_REVIEW', {
       resubmittedToStage: targetStageKey,
       previousReturningOfficerId,
+      newTotalAmount: request.totalAmount,
     }, dto.comments || 'Corrections applied and claim resubmitted');
 
     return savedRequest;
@@ -400,5 +459,34 @@ export class WorkflowStateMachineService {
       comment: comment || '',
     });
     await manager.save(AuditEvent, audit);
+  }
+  private applyAndRecalculateFormData(request: Request, updatedFormData: Record<string, any>) {
+    const updatedPersonal = updatedFormData.personal || request.formData?.personal || {};
+    const updatedMetadata = updatedFormData.metadata || updatedFormData.academic || request.formData?.metadata || request.formData?.academic || {};
+    const updatedPapers = updatedFormData.papers !== undefined ? updatedFormData.papers : request.formData?.papers;
+    const updatedItems = updatedFormData.items !== undefined
+      ? updatedFormData.items
+      : (updatedPapers && Array.isArray(updatedPapers) && updatedPapers.length > 0
+          ? this.feeCalculationService.aggregateFromPaperRows(updatedPapers)
+          : request.formData?.items);
+
+    const feeCalculation = this.feeCalculationService.calculateClaimFees(updatedItems, updatedPapers);
+    if (feeCalculation.totalAmount <= 0) {
+      throw new BadRequestException(
+        'Invalid claim: Total claim amount must be greater than zero. Please provide at least one claim item or paper row with positive counts.',
+      );
+    }
+
+    request.formData = {
+      ...request.formData,
+      ...updatedFormData,
+      personal: updatedPersonal,
+      metadata: updatedMetadata,
+      academic: updatedMetadata,
+      papers: updatedPapers || [],
+      items: updatedItems,
+      feeCalculation,
+    };
+    request.totalAmount = feeCalculation.totalAmount;
   }
 }
