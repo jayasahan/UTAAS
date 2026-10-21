@@ -1,15 +1,62 @@
+import { useCallback, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Alert } from '../../components/common/Feedback';
+import { useSession } from '../../auth/session';
+import type { StaffProfile } from '../../auth/contracts';
+import { ApiError } from '../../services/apiClient';
+import { decodeRequestDetail } from '../requests/contracts';
+import { useRequestResource } from '../requests/useRequestResource';
 import { OfficerAccessFeedback } from '../officer-queue/OfficerPortalLayout';
+import { useOfficerAccess } from '../officer-queue/officerAccess';
+import {
+  decodeOfficerClaimReview,
+  type ReviewDocumentMetadata,
+} from './contracts';
+import { OfficerClaimReviewView } from './OfficerClaimReviewView';
 
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-function UnavailableReview({ validRequestId }: { validRequestId: boolean }) {
+const decodeIdentity = (value: unknown) => value;
+
+function LoadingReview() {
+  return (
+    <div
+      role="status"
+      className="space-y-4 rounded-card border border-border bg-surface p-6"
+    >
+      <span className="sr-only">Loading claim review</span>
+      <div
+        aria-hidden="true"
+        className="h-6 w-2/3 animate-pulse rounded bg-slate-200"
+      />
+      <div
+        aria-hidden="true"
+        className="h-24 animate-pulse rounded bg-slate-100"
+      />
+      <div
+        aria-hidden="true"
+        className="h-48 animate-pulse rounded bg-slate-100"
+      />
+    </div>
+  );
+}
+
+function ReviewUnavailable({
+  requestId,
+  title,
+  message,
+  onRetry,
+}: {
+  requestId: string | undefined;
+  title: string;
+  message: string;
+  onRetry: () => void;
+}) {
   return (
     <section
       className="max-w-3xl space-y-5"
-      aria-labelledby="review-blocked-title"
+      aria-labelledby="review-unavailable-title"
     >
       <Link
         to="/officer/queue"
@@ -18,58 +65,202 @@ function UnavailableReview({ validRequestId }: { validRequestId: boolean }) {
         ← Back to Queue
       </Link>
       <h1
-        id="review-blocked-title"
+        id="review-unavailable-title"
         className="text-display font-bold text-brand"
       >
         Claim review unavailable
       </h1>
-      <Alert
-        title={
-          validRequestId
-            ? 'Live claim details are unavailable'
-            : 'Invalid request reference'
-        }
-        tone="warning"
-      >
-        {validRequestId ? (
-          <>
-            <p>
-              This page does not request or display claim details. The backend
-              now fails closed for HOD queue department scope and checks HOD
-              department boundaries for request reads, but detail, tracking, and
-              history still do not enforce each reviewer&apos;s assigned
-              workflow stage. Document retrieval also lacks request-level
-              authorization. Frontend role checks cannot secure those records.
-            </p>
-            <p className="mt-2">
-              Issue #19 is marked closed upstream, but the source still needs a
-              follow-up for reviewer stage scope:{' '}
-              <a
-                className="font-semibold underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
-                href="https://github.com/jayasahan/UTAAS/issues/19"
-                target="_blank"
-                rel="noreferrer"
-              >
-                issue #19
-              </a>
-              .
-            </p>
-          </>
-        ) : (
-          <p>The request reference is not a valid identifier.</p>
+      <Alert title={title} tone="warning">
+        <p>{message}</p>
+        {requestId && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-3 min-h-10 rounded-control border border-current px-4 py-2 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+          >
+            Retry
+          </button>
         )}
       </Alert>
     </section>
   );
 }
 
+function safeDownloadName(name: string): string {
+  return (
+    [...name]
+      .map((character) => {
+        const code = character.charCodeAt(0);
+        return code < 32 || code === 127 ? '_' : character;
+      })
+      .join('')
+      .replace(/[\\/:*?"<>|]/g, '_')
+      .trim()
+      .slice(0, 180) || 'supporting-document'
+  );
+}
+
 export function OfficerClaimReviewPage() {
   const { requestId } = useParams();
   const validRequestId = Boolean(requestId && uuidPattern.test(requestId));
+  const access = useOfficerAccess();
+  const { client } = useSession();
+  const profile = access.profile.data;
+  const role = profile?.role;
+  const reviewerRole: Exclude<StaffProfile['role'], 'LECTURER'> | null =
+    role && role !== 'LECTURER' ? role : null;
+  const canLoad = Boolean(
+    access.allowed &&
+    access.profile.status === 'ready' &&
+    validRequestId &&
+    reviewerRole,
+  );
+  const detail = useRequestResource(
+    canLoad ? `/requests/paper-marking/${requestId}` : null,
+    decodeRequestDetail,
+  );
+  const tracking = useRequestResource(
+    canLoad ? `/requests/${requestId}/tracking` : null,
+    decodeIdentity,
+  );
+  const history = useRequestResource(
+    canLoad ? `/requests/${requestId}/history` : null,
+    decodeIdentity,
+  );
+  const [downloadingFilename, setDownloadingFilename] = useState<string | null>(
+    null,
+  );
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  const resources = [detail, tracking, history] as const;
+  const retry = () => resources.forEach((resource) => resource.retry());
+  const reviewResult = useMemo(() => {
+    if (
+      !reviewerRole ||
+      detail.status !== 'ready' ||
+      tracking.status !== 'ready' ||
+      history.status !== 'ready' ||
+      !detail.data ||
+      !tracking.data ||
+      !history.data
+    )
+      return { review: null, invalid: false };
+    try {
+      return {
+        review: decodeOfficerClaimReview(
+          detail.data,
+          tracking.data,
+          history.data,
+          reviewerRole,
+        ),
+        invalid: false,
+      };
+    } catch {
+      return { review: null, invalid: true };
+    }
+  }, [detail, history, reviewerRole, tracking]);
+
+  const onDownload = useCallback(
+    async (document: ReviewDocumentMetadata) => {
+      const filename = document.downloadFilename;
+      if (
+        !client ||
+        !client.downloadDocument ||
+        !filename ||
+        !reviewResult.review?.documents.some(
+          (candidate) => candidate.downloadFilename === filename,
+        )
+      )
+        return;
+      setDownloadingFilename(filename);
+      setDownloadError(null);
+      try {
+        const blob = await client.downloadDocument(filename);
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = window.document.createElement('a');
+        anchor.href = objectUrl;
+        anchor.download = safeDownloadName(document.name);
+        anchor.rel = 'noopener noreferrer';
+        anchor.tabIndex = -1;
+        anchor.style.position = 'fixed';
+        anchor.style.left = '-10000px';
+        window.document.body.append(anchor);
+        anchor.click();
+        anchor.remove();
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+      } catch (error) {
+        setDownloadError(
+          error instanceof ApiError
+            ? error.message
+            : 'The document could not be downloaded. Try again.',
+        );
+      } finally {
+        setDownloadingFilename(null);
+      }
+    },
+    [client, reviewResult.review],
+  );
+
+  if (!validRequestId)
+    return (
+      <OfficerAccessFeedback>
+        <ReviewUnavailable
+          requestId={undefined}
+          title="Invalid request reference"
+          message="The request reference is not a valid identifier."
+          onRetry={retry}
+        />
+      </OfficerAccessFeedback>
+    );
+
+  const failure = resources.find((resource) => resource.status === 'error');
+  const missing = resources.find(
+    (resource) => resource.status === 'unavailable',
+  );
+  const isLoading = resources.some((resource) => resource.status === 'loading');
+  const errorKind = failure?.errorKind;
+  const errorTitle =
+    errorKind === 'unauthorized'
+      ? 'Your session has expired'
+      : errorKind === 'forbidden'
+        ? 'You are not authorized to review this request'
+        : errorKind === 'network'
+          ? 'The review could not be loaded'
+          : errorKind === 'invalid-response'
+            ? 'Review response unavailable'
+            : 'The request could not be loaded';
+  const errorMessage = reviewResult.invalid
+    ? 'The request, tracking, and history responses do not match the verified contract.'
+    : (failure?.message ??
+      (missing
+        ? 'The request or one of its review records could not be found.'
+        : 'The review could not be loaded.'));
 
   return (
     <OfficerAccessFeedback>
-      <UnavailableReview validRequestId={validRequestId} />
+      {isLoading ? (
+        <LoadingReview />
+      ) : reviewResult.review ? (
+        <OfficerClaimReviewView
+          review={reviewResult.review}
+          onDownload={onDownload}
+          downloadingFilename={downloadingFilename}
+          downloadError={downloadError}
+        />
+      ) : (
+        <ReviewUnavailable
+          requestId={requestId}
+          title={
+            reviewResult.invalid
+              ? 'Review data could not be verified'
+              : missing && !failure
+                ? 'Request not found'
+                : errorTitle
+          }
+          message={errorMessage}
+          onRetry={retry}
+        />
+      )}
     </OfficerAccessFeedback>
   );
 }

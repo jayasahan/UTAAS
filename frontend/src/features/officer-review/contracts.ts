@@ -55,6 +55,7 @@ export interface ReviewDocumentMetadata {
   documentType: string;
   size: number | null;
   mimeType: string | null;
+  downloadFilename: string | null;
 }
 
 export interface OfficerClaimReview {
@@ -171,11 +172,22 @@ function decodeDocuments(value: unknown): ReviewDocumentMetadata[] {
   if (!Array.isArray(value)) throw new Error('Invalid supporting documents');
   return value.map((value) => {
     const document = record(value);
+    const url = optionalText(document.url);
+    const prefix = '/api/v1/requests/documents/';
+    const candidate = url?.startsWith(prefix) ? url.slice(prefix.length) : '';
+    const downloadFilename =
+      /^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$/.test(candidate) &&
+      !candidate.includes('..') &&
+      candidate !== '.' &&
+      candidate !== '..'
+        ? candidate
+        : null;
     return {
       name: text(document.name),
       documentType: text(document.documentType),
       size: optionalNumber(document.size),
       mimeType: optionalText(document.mimetype ?? document.mimeType),
+      downloadFilename,
     };
   });
 }

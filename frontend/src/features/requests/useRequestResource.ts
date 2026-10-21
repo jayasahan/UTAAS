@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useSession } from '../../auth/session';
 import { ApiError } from '../../services/apiClient';
+import type { ApiFailure } from '../../services/apiClient';
 
 export type RequestResource<T> = {
   status: 'loading' | 'ready' | 'error' | 'unavailable';
   data: T | null;
   message: string;
+  errorKind?: ApiFailure;
   retry: () => void;
 };
 
@@ -25,6 +27,7 @@ export function useRequestResource<T>(
     data: T | null;
     status: 'ready' | 'error' | 'unavailable';
     message: string;
+    errorKind: ApiFailure | undefined;
   } | null>(null);
 
   useEffect(() => {
@@ -48,6 +51,7 @@ export function useRequestResource<T>(
             data,
             status: 'ready',
             message: '',
+            errorKind: undefined,
           });
       })
       .catch((error: unknown) => {
@@ -65,6 +69,7 @@ export function useRequestResource<T>(
               ? 'unavailable'
               : 'error',
           message: failure.message,
+          errorKind: failure.kind,
         });
       });
     return () => {
@@ -97,6 +102,7 @@ export function useRequestResource<T>(
         status: current.status,
         data: current.data,
         message: current.message,
+        ...(current.errorKind ? { errorKind: current.errorKind } : {}),
         retry,
       }
     : {

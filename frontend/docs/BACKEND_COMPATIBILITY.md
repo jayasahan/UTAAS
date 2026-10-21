@@ -468,3 +468,57 @@ scope; specify stable pagination and supported filters; define whether each
 record represents an officer decision or a broader audit entry; and provide a
 request-detail authorization contract for any navigation action. No backend
 code or issue was changed or created for this frontend feature.
+
+## Officer Claim Review integration — Issue #23 / PR #25 (2026-10-22)
+
+Inspected the latest fetched `origin/mvp` at
+`e5270bed5c9447ed93750552d9c974bf77b3e9aa`. It contains merged backend PR #25
+(`34b5104a...`), which hardens existing request-level authorization without
+changing endpoint paths or response DTOs. This is source and test inspection,
+not live authenticated integration evidence.
+
+Verified authenticated read contracts:
+
+- `GET /api/v1/requests/paper-marking/:id` is protected by the JWT guard and
+  UUID parsing. The service returns persisted claim details, applicant,
+  `formData`, official fee calculation, and total, then applies shared request
+  access control.
+- `GET /api/v1/requests/:id/tracking` and
+  `GET /api/v1/requests/:id/history` are JWT-protected UUID routes and use the
+  same request access control. Existing tracking/history response decoders
+  define stage status, actor/timestamps/comments, and chronological audit
+  events.
+- Shared authorization allows an administrator, the owning lecturer, or an
+  authorized reviewer whose role matches the current workflow stage or a stage
+  the role has already completed. HOD reads fail closed if either department
+  is missing or the IDs differ. Drafts remain private to their owner/admin.
+  This establishes role, department (for HOD), workflow-stage, and request
+  resource checks; it does not bind access to a specific named officer within
+  an authorized role.
+- `GET /api/v1/requests/documents/:filename` is JWT-protected and returns a
+  binary file response. An administrator or original uploader may access the
+  file; otherwise the controller finds a claim whose persisted form data
+  references the stored filename and applies the same request access guard.
+  The frontend only offers downloads for a safe opaque filename extracted
+  from the authorized claim-detail response; it does not render backend URLs.
+  The backend currently locates the referencing claim with a filename
+  substring query, so exact structured association would be a useful backend
+  hardening follow-up. The UI does not use filenames supplied independently by
+  the user or queue row.
+
+Frontend integration status: the production Officer Claim Review route now
+loads detail, tracking, and history concurrently after the existing verified
+officer profile/department gate and strict UUID validation. It displays the
+existing Figma-aligned review view only after the three decoded responses
+agree on request ID, tracking number, and status. HTTP 401, 403, 404, network,
+invalid-response, and mismatched-response cases remain unavailable with safe
+retry/back navigation. Authenticated binary downloads use the in-memory bearer
+token, omit cookies, disable cache and redirects, and never expose the private
+URL. No approval, rejection, correction, or HOD editing operation is added.
+
+Issue [#23](https://github.com/jayasahan/UTAAS/issues/23) requested this live
+read integration. PR [#25](https://github.com/jayasahan/UTAAS/pull/25) is
+merged and its implementation/tests were inspected in `origin/mvp`; backend
+behavior has not been exercised against a running authenticated server.
+Automated frontend tests use mocked responses. Document association's
+substring lookup remains the noted backend hardening limitation.
