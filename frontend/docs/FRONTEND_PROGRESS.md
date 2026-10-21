@@ -923,8 +923,10 @@ pending. No backend, CI, or agent files were changed.
   The preview deliberately does not execute workflow actions, so this was not
   a live decision-dialog or authenticated workflow test.
 - No authenticated backend mutation was tested. Backend PR #31 source and
-  tests were inspected but not run. Independent review, CI, QA, commit, push,
-  PR, and merge remain pending.
+  tests were inspected but not run. The implementation was committed as
+  `06158c2aa1b07abfee938a0b45bdb3c66461595f` and pushed to
+  `origin/feature/frontend-officer-decision-ui`. Independent review, CI, QA,
+  PR creation, and merge remain pending.
 
 The feature branch was synchronized onto fetched `origin/mvp`
 `f5953a596aae529f833cdc889f6fb906e2f34024` after preserving its worktree in a
