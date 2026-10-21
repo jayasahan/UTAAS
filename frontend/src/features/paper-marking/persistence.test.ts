@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { createForm } from './model';
 import {
   decodePersistedClaim,
+  decodeSubmittedClaim,
+  decodeUploadedDocument,
   restoreFormData,
   toDraftPayload,
+  toSubmissionPayload,
 } from './persistence';
 
 describe('paper marking persistence mapping', () => {
@@ -114,5 +117,82 @@ describe('paper marking persistence mapping', () => {
     });
     expect(restored.persistedDocuments[0]?.name).toBe('letter.pdf');
     expect(restored.declaration).toBe(true);
+  });
+
+  it('decodes only a server-confirmed upload reference', () => {
+    expect(
+      decodeUploadedDocument({
+        name: 'proof.pdf',
+        url: '/api/v1/requests/documents/lecturer__file-proof.pdf',
+        documentType: 'EXAM_TIMETABLE',
+        size: 11,
+        mimetype: 'application/pdf',
+        requestId: null,
+      }),
+    ).toMatchObject({
+      name: 'proof.pdf',
+      documentType: 'EXAM_TIMETABLE',
+      size: 11,
+    });
+    expect(() =>
+      decodeUploadedDocument({
+        name: 'fake.pdf',
+        url: 'https://attacker.example/fake.pdf',
+        documentType: 'EXAM_TIMETABLE',
+        size: 1,
+        mimetype: 'application/pdf',
+      }),
+    ).toThrow(/reference/);
+  });
+
+  it('serializes the complete per-paper submission and validates the confirmed server transition', () => {
+    const form = createForm();
+    form.declaration = true;
+    form.academic.academicYear = '2026';
+    form.papers[0]!.title = 'EC5060 Paper';
+    form.papers[0]!.settingCount = '1';
+    const payload = toSubmissionPayload(form, [
+      {
+        name: 'proof.pdf',
+        url: '/api/v1/requests/documents/lecturer__proof.pdf',
+        documentType: 'APPOINTMENT_LETTER',
+        size: 20,
+        attachedToClaim: false,
+      },
+    ]);
+    expect(payload).toMatchObject({
+      declaration: true,
+      metadata: { academicYear: '2026' },
+      papers: [{ id: 'paper-1', title: 'EC5060 Paper', settingCount: 1 }],
+      supportingDocuments: [
+        {
+          name: 'proof.pdf',
+          documentType: 'APPOINTMENT_LETTER',
+          size: 20,
+        },
+      ],
+    });
+    expect(payload).not.toHaveProperty('items');
+    expect(payload.supportingDocuments[0]).not.toHaveProperty(
+      'attachedToClaim',
+    );
+    expect(
+      decodeSubmittedClaim({
+        id: 'claim-id',
+        trackingNumber: 'UT-1',
+        status: 'UNDER_REVIEW',
+        totalAmount: '3500',
+        formData: {},
+      }).totalAmount,
+    ).toBe(3500);
+    expect(() =>
+      decodeSubmittedClaim({
+        id: 'claim-id',
+        trackingNumber: 'UT-1',
+        status: 'DRAFT',
+        totalAmount: 0,
+        formData: {},
+      }),
+    ).toThrow(/confirm/);
   });
 });

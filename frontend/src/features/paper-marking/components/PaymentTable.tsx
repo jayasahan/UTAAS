@@ -1,18 +1,25 @@
 import { Button } from '../../../components/common/Button';
 import { Input, Select } from '../../../components/common/FormControls';
 import { Table, TableCell, TableHead } from '../../../components/common/Table';
-import { estimatePaper, estimateTotal, formatEstimate } from '../estimates';
+import {
+  estimatePaperBreakdown,
+  estimateTotal,
+  formatEstimate,
+} from '../estimates';
+import type { VerifiedRates } from '../estimates';
 import type { FieldError, PaperRow } from '../model';
 import { quantityLabels } from '../validation';
 
 export function PaymentTable({
   papers,
+  rates,
   errors,
   onChange,
   onAdd,
   onRemove,
 }: {
   papers: PaperRow[];
+  rates?: VerifiedRates;
   errors: FieldError[];
   onChange: (
     id: string,
@@ -67,10 +74,9 @@ export function PaymentTable({
         id="rate-limitation"
         className="rounded-control bg-blue-50 p-4 text-sm text-brand"
       >
-        Estimates unavailable: the backend rate reference above is separate from
-        an agreed multi-paper calculation contract. Translation and
-        candidate-based assessment rules also require confirmation. Rates and
-        amounts cannot be entered manually.
+        {rates
+          ? `Estimates use the authenticated backend circular ${rates.circularReference} and its verified per-paper, per-script, per-hour, and per-candidate units. The backend calculates the final amount when the claim is submitted.`
+          : 'Estimates are unavailable because a complete, unit-matched circular response is not available. Rates and amounts cannot be entered manually.'}
       </p>
       <div id="paper-table" className="paper-payment-table" tabIndex={-1}>
         <Table
@@ -138,7 +144,11 @@ export function PaymentTable({
                     {field(row, index, key, quantityLabels[key])}
                   </TableCell>
                 ))}
-                <TableCell>Unavailable</TableCell>
+                <TableCell>
+                  {formatEstimate(
+                    estimatePaperBreakdown(row, rates)?.preparation ?? null,
+                  )}
+                </TableCell>
                 <TableCell>
                   {field(row, index, 'scriptCount', quantityLabels.scriptCount)}
                 </TableCell>
@@ -150,8 +160,16 @@ export function PaymentTable({
                     quantityLabels.secondMarkingCount,
                   )}
                 </TableCell>
-                <TableCell>Unavailable</TableCell>
-                <TableCell>Unavailable</TableCell>
+                <TableCell>
+                  {rates
+                    ? `${formatEstimate(rates.marking)} / script · ${formatEstimate(rates.secondMarking)} / script`
+                    : 'Unavailable'}
+                </TableCell>
+                <TableCell>
+                  {formatEstimate(
+                    estimatePaperBreakdown(row, rates)?.marking ?? null,
+                  )}
+                </TableCell>
                 <TableCell>
                   <Select
                     id={`${row.id}-assessmentUnit`}
@@ -175,10 +193,24 @@ export function PaymentTable({
                     row.assessmentUnit === 'candidates',
                   )}
                 </TableCell>
-                <TableCell>Unavailable</TableCell>
-                <TableCell>Unavailable</TableCell>
+                <TableCell>
+                  {rates
+                    ? formatEstimate(
+                        row.assessmentUnit === 'hours'
+                          ? rates.assessmentPerHour
+                          : rates.assessmentPerCandidate,
+                      )
+                    : 'Unavailable'}
+                </TableCell>
+                <TableCell>
+                  {formatEstimate(
+                    estimatePaperBreakdown(row, rates)?.assessment ?? null,
+                  )}
+                </TableCell>
                 <TableCell className="bg-success-subtle font-semibold">
-                  {formatEstimate(estimatePaper(row))}
+                  {formatEstimate(
+                    estimatePaperBreakdown(row, rates)?.total ?? null,
+                  )}
                 </TableCell>
                 <TableCell>
                   <Button
@@ -203,11 +235,12 @@ export function PaymentTable({
         </Button>
         <p className="rounded-control bg-success-subtle p-4 font-semibold text-brand">
           TOTAL PAYMENT ESTIMATE:{' '}
-          <output>{formatEstimate(estimateTotal(papers))}</output>
+          <output>{formatEstimate(estimateTotal(papers, rates))}</output>
         </p>
       </div>
       <p className="text-sm text-muted">
-        No final payable amount is calculated or submitted in Phase 1.
+        Row amounts and the total are estimates. The server-confirmed total is
+        shown only after a successful submission response.
       </p>
     </section>
   );

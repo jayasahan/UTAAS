@@ -36,6 +36,67 @@ describe('read-only API client', () => {
       }),
     );
   });
+  it('uploads multipart documents with bearer auth and lets the browser set the boundary', async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          name: 'letter.pdf',
+          url: '/api/v1/requests/documents/owned__abc-letter.pdf',
+          documentType: 'APPOINTMENT_LETTER',
+          size: 3,
+          mimetype: 'application/pdf',
+          requestId: null,
+        }),
+        { status: 201 },
+      ),
+    );
+    vi.stubGlobal('fetch', fetcher);
+    const client = createApiClient(
+      'https://api.example.test/api/v1',
+      () => 'opaque-token',
+      vi.fn(),
+    );
+    const file = new File(['pdf'], 'letter.pdf', { type: 'application/pdf' });
+    const result = await client.upload(
+      '/requests/upload',
+      file,
+      'APPOINTMENT_LETTER',
+      (value) => value,
+    );
+    expect(result).toMatchObject({ name: 'letter.pdf', size: 3 });
+    const [, init] = fetcher.mock.calls[0]!;
+    expect(init).toMatchObject({ method: 'POST', credentials: 'omit' });
+    expect(init.headers).toEqual({ Authorization: 'Bearer opaque-token' });
+    expect(init.body).toBeInstanceOf(FormData);
+    expect((init.body as FormData).get('file')).toMatchObject({
+      name: file.name,
+      size: file.size,
+      type: file.type,
+    });
+    expect((init.body as FormData).get('category')).toBe('APPOINTMENT_LETTER');
+    expect(init.headers).not.toHaveProperty('Content-Type');
+  });
+  it('clears the authenticated session callback on upload authorization failure', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('', { status: 401 })),
+    );
+    const onUnauthorized = vi.fn();
+    const client = createApiClient(
+      'https://api.example.test/api/v1',
+      () => 'opaque-token',
+      onUnauthorized,
+    );
+    await expect(
+      client.upload(
+        '/requests/upload',
+        new File(['x'], 'x.png', { type: 'image/png' }),
+        'EXAM_TIMETABLE',
+        (value) => value,
+      ),
+    ).rejects.toMatchObject({ kind: 'unauthorized' });
+    expect(onUnauthorized).toHaveBeenCalledOnce();
+  });
   it('uses bearer headers without cookies, caching or redirects', async () => {
     const fetcher = vi
       .fn()
@@ -98,6 +159,39 @@ describe('read-only API client', () => {
       expect(unauthorized).toHaveBeenCalledTimes(status === 401 ? 1 : 0);
     },
   );
+  it('returns sanitized Nest validation messages for recoverable 400 responses', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            statusCode: 400,
+            message: [
+              'metadata.academicYear should not be empty',
+              '<script>bad</script>',
+            ],
+          }),
+          { status: 400 },
+        ),
+      ),
+    );
+    const caught = await createApiClient(
+      'https://api.example.test/api/v1',
+      () => 'fixture',
+      vi.fn(),
+    )
+      .post('/requests/paper-marking/submit', {}, (value) => value)
+      .then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+    expect(caught).toBeInstanceOf(ApiError);
+    const error = caught as ApiError;
+    expect(error.validationMessages).toEqual([
+      'metadata.academicYear should not be empty',
+    ]);
+    expect(error.message).toBe('The backend could not complete this request.');
+  });
   it('normalizes network failures and preserves cancellation', async () => {
     vi.stubGlobal(
       'fetch',

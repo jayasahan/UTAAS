@@ -6,6 +6,7 @@ export interface PersistedDocument {
   url: string;
   documentType: string;
   size?: number;
+  attachedToClaim?: boolean;
 }
 
 export interface PersistedClaim {
@@ -14,6 +15,46 @@ export interface PersistedClaim {
   status: string;
   totalAmount: number;
   formData: Record<string, unknown>;
+}
+
+export interface UploadedDocument extends PersistedDocument {
+  mimetype: string;
+}
+
+const documentCategories = [
+  'APPOINTMENT_LETTER',
+  'EXAM_TIMETABLE',
+  'ATTENDANCE_MARKS_SHEET',
+] as const;
+
+function decodeDocumentReference(value: unknown): PersistedDocument {
+  const data = record(value);
+  const url = text(data.url);
+  const filename = url.slice('/api/v1/requests/documents/'.length);
+  if (
+    !url.startsWith('/api/v1/requests/documents/') ||
+    !filename ||
+    filename.includes('/') ||
+    filename.includes('..') ||
+    filename.includes('?') ||
+    filename.includes('#')
+  )
+    throw new Error('Invalid uploaded document reference');
+  const documentType = text(data.documentType);
+  if (!documentCategories.some((category) => category === documentType))
+    throw new Error('Invalid uploaded document category');
+  const size = data.size;
+  if (
+    size !== undefined &&
+    (typeof size !== 'number' || !Number.isSafeInteger(size) || size < 0)
+  )
+    throw new Error('Invalid uploaded document size');
+  return {
+    name: text(data.name),
+    url,
+    documentType,
+    ...(typeof size === 'number' ? { size } : {}),
+  };
 }
 
 export function decodePersistedClaim(value: unknown): PersistedClaim {
@@ -27,6 +68,28 @@ export function decodePersistedClaim(value: unknown): PersistedClaim {
     totalAmount: amount,
     formData: record(data.formData),
   };
+}
+
+export function decodeUploadedDocument(value: unknown): UploadedDocument {
+  const data = record(value);
+  const reference = decodeDocumentReference(data);
+  const size = data.size;
+  if (typeof size !== 'number' || !Number.isSafeInteger(size) || size < 1)
+    throw new Error('Invalid uploaded document size');
+  const mimetype = text(data.mimetype);
+  if (!['application/pdf', 'image/png', 'image/jpeg'].includes(mimetype))
+    throw new Error('Invalid uploaded document type');
+  return {
+    ...reference,
+    mimetype,
+  };
+}
+
+export function decodeSubmittedClaim(value: unknown): PersistedClaim {
+  const claim = decodePersistedClaim(value);
+  if (claim.status !== 'UNDER_REVIEW')
+    throw new Error('The server did not confirm claim submission.');
+  return claim;
 }
 
 function numberValue(value: string, label: string): number {
@@ -87,9 +150,35 @@ export function toDraftPayload(
     personal: { ...form.personal },
     metadata: { ...form.academic },
     papers,
-    supportingDocuments,
+    supportingDocuments: supportingDocuments.map((document) => ({
+      name: document.name,
+      url: document.url,
+      documentType: document.documentType,
+      ...(document.size === undefined ? {} : { size: document.size }),
+    })),
     declaration: form.declaration,
     selectedDocumentCategory: form.selectedDocumentCategory,
+  };
+}
+
+/** Maps claim state to the submit DTO; no aggregate items or UI-only category are sent. */
+export function toSubmissionPayload(
+  form: ClaimForm,
+  supportingDocuments: PersistedDocument[],
+) {
+  if (!form.declaration)
+    throw new Error('Accept the declaration before submitting.');
+  if (!supportingDocuments.length)
+    throw new Error(
+      'Upload at least one supporting document before submitting.',
+    );
+  const draft = toDraftPayload(form, supportingDocuments);
+  return {
+    personal: draft.personal,
+    metadata: draft.metadata,
+    papers: draft.papers,
+    supportingDocuments: draft.supportingDocuments,
+    declaration: draft.declaration,
   };
 }
 
@@ -123,15 +212,10 @@ export function restoreFormData(
   const academic = record(academicValue);
   const rows = Array.isArray(value.papers) ? value.papers.map(decodePaper) : [];
   const documents = Array.isArray(value.supportingDocuments)
-    ? value.supportingDocuments.map((entry) => {
-        const document = record(entry);
-        return {
-          name: text(document.name),
-          url: text(document.url),
-          documentType: text(document.documentType),
-          ...(typeof document.size === 'number' ? { size: document.size } : {}),
-        };
-      })
+    ? value.supportingDocuments.map((entry) => ({
+        ...decodeDocumentReference(entry),
+        attachedToClaim: true,
+      }))
     : [];
   const category = value.selectedDocumentCategory;
   return {

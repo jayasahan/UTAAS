@@ -3,8 +3,10 @@ import { Checkbox } from '../../../components/common/FormControls';
 import { academicLabels, personalLabels } from '../model';
 import type { ClaimForm, FieldError } from '../model';
 import { estimatePaper, estimateTotal, formatEstimate } from '../estimates';
+import type { VerifiedRates } from '../estimates';
 import { quantityLabels } from '../validation';
 import { documentLabels } from '../model';
+import type { PersistedDocument } from '../persistence';
 
 function SectionHeading({
   number,
@@ -28,11 +30,15 @@ function SectionHeading({
 
 export function ReviewStep({
   form,
+  rates,
+  uploadedDocuments = [],
   errors,
   onEdit,
   onDeclaration,
 }: {
   form: ClaimForm;
+  rates?: VerifiedRates;
+  uploadedDocuments?: PersistedDocument[];
   errors: FieldError[];
   onEdit: (step: number) => void;
   onDeclaration: (value: boolean) => void;
@@ -109,16 +115,17 @@ export function ReviewStep({
                   <dd>{paper.assessmentQuantity}</dd>
                 </div>
               </dl>
-              <p>Row estimate: {formatEstimate(estimatePaper(paper))}</p>
+              <p>Row estimate: {formatEstimate(estimatePaper(paper, rates))}</p>
             </li>
           ))}
         </ol>
         <p className="font-semibold">
-          Total estimate: {formatEstimate(estimateTotal(form.papers))}
+          Total estimate: {formatEstimate(estimateTotal(form.papers, rates))}
         </p>
         <p className="text-sm text-muted">
-          Circular rates, when available above, are reference data only. No
-          multi-paper payable total has been established.
+          Estimates use the displayed circular rates and are not a confirmed
+          payable amount. The backend returns the authoritative total after
+          submission.
         </p>
         <Button variant="ghost" onClick={() => onEdit(1)}>
           Edit payment details
@@ -127,6 +134,15 @@ export function ReviewStep({
       <div className="space-y-4 rounded-control border border-border p-4">
         <SectionHeading number={3}>Supporting Documents</SectionHeading>
         <ul className="space-y-2">
+          {uploadedDocuments.map((doc) => (
+            <li key={doc.url} className="break-all">
+              {doc.name} ·{' '}
+              {documentLabels[
+                doc.documentType as keyof typeof documentLabels
+              ] ?? doc.documentType}{' '}
+              · Server upload confirmed
+            </li>
+          ))}
           {form.documents.map((doc) => (
             <li key={doc.id} className="break-all">
               {doc.file.name} · {documentLabels[doc.category]} · Locally

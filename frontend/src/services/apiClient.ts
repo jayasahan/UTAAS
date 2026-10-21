@@ -21,9 +21,36 @@ export class ApiError extends Error {
   constructor(
     public readonly kind: ApiFailure,
     public readonly status?: number,
+    public readonly validationMessages: readonly string[] = [],
   ) {
     super(messages[kind]);
     this.name = 'ApiError';
+  }
+}
+async function readValidationMessages(response: Response): Promise<string[]> {
+  if (response.status !== 400) return [];
+  try {
+    const payload: unknown = await response.clone().json();
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload))
+      return [];
+    const raw = (payload as Record<string, unknown>).message;
+    const entries = Array.isArray(raw) ? raw : [];
+    return entries
+      .filter((entry): entry is string => typeof entry === 'string')
+      .map((entry) => entry.trim().slice(0, 240))
+      .filter(
+        (entry) =>
+          Boolean(entry) &&
+          !entry.includes('<') &&
+          !entry.includes('>') &&
+          ![...entry].some((character) => {
+            const code = character.charCodeAt(0);
+            return code < 32 || code === 127;
+          }),
+      )
+      .slice(0, 12);
+  } catch {
+    return [];
   }
 }
 export function apiBaseUrl(): string | undefined {
@@ -114,13 +141,67 @@ export async function requestJson<T>(
           : response.status === 404
             ? 'not-found'
             : 'server';
-    throw new ApiError(kind, response.status);
+    throw new ApiError(
+      kind,
+      response.status,
+      await readValidationMessages(response),
+    );
   }
   try {
     return decode(await response.json());
   } catch {
     if (options.signal?.aborted)
       throw new DOMException('Request cancelled', 'AbortError');
+    throw new ApiError('invalid-response');
+  }
+}
+export async function requestMultipart<T>(
+  base: string | undefined,
+  path: string,
+  file: File,
+  category: string,
+  decode: (value: unknown) => T,
+  options: { token?: string; requestId?: string } = {},
+): Promise<T> {
+  const url = new URL(endpoint(base, path));
+  const body = new FormData();
+  body.set('file', file, file.name);
+  body.set('category', category);
+  if (options.requestId) body.set('requestId', options.requestId);
+  let response: Response;
+  try {
+    response = await fetch(url.href, {
+      method: 'POST',
+      headers: options.token
+        ? { Authorization: `Bearer ${options.token}` }
+        : {},
+      body,
+      credentials: 'omit',
+      cache: 'no-store',
+      redirect: 'error',
+      referrerPolicy: 'no-referrer',
+    });
+  } catch {
+    throw new ApiError('network');
+  }
+  if (!response.ok) {
+    const kind =
+      response.status === 401
+        ? 'unauthorized'
+        : response.status === 403
+          ? 'forbidden'
+          : response.status === 404
+            ? 'not-found'
+            : 'server';
+    throw new ApiError(
+      kind,
+      response.status,
+      await readValidationMessages(response),
+    );
+  }
+  try {
+    return decode(await response.json());
+  } catch {
     throw new ApiError('invalid-response');
   }
 }
@@ -136,6 +217,13 @@ export interface ApiClient {
     body: unknown,
     decode: (value: unknown) => T,
     query?: Readonly<Record<string, string>>,
+  ): Promise<T>;
+  upload<T>(
+    path: string,
+    file: File,
+    category: string,
+    decode: (value: unknown) => T,
+    requestId?: string,
   ): Promise<T>;
 }
 export function createApiClient(
@@ -168,6 +256,20 @@ export function createApiClient(
           body,
           token,
           ...(query ? { query } : {}),
+        });
+      } catch (error) {
+        if (error instanceof ApiError && error.kind === 'unauthorized')
+          onUnauthorized();
+        throw error;
+      }
+    },
+    async upload(path, file, category, decode, requestId) {
+      const token = getToken();
+      if (!token) throw new ApiError('unauthorized');
+      try {
+        return await requestMultipart(base, path, file, category, decode, {
+          token,
+          ...(requestId ? { requestId } : {}),
         });
       } catch (error) {
         if (error instanceof ApiError && error.kind === 'unauthorized')
