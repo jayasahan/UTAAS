@@ -8,7 +8,8 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Request } from './request.entity';
-import { User, UserRole } from './user.entity';
+import { User } from './user.entity';
+import { UserRole } from './user-role.enum';
 
 export enum StageAction {
   PENDING = 'PENDING',
