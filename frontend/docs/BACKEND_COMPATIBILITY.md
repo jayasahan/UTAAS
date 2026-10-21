@@ -1,11 +1,14 @@
 # Backend compatibility register
 
-Inspected 2026-10-21 (Asia/Colombo). Frontend branch: `feature/frontend-design-system`.
+Inspected 2026-10-21 (Asia/Colombo). Current frontend branch: `feature/frontend-paper-marking-claim`.
 Backend ownership: another team member. This register records findings only.
 Never modify backend sources, configuration, schemas, dependencies or seeds as
 part of a frontend task. Report incompatibilities to the backend owner.
 
 ## Revision and integration boundary
+
+The following opening inspection records the earlier design-system assessment;
+later claim planning/implementation sections preserve their own scope and evidence.
 
 - Ran `git fetch origin --prune`; worktree was clean, HEAD and origin/mvp both
   `f9f17d8e941b3df87bb8f3057e53af96bd7a9a9a`. No merge/rebase was needed.
@@ -27,6 +30,35 @@ part of a frontend task. Report incompatibilities to the backend owner.
 | workflow-engine              | 0938f89 |                   0 |
 
 ## Observed contracts (source-present, runtime unverified)
+
+### Paper-marking claim planning reassessment — 2026-10-21
+
+- Fetched origin with prune. Design-system PR #9 is OPEN, not merged; its head
+  is ab47148. Prepared dependent branch `feature/frontend-paper-marking-claim`
+  from that commit. Inspected origin/mvp remains f9f17d8; latest backend change
+  remains bd4836e. All seven backend feature tips have zero commits ahead of mvp.
+- Rechecked auth/profile, claim controller/DTO/service, fee rules, request entity,
+  workflow actions/resubmission, tracking/history routes and global validation.
+  No upload/download controller or custom exception filter was found in src.
+- Current PRIMARY Figma references: Step 1 39:48; table-based Step 2 42:110;
+  documents 42:154; shared review/declaration 67:2; shared corrections 67:50.
+  Earlier form-specific Step 4 42:183 is REFERENCE and must not drive this task.
+- BC-01/02/03/04 block the complete designed submission experience: multiple
+  paper rows, translation/duration/candidate units, persistent attachments,
+  partial drafts, designation/staff ID, private title and declaration persistence
+  have no matching complete contract. Do not flatten rows, substitute hours for
+  candidates, fabricate document URLs or send unpersisted fields silently.
+- BC-06/07 block reliable connected corrections: resubmit shallow-merges form
+  data without observed fee recalculation and routes by office role, not an
+  explicit returning individual assignment. Structured editable-field correction
+  instructions are also absent (BC-04). Refer these to the backend owner.
+- Initial draft/submit endpoints calculate the five supported fee categories
+  server-side; Figma amounts are illustrative. Counts currently use numeric
+  Min(0), not integer validation. The decimal entity total needs its actual JSON
+  representation verified before finalizing the response parser.
+- Source presence is not runtime verification. No backend/database was started,
+  no API call or integration test ran, and no implementation was added in this
+  planning task. All BC findings below remain open.
 
 Prefix `/api/v1`; Swagger setup `/api/docs`. Nest validation uses whitelist and
 implicit transformation with unknown fields stripped rather than rejected.
@@ -98,6 +130,37 @@ They do not block this presentation-only branch; reassess before connected work.
   tracking/history services; user/request/stage entities and main.ts.
 
 ## Mandatory update process for each API-connected task
+
+### Claim Phase 1 implementation boundary — 2026-10-21
+
+The subsequent Phase 1 review fixes change frontend wrapping, unit-entry validation,
+document-category UI state and Figma presentation only. They add no API calls or
+calculation policy. Save Draft/Submit remain unavailable; all integration findings
+below stay open. Historical inspection evidence is retained.
+
+Implemented on dependent `feature/frontend-paper-marking-claim`, base ab47148.
+Preserved the planning assessment above. PR #9 remains open at inspection;
+origin/mvp f9f17d8 and backend bd4836e remain the inspected revisions.
+
+- No auth/session infrastructure is verified in the frontend, so no auth/profile
+  or rates API calls are made. Identity starts empty and is explicitly user-entered,
+  not server-verified. No bearer token is fabricated or stored.
+- The JWT-protected circular controller/service was reread. Supported server
+  calculation is fixed-rate quantity multiplication, each line rounded to two
+  decimals before summing. UI models preserve each paper and distinct units;
+  no adapter flattens them into CreatePaperMarkingClaimDto.
+- Runtime estimates are unavailable because verified authenticated rates are
+  absent. Translation and candidate-based assessment rules remain unsupported.
+  Source/Figma sample rates are not shipped as current remuneration policy.
+- Save Draft/Submit remain disabled. The native form handler validates local
+  preparation only; no write endpoint, fake success, backend ID or uploaded URL
+  exists. Declaration resets on edits and never unlocks unsupported submission.
+- File objects remain in memory. PDF/PNG/JPEG selection, extension/MIME matching,
+  10 MiB/file and 10 files are explicit frontend preparation limits, not a backend
+  upload contract or security/content scan. No files survive route exit/reload.
+- Local component/browser tests do not close BC-01 through BC-11. Real backend
+  authentication, HTTP errors, payload persistence, uploads, resubmission totals,
+  individual reviewer routing and ownership tests remain unverified.
 
 1. Fetch and inspect the actual base/backend revisions. Ask before any conflicting
    merge/rebase; preserve existing work. Record branch tips and unmerged work.

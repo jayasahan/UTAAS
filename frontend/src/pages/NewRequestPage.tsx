@@ -1,10 +1,5 @@
-import { PlaceholderPage } from '../components/common/PlaceholderPage';
+import { PaperMarkingClaimPage } from '../features/paper-marking/PaperMarkingClaimPage';
 
 export function NewRequestPage() {
-  return (
-    <PlaceholderPage
-      title="New Application"
-      description="The application form will be available here."
-    />
-  );
+  return <PaperMarkingClaimPage />;
 }
