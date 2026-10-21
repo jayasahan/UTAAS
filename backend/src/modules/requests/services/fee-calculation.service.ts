@@ -26,9 +26,11 @@ export class FeeCalculationService {
   public static readonly RATES = {
     PAPER_SETTING: 3500.0, // LKR per question paper
     PAPER_MODERATION: 2000.0, // LKR per paper moderated
+    PAPER_TRANSLATION: 1500.0, // LKR per question paper translated
     SCRIPT_MARKING: 120.0, // LKR per answer script marked
     PRACTICAL_ASSESSMENT: 500.0, // LKR per practical / oral exam hour
     SECOND_MARKING: 60.0, // LKR per script second-marked/checked
+    CANDIDATE_ASSESSMENT: 120.0, // LKR per candidate assessed (practical/oral)
   };
 
   /**
@@ -38,9 +40,11 @@ export class FeeCalculationService {
     const aggregated: ClaimItemsDto = {
       paperSettingCount: 0,
       paperModerationCount: 0,
+      paperTranslationCount: 0,
       scriptMarkingCount: 0,
       practicalAssessmentHours: 0,
       secondMarkingCount: 0,
+      candidateAssessmentCount: 0,
     };
 
     if (!papers || !Array.isArray(papers)) {
@@ -50,12 +54,15 @@ export class FeeCalculationService {
     for (const paper of papers) {
       aggregated.paperSettingCount = (aggregated.paperSettingCount || 0) + (Number(paper.settingCount) || 0);
       aggregated.paperModerationCount = (aggregated.paperModerationCount || 0) + (Number(paper.moderationCount) || 0);
+      aggregated.paperTranslationCount = (aggregated.paperTranslationCount || 0) + (Number(paper.translationCount) || 0);
       aggregated.scriptMarkingCount = (aggregated.scriptMarkingCount || 0) + (Number(paper.scriptCount) || 0);
       aggregated.secondMarkingCount = (aggregated.secondMarkingCount || 0) + (Number(paper.secondMarkingCount) || 0);
 
-      // Assessment unit: hours maps directly to practical assessment hours
+      // Assessment unit: hours vs candidates
       if (paper.assessmentUnit === 'hours') {
         aggregated.practicalAssessmentHours = (aggregated.practicalAssessmentHours || 0) + (Number(paper.assessmentQuantity) || 0);
+      } else if (paper.assessmentUnit === 'candidates') {
+        aggregated.candidateAssessmentCount = (aggregated.candidateAssessmentCount || 0) + (Number(paper.assessmentQuantity) || 0);
       }
     }
 
@@ -77,17 +84,21 @@ export class FeeCalculationService {
       effectiveItems = {
         paperSettingCount: Math.max(fromPapers.paperSettingCount || 0, effectiveItems.paperSettingCount || 0),
         paperModerationCount: Math.max(fromPapers.paperModerationCount || 0, effectiveItems.paperModerationCount || 0),
+        paperTranslationCount: Math.max(fromPapers.paperTranslationCount || 0, effectiveItems.paperTranslationCount || 0),
         scriptMarkingCount: Math.max(fromPapers.scriptMarkingCount || 0, effectiveItems.scriptMarkingCount || 0),
         practicalAssessmentHours: Math.max(fromPapers.practicalAssessmentHours || 0, effectiveItems.practicalAssessmentHours || 0),
         secondMarkingCount: Math.max(fromPapers.secondMarkingCount || 0, effectiveItems.secondMarkingCount || 0),
+        candidateAssessmentCount: Math.max(fromPapers.candidateAssessmentCount || 0, effectiveItems.candidateAssessmentCount || 0),
       };
     }
 
     const paperSettingCount = Math.max(0, effectiveItems.paperSettingCount || 0);
     const paperModerationCount = Math.max(0, effectiveItems.paperModerationCount || 0);
+    const paperTranslationCount = Math.max(0, effectiveItems.paperTranslationCount || 0);
     const scriptMarkingCount = Math.max(0, effectiveItems.scriptMarkingCount || 0);
     const practicalAssessmentHours = Math.max(0, effectiveItems.practicalAssessmentHours || 0);
     const secondMarkingCount = Math.max(0, effectiveItems.secondMarkingCount || 0);
+    const candidateAssessmentCount = Math.max(0, effectiveItems.candidateAssessmentCount || 0);
 
     const lineItems: FeeLineItem[] = [
       {
@@ -105,6 +116,14 @@ export class FeeCalculationService {
         rate: FeeCalculationService.RATES.PAPER_MODERATION,
         count: paperModerationCount,
         subtotal: Number((paperModerationCount * FeeCalculationService.RATES.PAPER_MODERATION).toFixed(2)),
+      },
+      {
+        key: 'PAPER_TRANSLATION',
+        label: 'Translation of Question Papers',
+        unit: 'per paper',
+        rate: FeeCalculationService.RATES.PAPER_TRANSLATION,
+        count: paperTranslationCount,
+        subtotal: Number((paperTranslationCount * FeeCalculationService.RATES.PAPER_TRANSLATION).toFixed(2)),
       },
       {
         key: 'SCRIPT_MARKING',
@@ -129,6 +148,14 @@ export class FeeCalculationService {
         rate: FeeCalculationService.RATES.SECOND_MARKING,
         count: secondMarkingCount,
         subtotal: Number((secondMarkingCount * FeeCalculationService.RATES.SECOND_MARKING).toFixed(2)),
+      },
+      {
+        key: 'CANDIDATE_ASSESSMENT',
+        label: 'Practical / Oral Assessment of Candidates',
+        unit: 'per candidate',
+        rate: FeeCalculationService.RATES.CANDIDATE_ASSESSMENT,
+        count: candidateAssessmentCount,
+        subtotal: Number((candidateAssessmentCount * FeeCalculationService.RATES.CANDIDATE_ASSESSMENT).toFixed(2)),
       },
     ];
 
@@ -157,6 +184,11 @@ export class FeeCalculationService {
           unit: 'per paper',
           rate: FeeCalculationService.RATES.PAPER_MODERATION,
         },
+        PAPER_TRANSLATION: {
+          label: 'Translation of Question Papers',
+          unit: 'per paper',
+          rate: FeeCalculationService.RATES.PAPER_TRANSLATION,
+        },
         SCRIPT_MARKING: {
           label: 'Marking of Answer Scripts',
           unit: 'per script',
@@ -171,6 +203,11 @@ export class FeeCalculationService {
           label: 'Second Marking / Verification of Answer Scripts',
           unit: 'per script',
           rate: FeeCalculationService.RATES.SECOND_MARKING,
+        },
+        CANDIDATE_ASSESSMENT: {
+          label: 'Practical / Oral Assessment of Candidates',
+          unit: 'per candidate',
+          rate: FeeCalculationService.RATES.CANDIDATE_ASSESSMENT,
         },
       },
     };

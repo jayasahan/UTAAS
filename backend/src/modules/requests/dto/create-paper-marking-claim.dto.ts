@@ -173,6 +173,18 @@ export class ClaimItemsDto {
   @IsNumber()
   @Min(0)
   secondMarkingCount?: number;
+
+  @ApiPropertyOptional({ example: 0, description: 'Number of question papers translated' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  paperTranslationCount?: number;
+
+  @ApiPropertyOptional({ example: 0, description: 'Number of candidates assessed in practical / oral exam' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  candidateAssessmentCount?: number;
 }
 
 export class SupportingDocumentDto {

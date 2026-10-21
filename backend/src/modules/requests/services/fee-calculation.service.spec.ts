@@ -26,13 +26,29 @@ describe('FeeCalculationService', () => {
 
       expect(result.currency).toBe('LKR');
       expect(result.totalAmount).toBe(23500.0);
-      expect(result.items).toHaveLength(5);
+      expect(result.items).toHaveLength(7);
 
       const paperSetting = result.items.find((i) => i.key === 'PAPER_SETTING');
       expect(paperSetting?.subtotal).toBe(3500.0);
 
       const scriptMarking = result.items.find((i) => i.key === 'SCRIPT_MARKING');
       expect(scriptMarking?.subtotal).toBe(12000.0);
+    });
+
+    it('should calculate translation and candidate-based assessment fees accurately', () => {
+      const items: ClaimItemsDto = {
+        paperTranslationCount: 2, // 2 * 1500 = 3000
+        candidateAssessmentCount: 50, // 50 * 120 = 6000
+      };
+
+      const result = service.calculateClaimFees(items);
+      expect(result.totalAmount).toBe(9000.0);
+      const translation = result.items.find((i) => i.key === 'PAPER_TRANSLATION');
+      expect(translation?.count).toBe(2);
+      expect(translation?.subtotal).toBe(3000.0);
+      const candidates = result.items.find((i) => i.key === 'CANDIDATE_ASSESSMENT');
+      expect(candidates?.count).toBe(50);
+      expect(candidates?.subtotal).toBe(6000.0);
     });
 
     it('should return 0 total when all counts are 0', () => {
@@ -42,6 +58,8 @@ describe('FeeCalculationService', () => {
         scriptMarkingCount: 0,
         practicalAssessmentHours: 0,
         secondMarkingCount: 0,
+        paperTranslationCount: 0,
+        candidateAssessmentCount: 0,
       };
 
       const result = service.calculateClaimFees(items);
@@ -51,7 +69,7 @@ describe('FeeCalculationService', () => {
     it('should handle undefined or null items gracefully', () => {
       const result = service.calculateClaimFees(undefined);
       expect(result.totalAmount).toBe(0);
-      expect(result.items).toHaveLength(5);
+      expect(result.items).toHaveLength(7);
     });
 
     it('should aggregate and calculate fees from multiple paper rows', () => {
@@ -134,6 +152,7 @@ describe('FeeCalculationService', () => {
       expect(agg.paperSettingCount).toBe(2);
       expect(agg.scriptMarkingCount).toBe(100);
       expect(agg.practicalAssessmentHours).toBe(3); // only hours unit contributes to practical hours
+      expect(agg.candidateAssessmentCount).toBe(40); // candidates unit contributes to candidate count
     });
   });
 
@@ -143,6 +162,9 @@ describe('FeeCalculationService', () => {
       expect(rates.circularReference).toBe(FeeCalculationService.CIRCULAR_REFERENCE);
       expect(rates.rates.PAPER_SETTING.rate).toBe(3500.0);
       expect(rates.rates.SCRIPT_MARKING.rate).toBe(120.0);
+      expect(rates.rates.PAPER_TRANSLATION.rate).toBe(1500.0);
+      expect(rates.rates.CANDIDATE_ASSESSMENT.rate).toBe(120.0);
+      expect(Object.keys(rates.rates)).toHaveLength(7);
     });
   });
 });

@@ -9,6 +9,7 @@ import {
   UploadedFile,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
   Res,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -21,7 +22,13 @@ import {
   ApiConsumes,
   ApiBody,
 } from '@nestjs/swagger';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { User } from '../../../database/entities/user.entity';
+import { UserRole } from '../../../database/entities/user-role.enum';
+import { Request } from '../../../database/entities/request.entity';
 import * as fs from 'fs';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
@@ -33,7 +40,10 @@ import { randomUUID } from 'crypto';
 export class DocumentsController {
   private readonly uploadDir = path.resolve(process.cwd(), 'uploads');
 
-  constructor() {
+  constructor(
+    @InjectRepository(Request)
+    private readonly requestRepo: Repository<Request>,
+  ) {
     if (!fs.existsSync(this.uploadDir)) {
       fs.mkdirSync(this.uploadDir, { recursive: true });
     }
@@ -57,9 +67,14 @@ export class DocumentsController {
   })
   @ApiResponse({ status: 201, description: 'File uploaded successfully' })
   @ApiResponse({ status: 400, description: 'Invalid file format or size exceeds 10MB' })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 10 * 1024 * 1024 }, // 10 MiB stream-level limit
+    }),
+  )
   async uploadFile(
     @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user: User,
     @Body('category') category?: string,
     @Body('requestId') requestId?: string,
   ) {
@@ -80,7 +95,8 @@ export class DocumentsController {
     }
 
     const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const storedFilename = `${randomUUID()}-${safeName}`;
+    const uploaderId = user?.id || 'anonymous';
+    const storedFilename = `${uploaderId}__${randomUUID()}-${safeName}`;
     const destinationPath = path.join(this.uploadDir, storedFilename);
 
     await fs.promises.writeFile(destinationPath, file.buffer);
@@ -96,8 +112,12 @@ export class DocumentsController {
   }
 
   @Get('documents/:filename')
-  @ApiOperation({ summary: 'Retrieve Uploaded Supporting Document' })
-  async getDocument(@Param('filename') filename: string, @Res() res: Response) {
+  @ApiOperation({ summary: 'Retrieve Uploaded Supporting Document with Ownership/Role Checks' })
+  async getDocument(
+    @Param('filename') filename: string,
+    @CurrentUser() user: User,
+    @Res() res: Response,
+  ) {
     const safeFilename = path.basename(filename);
     const filePath = path.join(this.uploadDir, safeFilename);
 
@@ -105,6 +125,33 @@ export class DocumentsController {
       throw new NotFoundException('Document not found');
     }
 
-    return res.sendFile(filePath);
+    // If user object is missing, deny access
+    if (!user) {
+      throw new ForbiddenException('Authentication required to access documents');
+    }
+
+    // Role-based authorization: Reviewers and Admin roles have authorization to view claim documents
+    const isReviewerOrAdmin = user.role !== UserRole.LECTURER;
+    if (isReviewerOrAdmin) {
+      return res.sendFile(filePath);
+    }
+
+    // For LECTURER: Verify that user is the original uploader (encoded in filename)
+    if (safeFilename.startsWith(`${user.id}__`)) {
+      return res.sendFile(filePath);
+    }
+
+    // Check if the document is referenced in any of the lecturer's claims in PostgreSQL
+    const claim = await this.requestRepo
+      .createQueryBuilder('request')
+      .where('request.applicantId = :applicantId', { applicantId: user.id })
+      .andWhere("request.formData::text LIKE :docMatch", { docMatch: `%${safeFilename}%` })
+      .getOne();
+
+    if (claim) {
+      return res.sendFile(filePath);
+    }
+
+    throw new ForbiddenException('You do not have permission to access this document');
   }
 }
