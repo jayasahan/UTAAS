@@ -123,7 +123,7 @@ IDs, evidence IDs, decision IDs (D), or backend dependency IDs (API).
 | ----- | ------------------------------------------ | -------- | ----------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | FE-07 | Authentication UI and session handling     | P0       | FE-03, FE-06; API1            | IP    | Agreed sign-in, session restoration/expiry, logout and error states; mock identity visibly limited to development; no fictitious production SSO | E13; development memory-only session; production auth/live validation unresolved             |
 | FE-08 | Role-based navigation and route protection | P0       | FE-07; D3                     | NS    | Lecturer/HOD/Dean/Exam/Finance/Bursar routes/actions reflect permissions; forbidden routes handled; no reliance on UI as security boundary      | E0; role and department test matrix required                                                 |
-| FE-09 | Lecturer dashboard                         | P1       | FE-08, FE-26; API4            | NS    | Relevant summary and recent applications use real data; loading/error/empty states; no fabricated metrics                                       | E0; design/data mapping and browser checks required                                          |
+| FE-09 | Lecturer dashboard                         | P1       | FE-08, FE-26; API4            | IP    | Lecturer-owned total and recent requests; status counts visibly scoped to the recent page; loading/error/empty/session states; no fabricated metrics | E20; source checked at a82b0f4; focused 12/12 and full 205/205 (temporary 15s test timeout); lint, strict TS, build, TS Prettier and diff check passed; live auth/QA pending |
 | FE-10 | My Applications list and discovery         | P1       | FE-08, FE-26; API4, D5        | IP    | Own applications, supported pagination/filtering/search, accessible links and status; private reference title only if agreed                    | E14-E15; paginated GET and mocked list states tested; live ownership/draft discovery pending |
 | FE-11 | Save, list and resume drafts               | P0       | FE-12, FE-13, FE-26; API2, D4 | NS    | Save intended partial data, reopen same draft, retain values between steps; clear unsaved/error states; no unintended submit                    | E0; reload and existing-draft update tests                                                   |
 
@@ -313,6 +313,7 @@ Complete gate met? (yes/no, evidence):
 | Date       | Change                                                                | Evidence / gate impact                                                                                            |
 | ---------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | 2026-10-21 | Initial tracker from repository inspection and prior scaffold session | FE-01 implemented/local PASS; FE-02 partial discovery; no approvals, commits, pushes, PRs, merges or QA sign-offs |
+| 2026-10-22 | Lecturer Dashboard implementation started on feature/frontend-lecturer-dashboard | FE-09 IP; E20 records the verified API source, scoped metrics, 205 passing tests, local checks, and unverified live authentication/QA |
 
 ## Scaffold PR record (merged; prior snapshot below is historical)
 
@@ -954,3 +955,44 @@ Prettier for changed TypeScript files, and the production build passed. The
 full suite includes the existing authenticated Officer Claim Review and
 workflow-action tests. No live backend requests or browser checks were run for
 this follow-up. Independent review, CI, QA, commit, push, and PR remain pending.
+
+## Lecturer Dashboard implementation (E20, 2026-10-22)
+
+The existing / route now renders a PRIMARY Figma-aligned lecturer dashboard
+(frame 3:109, https://www.figma.com/design/BzLWUOHB9HGDnUV6fNGbrG/UTAAS?node-id=3-109) using the shared lecturer shell and existing design-system
+components. It verifies /auth/me first and requests the lecturer-owned
+GET /api/v1/requests/my-requests?page=1&limit=5 only when the decoded role is
+LECTURER. The server meta.total backs the all-pages total card (including
+drafts); status cards are calculated only from the returned newest five and
+label that scope because the API has no status aggregates. The UI does not use
+Figma sample values or production fixtures.
+
+The recent list links drafts to the existing resume route and other requests to
+the existing detail/tracking route. Quick actions reuse /requests and
+/requests/new. Profile/list loading, empty, network/server failure, retry,
+unauthorized/expired, unavailable, and non-lecturer states do not expose
+unverified request rows. The current production app has no production session
+provider; it safely displays the unauthenticated/unavailable state there. Data
+loading currently works only when the existing authenticated development
+session is available. No live backend call or populated authenticated browser state was available; a signed-out browser smoke check is recorded below.
+
+Visual structure follows the PRIMARY dashboard's welcome header, new
+application action, four summary cards, and recent application list. The status
+scope note and the quick-action fallback to My Requests are intentional
+adaptations to the verified API contract. Issue #26 remains pending and was not
+changed by this dashboard work.
+
+Validation: npm ci installed the locked frontend dependencies with zero reported
+vulnerabilities. The focused dashboard suite passed 12/12 tests; the full suite
+passed 205/205 across 20 files using a temporary 15-second CLI timeout. One
+existing Paper Marking interaction test passed alone in 2.17 seconds after
+timing out at the default 5-second limit in full-suite runs. ESLint, strict
+TypeScript, production build, Prettier on changed TypeScript files, and
+git diff --check passed. Whole-file Prettier checks flagged formatting across these existing Markdown documents; unrelated history was not reformatted.
+
+A local browser smoke check at CSS viewport widths 390, 768, and 1440 found no
+document overflow in the signed-out state. Keyboard focus on the development
+role control had a visible blue outline. The local backend was not listening on
+port 4000; populated authenticated browser states and live API integration
+remain unverified. The feature remains uncommitted and has no PR, teammate
+review, CI, merge, or independent QA evidence.
