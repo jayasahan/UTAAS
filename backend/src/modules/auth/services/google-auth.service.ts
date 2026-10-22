@@ -3,8 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { OAuth2Client } from 'google-auth-library';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User, UserRole } from '../../../database/entities/user.entity';
-import { Department } from '../../../database/entities/department.entity';
+import { User } from '../../../database/entities/user.entity';
 
 @Injectable()
 export class GoogleAuthService {
@@ -15,8 +14,6 @@ export class GoogleAuthService {
     private readonly configService: ConfigService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    @InjectRepository(Department)
-    private readonly departmentRepository: Repository<Department>,
   ) {
     const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
     this.oauthClient = new OAuth2Client(clientId);
@@ -27,12 +24,18 @@ export class GoogleAuthService {
       throw new UnauthorizedException('Valid Google ID token is required');
     }
 
+    const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
+    if (!clientId) {
+      throw new UnauthorizedException(
+        'Google OAuth authentication is not configured on the server (GOOGLE_CLIENT_ID is missing)',
+      );
+    }
+
     let payload: any;
     try {
-      const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
       const ticket = await this.oauthClient.verifyIdToken({
         idToken,
-        audience: clientId || undefined,
+        audience: clientId,
       });
       payload = ticket.getPayload();
     } catch (err) {
@@ -59,36 +62,22 @@ export class GoogleAuthService {
       );
     }
 
-    // Check if user exists in database
-    let user = await this.userRepository.findOne({
+    // Check if user exists in database with verified role and department
+    const user = await this.userRepository.findOne({
       where: { email },
       relations: ['department'],
     });
 
-    if (user) {
-      if (!user.isActive) {
-        throw new UnauthorizedException('University account has been deactivated');
-      }
-      return user;
+    if (!user) {
+      throw new UnauthorizedException(
+        `User account '${email}' is not registered in UTAAS. Access is restricted to pre-registered university faculty and staff.`,
+      );
     }
 
-    // Auto-provision verified university Google user as LECTURER in default COM department
-    const defaultDept = await this.departmentRepository.findOne({
-      where: { code: 'COM' },
-    });
+    if (!user.isActive) {
+      throw new UnauthorizedException('University account has been deactivated');
+    }
 
-    const fullName = payload.name || payload.email.split('@')[0];
-
-    user = this.userRepository.create({
-      email,
-      fullName: fullName.startsWith('Dr.') || fullName.startsWith('Prof.') ? fullName : `Dr. ${fullName}`,
-      role: UserRole.LECTURER,
-      department: defaultDept || undefined,
-      departmentId: defaultDept?.id || undefined,
-      isActive: true,
-    });
-
-    this.logger.log(`Auto-provisioning verified Google university user: ${email}`);
-    return await this.userRepository.save(user);
+    return user;
   }
 }

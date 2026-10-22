@@ -4,28 +4,23 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { UnauthorizedException } from '@nestjs/common';
 import { GoogleAuthService } from './google-auth.service';
 import { User, UserRole } from '../../../database/entities/user.entity';
-import { Department } from '../../../database/entities/department.entity';
 
 describe('GoogleAuthService', () => {
   let service: GoogleAuthService;
   let mockUserRepo: any;
-  let mockDeptRepo: any;
   let mockConfigService: any;
   let mockOAuthClient: any;
 
   beforeEach(async () => {
     mockUserRepo = {
       findOne: jest.fn(),
-      create: jest.fn().mockImplementation((dto) => dto),
-      save: jest.fn().mockImplementation((entity) => Promise.resolve({ id: 'user-google-1', ...entity })),
-    };
-
-    mockDeptRepo = {
-      findOne: jest.fn().mockResolvedValue({ id: 'dept-com', code: 'COM', name: 'Computer Engineering' }),
     };
 
     mockConfigService = {
-      get: jest.fn().mockReturnValue('mock-google-client-id.apps.googleusercontent.com'),
+      get: jest.fn().mockImplementation((key: string) => {
+        if (key === 'GOOGLE_CLIENT_ID') return 'mock-google-client-id.apps.googleusercontent.com';
+        return null;
+      }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -33,7 +28,6 @@ describe('GoogleAuthService', () => {
         GoogleAuthService,
         { provide: ConfigService, useValue: mockConfigService },
         { provide: getRepositoryToken(User), useValue: mockUserRepo },
-        { provide: getRepositoryToken(Department), useValue: mockDeptRepo },
       ],
     }).compile();
 
@@ -53,12 +47,43 @@ describe('GoogleAuthService', () => {
     await expect(service.verifyAndAuthenticate('')).rejects.toThrow(UnauthorizedException);
   });
 
+  it('should throw if GOOGLE_CLIENT_ID is missing from configuration (P1 prevention)', async () => {
+    mockConfigService.get.mockReturnValue(undefined);
+
+    await expect(service.verifyAndAuthenticate('any-token')).rejects.toThrow(
+      /Google OAuth authentication is not configured on the server/,
+    );
+  });
+
   it('should throw if verifyIdToken fails', async () => {
     mockOAuthClient.verifyIdToken.mockRejectedValue(new Error('Invalid token signature'));
 
     await expect(service.verifyAndAuthenticate('invalid-token')).rejects.toThrow(
       /Invalid Google ID token/,
     );
+  });
+
+  it('should enforce audience parameter matching configured client ID', async () => {
+    const existingUser = {
+      id: 'existing-uuid',
+      email: 'lecturer@eng.ruh.ac.lk',
+      role: UserRole.LECTURER,
+      isActive: true,
+    };
+    mockUserRepo.findOne.mockResolvedValue(existingUser);
+
+    mockOAuthClient.verifyIdToken.mockResolvedValue({
+      getPayload: () => ({
+        email: 'lecturer@eng.ruh.ac.lk',
+        email_verified: true,
+      }),
+    });
+
+    await service.verifyAndAuthenticate('valid-token');
+    expect(mockOAuthClient.verifyIdToken).toHaveBeenCalledWith({
+      idToken: 'valid-token',
+      audience: 'mock-google-client-id.apps.googleusercontent.com',
+    });
   });
 
   it('should throw if email is not verified by Google', async () => {
@@ -87,12 +112,13 @@ describe('GoogleAuthService', () => {
     );
   });
 
-  it('should authenticate existing registered university user', async () => {
+  it('should authenticate pre-registered university user', async () => {
     const existingUser = {
       id: 'existing-uuid',
       email: 'lecturer@eng.ruh.ac.lk',
       role: UserRole.LECTURER,
       isActive: true,
+      department: { code: 'COM' },
     };
     mockUserRepo.findOne.mockResolvedValue(existingUser);
 
@@ -106,7 +132,22 @@ describe('GoogleAuthService', () => {
 
     const result = await service.verifyAndAuthenticate('valid-token');
     expect(result).toEqual(existingUser);
-    expect(mockUserRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('should reject unseeded / unregistered university Google accounts (P1 restriction)', async () => {
+    mockUserRepo.findOne.mockResolvedValue(null);
+
+    mockOAuthClient.verifyIdToken.mockResolvedValue({
+      getPayload: () => ({
+        email: 'unregistered.prof@eng.ruh.ac.lk',
+        email_verified: true,
+        name: 'Unregistered Professor',
+      }),
+    });
+
+    await expect(service.verifyAndAuthenticate('valid-token')).rejects.toThrow(
+      /User account 'unregistered.prof@eng.ruh.ac.lk' is not registered in UTAAS/,
+    );
   });
 
   it('should throw if existing user account is deactivated', async () => {
@@ -126,22 +167,5 @@ describe('GoogleAuthService', () => {
     await expect(service.verifyAndAuthenticate('valid-token')).rejects.toThrow(
       /University account has been deactivated/,
     );
-  });
-
-  it('should auto-provision new verified university lecturer', async () => {
-    mockUserRepo.findOne.mockResolvedValue(null);
-
-    mockOAuthClient.verifyIdToken.mockResolvedValue({
-      getPayload: () => ({
-        email: 'new.staff@eng.ruh.ac.lk',
-        email_verified: true,
-        name: 'Sunil Wickrama',
-      }),
-    });
-
-    const result = await service.verifyAndAuthenticate('valid-token');
-    expect(result.email).toBe('new.staff@eng.ruh.ac.lk');
-    expect(result.role).toBe(UserRole.LECTURER);
-    expect(mockUserRepo.save).toHaveBeenCalled();
   });
 });

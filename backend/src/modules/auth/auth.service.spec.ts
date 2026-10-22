@@ -22,6 +22,7 @@ describe('AuthService', () => {
     departmentId: 'dept-uuid-com',
     department: { id: 'dept-uuid-com', code: 'COM', name: 'Computer Engineering' } as any,
     isActive: true,
+    tokenVersion: 0,
     requests: [],
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -45,6 +46,7 @@ describe('AuthService', () => {
 
     mockUserRepository = {
       findOne: jest.fn(),
+      increment: jest.fn().mockResolvedValue({ generatedMaps: [], raw: [], affected: 1 }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -65,7 +67,7 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
-    it('should authenticate user and return access token and profile', async () => {
+    it('should authenticate user and return access token with tokenVersion in payload', async () => {
       const result = await service.login({ email: 'lecturer@eng.ruh.ac.lk', password: 'password123' });
 
       expect(mockAuthProvider.authenticate).toHaveBeenCalledWith('lecturer@eng.ruh.ac.lk', 'password123');
@@ -75,6 +77,7 @@ describe('AuthService', () => {
         role: mockUser.role,
         departmentId: 'dept-uuid-com',
         departmentCode: 'COM',
+        tokenVersion: 0,
       });
       expect(result).toEqual({
         accessToken: 'signed-jwt-token',
@@ -91,7 +94,7 @@ describe('AuthService', () => {
   });
 
   describe('googleLogin', () => {
-    it('should verify google token and return access token and profile', async () => {
+    it('should verify google token and return access token with tokenVersion in payload', async () => {
       const result = await service.googleLogin({ idToken: 'valid-google-id-token' });
 
       expect(mockGoogleAuthService.verifyAndAuthenticate).toHaveBeenCalledWith('valid-google-id-token');
@@ -101,6 +104,7 @@ describe('AuthService', () => {
         role: mockUser.role,
         departmentId: 'dept-uuid-com',
         departmentCode: 'COM',
+        tokenVersion: 0,
       });
       expect(result.accessToken).toBe('signed-jwt-token');
       expect(result.user.email).toBe(mockUser.email);
@@ -108,12 +112,11 @@ describe('AuthService', () => {
   });
 
   describe('logout', () => {
-    it('should return logout success message for user', async () => {
+    it('should increment tokenVersion in database to revoke active sessions and return success', async () => {
       const result = await service.logout(mockUser);
-      expect(result).toEqual({
-        success: true,
-        message: `User ${mockUser.email} logged out successfully`,
-      });
+      expect(mockUserRepository.increment).toHaveBeenCalledWith({ id: mockUser.id }, 'tokenVersion', 1);
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('logged out successfully and session was revoked');
     });
   });
 

@@ -35,6 +35,9 @@ export class User {
   @Column({ nullable: true, select: false })
   passwordHash?: string | null;
 
+  @Column({ default: 0 })
+  tokenVersion?: number;
+
   @Column({ nullable: true })
   departmentId: string;
 

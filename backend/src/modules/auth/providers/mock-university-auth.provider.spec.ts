@@ -108,6 +108,47 @@ describe('MockUniversityAuthProvider', () => {
     );
   });
 
+  it('should reject password authentication in production if account has no password hash (P0 prevention)', async () => {
+    process.env.NODE_ENV = 'production';
+    const googleOnlyUser = {
+      id: 'uuid-google-only',
+      email: 'google.lecturer@eng.ruh.ac.lk',
+      isActive: true,
+      role: UserRole.LECTURER,
+      passwordHash: null,
+    };
+    mockUserRepo.createQueryBuilder.mockReturnValue({
+      addSelect: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(googleOnlyUser),
+    });
+
+    await expect(
+      provider.authenticate('google.lecturer@eng.ruh.ac.lk', 'AnyNonEmptyPassword'),
+    ).rejects.toThrow(/This account does not have password authentication enabled/);
+  });
+
+  it('should reject password authentication in development if account has no password hash and password is sent', async () => {
+    const googleOnlyUser = {
+      id: 'uuid-google-only',
+      email: 'google.lecturer@eng.ruh.ac.lk',
+      isActive: true,
+      role: UserRole.LECTURER,
+      passwordHash: null,
+    };
+    mockUserRepo.createQueryBuilder.mockReturnValue({
+      addSelect: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(googleOnlyUser),
+    });
+
+    await expect(
+      provider.authenticate('google.lecturer@eng.ruh.ac.lk', 'SomePassword'),
+    ).rejects.toThrow(/This account does not have password authentication enabled/);
+  });
+
   it('should require password in production environment', async () => {
     process.env.NODE_ENV = 'production';
     const existingUser = {
