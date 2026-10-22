@@ -22,6 +22,16 @@ describe('AuthController', () => {
           departmentCode: 'COM',
         },
       }),
+      googleLogin: jest.fn().mockResolvedValue({
+        accessToken: 'google-jwt-token',
+        user: {
+          id: 'google-user-id',
+          email: 'lecturer@eng.ruh.ac.lk',
+          fullName: 'Dr. Kamal Perera',
+          role: UserRole.LECTURER,
+          departmentCode: 'COM',
+        },
+      }),
       logout: jest.fn().mockResolvedValue({
         success: true,
         message: 'User lecturer@eng.ruh.ac.lk logged out successfully',
@@ -60,9 +70,17 @@ describe('AuthController', () => {
 
   describe('login', () => {
     it('should call authService.login and return response', async () => {
-      const res = await controller.login({ email: 'lecturer@eng.ruh.ac.lk' });
-      expect(mockAuthService.login).toHaveBeenCalledWith({ email: 'lecturer@eng.ruh.ac.lk' });
+      const res = await controller.login({ email: 'lecturer@eng.ruh.ac.lk', password: 'password123' });
+      expect(mockAuthService.login).toHaveBeenCalledWith({ email: 'lecturer@eng.ruh.ac.lk', password: 'password123' });
       expect(res.accessToken).toBe('mock-jwt-token');
+    });
+  });
+
+  describe('googleLogin', () => {
+    it('should call authService.googleLogin and return response', async () => {
+      const res = await controller.googleLogin({ idToken: 'valid-google-id-token' });
+      expect(mockAuthService.googleLogin).toHaveBeenCalledWith({ idToken: 'valid-google-id-token' });
+      expect(res.accessToken).toBe('google-jwt-token');
     });
   });
 

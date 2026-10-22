@@ -5,7 +5,9 @@ import { Repository } from 'typeorm';
 import { User } from '../../database/entities/user.entity';
 import { AUTH_PROVIDER, IAuthProvider } from './interfaces/auth-provider.interface';
 import { MockUniversityAuthProvider, TestActorInfo } from './providers/mock-university-auth.provider';
+import { GoogleAuthService } from './services/google-auth.service';
 import { LoginDto } from './dto/login.dto';
+import { GoogleLoginDto } from './dto/google-login.dto';
 import { AuthResponseDto, UserProfileDto, LogoutResponseDto } from './dto/auth-response.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 
@@ -17,10 +19,30 @@ export class AuthService {
     private readonly authProvider: IAuthProvider,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly googleAuthService: GoogleAuthService,
   ) {}
 
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {
     const user = await this.authProvider.authenticate(loginDto.email, loginDto.password);
+
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      departmentId: user.departmentId || user.department?.id || null,
+      departmentCode: user.department?.code || null,
+    };
+
+    const accessToken = await this.jwtService.signAsync(payload);
+
+    return {
+      accessToken,
+      user: this.mapToProfileDto(user),
+    };
+  }
+
+  async googleLogin(googleLoginDto: GoogleLoginDto): Promise<AuthResponseDto> {
+    const user = await this.googleAuthService.verifyAndAuthenticate(googleLoginDto.idToken);
 
     const payload: JwtPayload = {
       sub: user.id,

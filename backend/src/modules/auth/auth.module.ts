@@ -10,6 +10,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { AUTH_PROVIDER } from './interfaces/auth-provider.interface';
 import { MockUniversityAuthProvider } from './providers/mock-university-auth.provider';
+import { GoogleAuthService } from './services/google-auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
@@ -34,6 +35,7 @@ import { getJwtSecret } from './auth.constants';
   controllers: [AuthController],
   providers: [
     AuthService,
+    GoogleAuthService,
     JwtStrategy,
     JwtAuthGuard,
     RolesGuard,
@@ -46,6 +48,7 @@ import { getJwtSecret } from './auth.constants';
   ],
   exports: [
     AuthService,
+    GoogleAuthService,
     JwtAuthGuard,
     RolesGuard,
     DepartmentScopeGuard,

@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { AUTH_PROVIDER } from './interfaces/auth-provider.interface';
+import { GoogleAuthService } from './services/google-auth.service';
 import { User, UserRole } from '../../database/entities/user.entity';
 import { NotFoundException } from '@nestjs/common';
 
@@ -10,6 +11,7 @@ describe('AuthService', () => {
   let service: AuthService;
   let mockJwtService: Partial<JwtService>;
   let mockAuthProvider: any;
+  let mockGoogleAuthService: any;
   let mockUserRepository: any;
 
   const mockUser = {
@@ -37,6 +39,10 @@ describe('AuthService', () => {
       ]),
     };
 
+    mockGoogleAuthService = {
+      verifyAndAuthenticate: jest.fn().mockResolvedValue(mockUser),
+    };
+
     mockUserRepository = {
       findOne: jest.fn(),
     };
@@ -46,6 +52,7 @@ describe('AuthService', () => {
         AuthService,
         { provide: JwtService, useValue: mockJwtService },
         { provide: AUTH_PROVIDER, useValue: mockAuthProvider },
+        { provide: GoogleAuthService, useValue: mockGoogleAuthService },
         { provide: getRepositoryToken(User), useValue: mockUserRepository },
       ],
     }).compile();
@@ -59,9 +66,9 @@ describe('AuthService', () => {
 
   describe('login', () => {
     it('should authenticate user and return access token and profile', async () => {
-      const result = await service.login({ email: 'lecturer@eng.ruh.ac.lk' });
+      const result = await service.login({ email: 'lecturer@eng.ruh.ac.lk', password: 'password123' });
 
-      expect(mockAuthProvider.authenticate).toHaveBeenCalledWith('lecturer@eng.ruh.ac.lk', undefined);
+      expect(mockAuthProvider.authenticate).toHaveBeenCalledWith('lecturer@eng.ruh.ac.lk', 'password123');
       expect(mockJwtService.signAsync).toHaveBeenCalledWith({
         sub: mockUser.id,
         email: mockUser.email,
@@ -80,6 +87,23 @@ describe('AuthService', () => {
           departmentId: 'dept-uuid-com',
         },
       });
+    });
+  });
+
+  describe('googleLogin', () => {
+    it('should verify google token and return access token and profile', async () => {
+      const result = await service.googleLogin({ idToken: 'valid-google-id-token' });
+
+      expect(mockGoogleAuthService.verifyAndAuthenticate).toHaveBeenCalledWith('valid-google-id-token');
+      expect(mockJwtService.signAsync).toHaveBeenCalledWith({
+        sub: mockUser.id,
+        email: mockUser.email,
+        role: mockUser.role,
+        departmentId: 'dept-uuid-com',
+        departmentCode: 'COM',
+      });
+      expect(result.accessToken).toBe('signed-jwt-token');
+      expect(result.user.email).toBe(mockUser.email);
     });
   });
 
