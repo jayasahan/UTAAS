@@ -852,3 +852,35 @@ The backend's Nest `@Post` routes do not specify `@HttpCode`, so Nest's default 
 Production CORS must be configured with the deployed frontend origin through `CORS_ALLOWED_ORIGINS`. In production, absent configuration results in a false CORS origin setting. Although the backend enables credentialed CORS, this frontend uses bearer authorization with `credentials: 'omit'`; it does not use cookies. The frontend does not persist tokens and does not implement refresh. Google sign-in remains unavailable in the UI because the frontend has no verified client configuration. No live backend was listening at `127.0.0.1:4000` during verification, so runtime login, `/auth/me`, logout and deployment CORS remain unverified.
 
 Related evidence: [Issue #44](https://github.com/jayasahan/UTAAS/issues/44), [backend PR #45](https://github.com/jayasahan/UTAAS/pull/45), and [frontend PR #46](https://github.com/jayasahan/UTAAS/pull/46).
+
+### Officer Review History contract re-verification after backend PR #49 — 2026-10-22
+
+The historical Issue #26 / PR #30 findings above describe the earlier merged
+contract. They are superseded for the review-history list by source inspection
+of `origin/mvp` at `1c6e8e0039fafea51ed76e97be80d4fd9fe608e8`, which includes
+backend PR #49 and its QA-03 / QA-04 changes. The controller, service, response
+DTO, controller tests, and service regression tests were inspected. No backend
+files were changed.
+
+| Contract                                | Verified behavior                                                                                                                                                                                                                                                                                                   |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/v1/requests/review-history`   | `JwtAuthGuard` and bearer authentication; query parameters are `page`, `limit`, `decision`, `search`, and `scope`. The response is `{ data, meta }`; `meta` contains `total`, `page`, `limit`, `totalPages`, and `summaryCounts: { approved, returned, rejected }`.                                                 |
+| Default `scope=personal`                | The service selects completed stage-history rows whose `actorId` matches the authenticated user's ID and whose stage matches the role (ADMIN is matched by actor across completed stages). The controller test verifies that omitted scope defaults to `personal`; service QA-03 tests verify the actor constraint. |
+| Explicit `scope=role`                   | Returns completed decisions for the authenticated reviewer role/stage without the actor constraint. ADMIN is a special case returning completed review stages across roles. The frontend makes this scope an explicit user selection; it does not label role-wide results as personal decisions.                    |
+| HOD department boundary                 | Both personal and role scope add a server-side filter on the applicant's `departmentId` matching the authenticated HOD's `departmentId`. A HOD with no department ID receives an empty response. The frontend also retains the existing profile gate, but backend filtering remains authoritative.                  |
+| Other roles                             | DEAN maps to `DEAN`, EXAMINATION_OFFICER to `EXAMINATION_OFFICE`, FINANCIAL_OFFICER to `FINANCIAL_OFFICE`, and ASSISTANT_BURSAR to `ASSISTANT_BURSAR`. A lecturer and unsupported non-admin role receive an empty list. The endpoint uses authentication plus service scoping rather than a controller role guard.  |
+| Decision mapping                        | The selected completed stage action controls the historical decision: `REJECT_RETURN` maps to `RETURNED_FOR_CORRECTION`, approved actions map to `APPROVED`, and the legacy `REJECT` action maps to `REJECTED`. QA-04 regression coverage confirms a later-stage return does not rewrite an earlier HOD approval.   |
+| Search, decision filter, and pagination | Search is applied by the backend to tracking number or applicant name. `decision` filters the table result total. Pagination is server-side. `summaryCounts` are computed over the role/personal scope and search before the decision filter, so the decision selector does not alter the summary cards.            |
+| Unsupported filters                     | No date-range or department filter is defined. The production page does not send or apply either filter. Department is displayed only as a returned record field.                                                                                                                                                   |
+| Response data                           | Each entry provides request ID, tracking number, applicant, claim type, department and optional department code, historical decision/date, total amount, and audit events. The frontend validates the DTO shape and timestamps before rendering.                                                                    |
+
+The list endpoint returns the audit events attached to each authorized review
+entry. The page labels those as request activity and does not imply that every
+event was performed by the selected reviewer. It does not navigate to request
+details, tracking, or document endpoints; those are separate resource contracts
+and are not needed for this integration.
+
+Backend source and test assertions establish the above scoping/mapping
+behavior; no live authenticated backend request was performed in this frontend
+task. `origin/mvp` was at the PR #49 merge commit recorded above during
+implementation.
