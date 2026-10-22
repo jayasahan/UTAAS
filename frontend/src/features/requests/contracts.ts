@@ -84,6 +84,11 @@ export function decodeRequestPage(value: unknown): RequestPage {
   };
 }
 
+export interface RequestApplicant {
+  fullName: string | null;
+  department: { name: string | null; code: string | null } | null;
+}
+
 export interface RequestDetail {
   id: string;
   trackingNumber: string;
@@ -91,7 +96,29 @@ export interface RequestDetail {
   currentStageKey: string;
   totalAmount: number;
   formData: Record<string, unknown>;
+  applicant?: RequestApplicant | null;
   createdAt: string;
+}
+function nullableText(value: unknown): string | null {
+  if (value == null) return null;
+  if (typeof value !== 'string') throw new Error('Invalid applicant profile');
+  return value.trim() || null;
+}
+
+function decodeRequestApplicant(value: unknown): RequestApplicant | null {
+  if (value == null) return null;
+  const applicant = record(value);
+  const department =
+    applicant.department == null ? null : record(applicant.department);
+  return {
+    fullName: nullableText(applicant.fullName),
+    department: department
+      ? {
+          name: nullableText(department.name),
+          code: nullableText(department.code),
+        }
+      : null,
+  };
 }
 export function decodeRequestDetail(value: unknown): RequestDetail {
   const data = record(value);
@@ -102,6 +129,7 @@ export function decodeRequestDetail(value: unknown): RequestDetail {
     currentStageKey: text(data.currentStageKey),
     totalAmount: finiteAmount(data.totalAmount),
     formData: record(data.formData),
+    applicant: decodeRequestApplicant(data.applicant),
     createdAt: timestamp(data.createdAt),
   };
 }
