@@ -748,3 +748,88 @@ authenticated save/resubmit and document association remain unverified.
 
 Related: [Issue #27](https://github.com/jayasahan/UTAAS/issues/27) and
 [backend PR #37](https://github.com/jayasahan/UTAAS/pull/37).
+
+
+## MVP stabilization source recheck — 2026-10-22
+
+Inspected read-only against origin/mvp d59d31f28e3838a705f332de67325e1f4e743c10.
+Backend PR #43 is present in this revision. No backend files or tests were
+modified or executed. No backend server/database was available for live
+integration.
+
+### Officer completed review history (Issue #26, PR #30)
+
+- Route: GET /api/v1/requests/review-history. The controller is protected by
+  JwtAuthGuard and obtains the principal through CurrentUser. Query parameters
+  are page, limit, decision, and search. No date or department filters exist.
+- Response: data[] entries contain id, trackingNumber, applicant, claimType,
+  department, departmentCode, decision, decisionDate, totalAmount, and events.
+  meta contains total, page, limit, totalPages, and summaryCounts.
+- Scope: service selects completed RequestStageHistory rows by role-specific
+  stage key. HOD additionally filters applicant.departmentId and returns empty
+  when the profile has no department. Other reviewer roles are stage-scoped.
+  The entity provides actorId, but the history query does not compare it to the
+  authenticated user. This does not meet Issue #26's individual-reviewer
+  acceptance criterion (QA-03). Issue #26 is closed and its comment says PR #30
+  delivered the endpoint, but closure is not evidence that this condition is
+  satisfied.
+- Decision mapping: the service marks a result returned when either the
+  selected stage action is REJECT_RETURN or the request's current status is
+  RETURNED_FOR_CORRECTION. A request returned by a later stage may therefore
+  rewrite an earlier completed stage's decision (QA-04). Counts are derived
+  from these mapped values. Existing tests cover basic role response,
+  department fail-closed, search, and decision filtering, but do not establish
+  actor ownership or earlier approval stability.
+- Pagination is applied in memory after the service loads all matching
+  requests. The decision filter and search are supported; date/department
+  filters are not. The DTO's summary counts are computed before decision
+  filtering and should not be presented as verified personal/global totals.
+- Frontend production history remains unavailable. Only the existing profile
+  check is made; the page does not request the history list, per-request
+  history, tracking, or documents. The development preview uses clearly
+  fictional Paper Setting & Marking examples only.
+
+### Production authentication recheck (Issues #38 and #44, PRs #40 and #43)
+
+PR #43 is included in the inspected base, but Issue #44 is open for additional
+security fixes. Source inspection confirms: SeedService invokes seedAll during
+application bootstrap without an environment gate and assigns a shared default
+password hash; production password login can return an account with no password
+hash after receiving a non-empty password without verifying it; Google token
+audience is optional when GOOGLE_CLIENT_ID is absent; verified university
+accounts may be auto-provisioned into a fixed COM department; logout returns a
+success response but does not revoke issued JWTs, and JwtStrategy checks user
+existence/active state rather than a revocation version. The JWT secret has a
+separate production validation check, but that does not close the findings
+tracked in Issue #44.
+
+No frontend production login/session provider is available in the merged MVP.
+Existing development sign-in remains development-only and in-memory. No
+authentication shortcuts or backend changes were introduced in this task.
+Live authentication, logout revocation, and role access behavior remain
+unverified.
+
+Related evidence: [Issue #26](https://github.com/jayasahan/UTAAS/issues/26),
+[Issue #44](https://github.com/jayasahan/UTAAS/issues/44),
+[backend PR #30](https://github.com/jayasahan/UTAAS/pull/30), and
+[backend PR #43](https://github.com/jayasahan/UTAAS/pull/43).
+
+
+### Authentication hardening recheck after backend PR #45 — 2026-10-22
+
+The earlier PR #43 findings above are historical; this recheck is against
+origin/mvp 0af255c7bb2f877c31d091fe3dd557b41803e702, which includes merged PR
+#45. Source and tests now show: production skips default persona user seeding;
+password login rejects accounts without a password hash and verifies configured
+hashes; Google login requires GOOGLE_CLIENT_ID as its token audience and only
+authenticates active pre-registered users; logout increments tokenVersion and
+new JWTs carry that version, which JwtStrategy compares with the current user
+version. Backend regression tests were added for these behaviors.
+
+One rollout detail remains: JwtStrategy performs the version comparison only
+when the JWT contains a numeric tokenVersion. Existing tokens issued before
+PR #45 without that claim are not rejected by this check. Token lifetime,
+rollout invalidation, and live deployment behavior were not verified here.
+The frontend production authentication provider is also still absent, and no
+live authenticated flow was tested. No backend source was modified in this
+frontend task.
