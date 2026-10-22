@@ -66,12 +66,19 @@ export class TrackingHistoryController {
   @ApiOperation({
     summary: 'Get Reviewer Completed Review History',
     description:
-      'Returns paginated list of claims previously reviewed, approved, or returned by the authenticated officer role',
+      'Returns paginated list of claims previously reviewed, approved, or returned by the authenticated officer',
   })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'limit', required: false, example: 10 })
   @ApiQuery({ name: 'decision', required: false, example: 'all' })
   @ApiQuery({ name: 'search', required: false })
+  @ApiQuery({
+    name: 'scope',
+    required: false,
+    enum: ['personal', 'role'],
+    description:
+      "Review history scope: 'personal' (default, personal decisions made by the authenticated officer) or 'role' (all decisions within the officer role/department)",
+  })
   @ApiResponse({
     status: 200,
     description: 'List of completed review history entries',
@@ -83,6 +90,7 @@ export class TrackingHistoryController {
     @Query('limit') limit = 10,
     @Query('decision') decision?: string,
     @Query('search') search?: string,
+    @Query('scope') scope: 'personal' | 'role' = 'personal',
   ): Promise<ReviewHistoryResponseDto> {
     return await this.trackingHistoryService.getReviewHistory(
       user,
@@ -90,6 +98,7 @@ export class TrackingHistoryController {
       Number(limit),
       decision,
       search,
+      scope,
     );
   }
 
