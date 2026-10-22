@@ -1,7 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { StageAction } from '../../../database/entities/request-stage-history.entity';
 import { UserRole } from '../../../database/entities/user.entity';
+import { CorrectedPaperMarkingClaimDto } from './corrected-paper-marking-claim.dto';
 
 export enum WorkflowActionType {
   APPROVE = 'APPROVE',
@@ -31,10 +33,13 @@ export class TransitionActionDto {
   comments?: string;
 
   @ApiPropertyOptional({
-    description: 'Optional updated form data for corrections when resubmitting',
+    type: CorrectedPaperMarkingClaimDto,
+    description: 'Validated updated form data for corrections when resubmitting or editing',
   })
   @IsOptional()
-  updatedFormData?: Record<string, any>;
+  @ValidateNested()
+  @Type(() => CorrectedPaperMarkingClaimDto)
+  updatedFormData?: CorrectedPaperMarkingClaimDto | Record<string, any>;
 
   @ApiPropertyOptional({
     enum: UserRole,

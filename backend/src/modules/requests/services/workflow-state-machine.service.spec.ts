@@ -634,5 +634,58 @@ describe('WorkflowStateMachineService', () => {
         }),
       ).rejects.toThrow(ForbiddenException);
     });
+
+    it('should preserve existing supporting documents and filter out unauthorized fields on resubmit', async () => {
+      const request = createSampleRequest('LECTURER_CORRECTION', RequestStatus.RETURNED_FOR_CORRECTION);
+      request.returningOfficerId = mockHod.id;
+      request.formData = {
+        supportingDocuments: [{ id: 'doc-1', name: 'original.pdf' }],
+      };
+
+      mockDataSource.transaction.mockImplementation(async (cb) => {
+        const mockManager = {
+          findOne: jest.fn().mockImplementation((entity, opts) => {
+            if (entity === Request) return Promise.resolve(request);
+            if (entity === User) return Promise.resolve(mockHod);
+            return null;
+          }),
+          save: jest.fn().mockImplementation((entity, val) => Promise.resolve(val)),
+          create: jest.fn().mockImplementation((entity, val) => val),
+        };
+        return await cb(mockManager);
+      });
+
+      const updated = await service.executeTransition(request.id, mockApplicant, {
+        action: WorkflowActionType.RESUBMIT,
+        comments: 'Updated paper details.',
+        updatedFormData: {
+          items: { paperSettingCount: 1 },
+          unauthorizedInjectedKey: 'exploit',
+        } as any,
+      });
+
+      // Preserved existing documents
+      expect(updated.formData.supportingDocuments).toEqual([{ id: 'doc-1', name: 'original.pdf' }]);
+      // Unauthorized key was not injected
+      expect(updated.formData.unauthorizedInjectedKey).toBeUndefined();
+    });
+
+    it('should throw BadRequestException if resubmit is attempted when stage is not a correction stage', async () => {
+      const request = createSampleRequest('DEAN', RequestStatus.RETURNED_FOR_CORRECTION);
+
+      mockDataSource.transaction.mockImplementation(async (cb) => {
+        const mockManager = {
+          findOne: jest.fn().mockResolvedValue(request),
+        };
+        return await cb(mockManager);
+      });
+
+      await expect(
+        service.executeTransition(request.id, mockApplicant, {
+          action: WorkflowActionType.RESUBMIT,
+          comments: 'Premature resubmit',
+        }),
+      ).rejects.toThrow('is not awaiting correction');
+    });
   });
 });
