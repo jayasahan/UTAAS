@@ -717,3 +717,34 @@ counts from it. Those three metrics are explicitly unavailable. Backend
 authorization remains authoritative; frontend role checks only prevent
 inappropriate navigation and requests. Production session availability and
 live authenticated dashboard integration remain unverified.
+
+## Lecturer correction and resubmission V2 — 2026-10-22
+
+Source-inspected the fetched `origin/mvp` at
+`e3e6e07ca26abba71c71626240737a25a0f30c55`, which includes
+[backend PR #37](https://github.com/jayasahan/UTAAS/pull/37) (commit `d70d4eb`).
+This section supersedes the earlier PR #31 correction blockers for the current
+backend source; those earlier observations remain above as historical evidence.
+Source inspection and backend test inspection are not live API verification.
+
+| Operation | Verified current contract | Frontend use |
+| --- | --- | --- |
+| Read returned claim | JWT-protected `GET /api/v1/requests/paper-marking/:id` requires a UUID and applies applicant/reviewer resource authorization. The backend has no general `GET /api/v1/requests/:id` detail route. Tracking and history remain `GET /api/v1/requests/:id/tracking` and `/history`, subject to resource access. | Load the same returned request, officer return comment, audit history, stage, full `formData.papers`, and document references after verifying the lecturer profile. Block editing if original rows or document references cannot be restored. |
+| Save corrections | `POST /api/v1/requests/paper-marking/draft?draftId=<existing request UUID>` uses `SaveDraftClaimDto`. For an existing claim, the service requires the original applicant and either `DRAFT` or `RETURNED_FOR_CORRECTION` at `LECTURER_CORRECTION`. The service computes fees and defaults omitted fields before merging. | Send the complete current personal, metadata, paper-row, document-reference, declaration, selected-category, and preserved note snapshot. Require the same request ID, returned status, and lecturer correction stage in the response before showing a save confirmation. |
+| Resubmit | JWT-protected `POST /api/v1/requests/:id/actions` with `action: RESUBMIT` and nested `updatedFormData` uses `CorrectedPaperMarkingClaimDto`. The DTO permits validated `personal`, `metadata`/`academic`, `papers`, `items`, `supportingDocuments`, `declaration`, and `comments`; global validation transforms and whitelists fields, and the workflow service allowlists these keys. For `LECTURER_CORRECTION`, only the original applicant or ADMIN may act. The service rejects a non-returned status or non-correction stage. | Send the complete corrected row-level snapshot to the existing request ID. Omit aggregate `items` so the backend derives them from `papers`; do not use the new-claim submit route. Confirm the response is the same request, `UNDER_REVIEW`, and at the expected returning-officer stage. |
+| Fees and stage | The correction draft service calculates fees on save. The workflow action service recalculates `feeCalculation` and `totalAmount` on resubmit, rejects a non-positive amount, and routes to the returning officer's role stage (or HOD fallback when that officer cannot be resolved). | Display local rate-based figures only as estimates. Display a final amount only after a decoded server response. Verify the expected stage from the return audit event and fail closed if it cannot be established. |
+| Documents | Authenticated `POST /api/v1/requests/upload` accepts PDF/PNG/JPEG up to 10 MiB and returns a document reference; the optional `requestId` is echoed, not an association operation. Saving or resubmitting with `supportingDocuments` associates the supplied references. Omission preserves existing references on resubmit; an explicit array replaces claim associations. | Keep existing references in every complete snapshot and attach newly uploaded references only after upload confirmation. Removing a reference detaches it on the next successful save/resubmission; the backend has no file-delete endpoint. No raw private storage URL is displayed. |
+
+The frontend enables lecturer editing only at `LECTURER_CORRECTION`. The backend
+also supports a separate HOD-stage resubmission path with department checks;
+that path is outside this lecturer feature. Older aggregate-only claims, missing
+row units, malformed document references, or unverifiable return history remain
+read-only. The return contract still does not identify a structured form
+section to correct. The workflow action has status preconditions, but no
+idempotency key or demonstrated concurrent duplicate guarantee. The frontend
+blocks repeat clicks and checks request status before any retry after an
+uncertain response. The local backend was not listening on port 4000, so live
+authenticated save/resubmit and document association remain unverified.
+
+Related: [Issue #27](https://github.com/jayasahan/UTAAS/issues/27) and
+[backend PR #37](https://github.com/jayasahan/UTAAS/pull/37).

@@ -18,6 +18,7 @@ export function DocumentsStep({
   onUpload,
   onRemoveUploaded,
   uploadsEnabled,
+  correctionMode = false,
 }: {
   documents: LocalDocument[];
   errors: FieldError[];
@@ -32,6 +33,7 @@ export function DocumentsStep({
   onUpload: (document: LocalDocument) => void;
   onRemoveUploaded: (url: string) => void;
   uploadsEnabled: boolean;
+  correctionMode?: boolean;
 }) {
   const messages = [
     ...errors
@@ -47,7 +49,9 @@ export function DocumentsStep({
       <p>
         Select PDF, PNG, or JPEG evidence, then upload each file to the
         authenticated backend. Upload confirmation is separate from saving or
-        submitting the claim.
+        {correctionMode
+          ? ' resubmitting this returned request.'
+          : ' submitting the claim.'}
       </p>
       <Select
         label="Document category"
@@ -140,8 +144,10 @@ export function DocumentsStep({
       )}
       <p id="upload-status-note" className="text-sm text-muted">
         Uploads require a signed-in lecturer session. Successfully uploaded
-        references are included with the next successful draft save or claim
-        submission.
+        references are included with the next successful{' '}
+        {correctionMode
+          ? 'correction save or resubmission.'
+          : 'draft save or claim submission.'}
       </p>
       {uploadedDocuments.length > 0 && (
         <section
@@ -167,8 +173,12 @@ export function DocumentsStep({
                       doc.documentType}{' '}
                     · Server upload confirmed ·{' '}
                     {doc.attachedToClaim
-                      ? 'Attached to the saved draft'
-                      : 'Will be attached on Save Draft or Submit'}
+                      ? correctionMode
+                        ? 'Attached to the returned request'
+                        : 'Attached to the saved draft'
+                      : correctionMode
+                        ? 'Will be attached when corrections are saved or resubmitted'
+                        : 'Will be attached on Save Draft or Submit'}
                   </p>
                 </div>
                 <Button

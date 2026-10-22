@@ -20,6 +20,11 @@ const detail = {
     department: { name: 'Computer Engineering', code: 'COM' },
   },
   formData: {
+    personal: {
+      designation: 'Senior Lecturer',
+      staffId: 'ENG/COM/042',
+      referenceTitle: 'Semester claim',
+    },
     metadata: {
       academicYear: '2026',
       courseCode: 'EC5060',
@@ -147,6 +152,9 @@ describe('returned Paper Marking request review', () => {
       screen.getAllByText('Please confirm the script count.').length,
     ).toBeGreaterThan(0);
     expect(screen.getByText('Dr. Lecturer')).toBeInTheDocument();
+    expect(screen.getByText('Senior Lecturer')).toBeInTheDocument();
+    expect(screen.getByText('ENG/COM/042')).toBeInTheDocument();
+    expect(screen.getByText('Semester claim')).toBeInTheDocument();
     expect(screen.getByText('EC5060')).toBeInTheDocument();
     expect(screen.getByText('20 scripts')).toBeInTheDocument();
     expect(screen.getByText('attendance-marks.pdf')).toBeInTheDocument();
@@ -163,7 +171,7 @@ describe('returned Paper Marking request review', () => {
     expect(
       screen.queryByText(/private\.example|private-officer-id/),
     ).not.toBeInTheDocument();
-    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(fetcher).toHaveBeenCalledTimes(4);
     for (const [, init] of fetcher.mock.calls) {
       expect(init?.method ?? 'GET').toBe('GET');
     }

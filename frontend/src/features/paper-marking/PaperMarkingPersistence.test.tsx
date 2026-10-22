@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { SessionContext } from '../../auth/session';
 import type { ApiClient } from '../../services/apiClient';
 import { PaperMarkingClaimPage } from './PaperMarkingClaimPage';
@@ -51,7 +52,9 @@ describe('paper marking draft persistence UI', () => {
       <SessionContext.Provider
         value={{ status: 'authenticated', message: '', client, version: 1 }}
       >
-        <PaperMarkingClaimPage />
+        <MemoryRouter>
+          <PaperMarkingClaimPage />
+        </MemoryRouter>
       </SessionContext.Provider>,
     );
     expect(await screen.findByDisplayValue('Verified Name')).toBeVisible();
@@ -123,11 +126,13 @@ describe('paper marking draft persistence UI', () => {
     });
     try {
       render(
-        <SessionContext.Provider
-          value={{ status: 'authenticated', message: '', client, version: 1 }}
-        >
-          <PaperMarkingClaimPage />
-        </SessionContext.Provider>,
+        <MemoryRouter initialEntries={['/requests/new?draftId=draft-2']}>
+          <SessionContext.Provider
+            value={{ status: 'authenticated', message: '', client, version: 1 }}
+          >
+            <PaperMarkingClaimPage />
+          </SessionContext.Provider>
+        </MemoryRouter>,
       );
       expect(await screen.findByDisplayValue('Saved Lecturer')).toBeVisible();
       await user.click(screen.getByRole('button', { name: 'Continue →' }));

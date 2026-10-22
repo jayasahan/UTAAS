@@ -1090,3 +1090,57 @@ were not verified. Production authentication remains blocked by separate
 backend contract work, so populated production behavior is not claimed. This
 branch is uncommitted and has no teammate review, PR, CI, merge, or independent
 QA evidence.
+
+## Lecturer Correction & Resubmission V2 — local implementation (E23, 2026-10-22)
+
+Branch `feature/frontend-correction-resubmission-v2` was created in a separate
+worktree from `origin/mvp` at `e3e6e07ca26abba71c71626240737a25a0f30c55`.
+This base includes merged [backend PR #37](https://github.com/jayasahan/UTAAS/pull/37).
+The original persistence checkout, other worktrees, and recovery stashes were
+preserved. Independent review, CI, merge, and QA are pending.
+
+The existing returned-request detail page now enables **Edit corrections**
+only for a verified lecturer while the request is at
+`RETURNED_FOR_CORRECTION` / `LECTURER_CORRECTION` and its original paper rows
+and document references can be restored safely. The read-only review shows
+the available individual paper rows, correction comment, officer role/date,
+workflow stage, server fee breakdown, and supporting-document metadata. It
+does not invent a corrected section when the backend provides no section
+target. Older aggregate-only or malformed records remain read-only.
+
+The correction editor reuses the four-step Paper Marking form and the
+[PRIMARY correction frame 67:50](https://www.figma.com/design/BzLWUOHB9HGDnUV6fNGbrG/UTAAS?node-id=67-50)
+styling. It restores personal/course fields, all supported paper rows and
+assessment units, existing uploaded-document references, and declaration
+state. Missing optional values are called out; essential missing data blocks
+editing. Existing and newly uploaded document references are sent in the
+complete correction snapshot. Removing a reference detaches it from the next
+successful save or resubmission; it does not delete the stored file.
+Correction saves reject untitled rows and blank quantities so the snapshot
+cannot silently omit a paper or turn an unknown value into zero.
+
+**Save corrections** updates the same returned request through the verified
+draft endpoint and confirms its ID, status, stage, and server-calculated amount
+before reporting success. The full save snapshot preserves the selected
+document category and any original applicant note so backend defaults cannot
+erase them. **Review & Resubmit** validates the entire form, requires a
+confirmation dialog, sends `RESUBMIT` with full row-level data to the original
+request ID, and confirms the backend response status and expected stage before
+navigating to Request Details. Duplicate clicks are blocked. After an
+uncertain mutation result, the UI requires a fresh status check before another
+attempt. Normal new-claim and draft routes remain separate.
+
+Validation: focused correction persistence and mutation tests passed **25/25
+across two files**. Full Vitest passed **252/252 across 25 files** with one
+worker and a 15-second test timeout.
+ESLint, strict TypeScript, changed TypeScript/TSX Prettier, and production build
+passed. Whole-file Markdown Prettier checks still report historical formatting
+drift in these two trackers, also present in `HEAD`; unrelated history was not
+reformatted. Browser smoke checks of the signed-out correction route at 390,
+768, and 1440 CSS pixels found no document overflow; Tab navigation showed
+visible focus indicators.
+The local backend did not listen on port 4000. Automated tests use mocked API
+responses, and live authenticated correction saves, uploads, resubmission,
+populated responsive views, and independent QA remain unverified. Production
+authentication is still a separate dependency. Backend contract details and
+remaining limits are recorded in `BACKEND_COMPATIBILITY.md`.
