@@ -934,3 +934,23 @@ recoverable stash. The intervening upstream commits changed backend files
 only. The working tree contains the seven modified frontend files and three
 new frontend decision files listed in the task report; no backend, CI, agent,
 or unrelated worktree files changed.
+
+## Shared Dialog Accessibility Follow-up (2026-10-22)
+
+Branch `feature/frontend-dialog-accessibility` is based on fetched `origin/mvp`
+at `b03cb0f51fdf234c30ea4f87a2eb38d4c4bf0696`. The shared dialog now restores
+focus to its opener after controlled or native dismissal, synchronizes Escape
+and native close events with the controlled state, and keeps the existing
+Tab/Shift+Tab focus trap and one-callback-per-close behavior.
+
+Officer decision labels now clarify Financial Officer payout authorization
+and Assistant Bursar settlement. The verified action mappings remain
+`APPROVE_PAYOUT` and `SETTLE`; workflow execution and response validation are
+unchanged.
+
+Local validation: focused Dialog and workflow-action tests passed 22/22; the
+full frontend suite passed 193/193 across 18 files. ESLint, strict TypeScript,
+Prettier for changed TypeScript files, and the production build passed. The
+full suite includes the existing authenticated Officer Claim Review and
+workflow-action tests. No live backend requests or browser checks were run for
+this follow-up. Independent review, CI, QA, commit, push, and PR remain pending.

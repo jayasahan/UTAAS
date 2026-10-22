@@ -88,7 +88,7 @@ export function resolveOfficerDecision(
     if (activeStage.key !== 'ASSISTANT_BURSAR') return null;
     return {
       action: 'SETTLE',
-      buttonLabel: 'Final Approve',
+      buttonLabel: 'Final Approve (settlement)',
       confirmationTitle: 'Confirm final settlement',
       confirmationMessage:
         'This records the final settlement and changes the request status to Settled.',
@@ -110,7 +110,7 @@ export function resolveOfficerDecision(
       return null;
     return {
       action: 'APPROVE_PAYOUT',
-      buttonLabel: 'Verify & Approve',
+      buttonLabel: 'Authorize payout',
       confirmationTitle: 'Confirm payout authorization',
       confirmationMessage:
         'This authorizes the verified claim to proceed to the Assistant Bursar.',

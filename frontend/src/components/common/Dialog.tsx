@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react';
+import { useCallback, useEffect, useId, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { Button } from './Button';
 interface DialogProps {
@@ -17,17 +17,43 @@ export function Dialog({
 }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const notified = useRef(false);
+  const previousFocus = useRef<HTMLElement | null>(null);
   const titleId = useId();
   const descriptionId = useId();
+
+  const restoreFocus = useCallback(() => {
+    const target = previousFocus.current;
+    previousFocus.current = null;
+    if (target?.isConnected) target.focus();
+  }, []);
+
+  const requestClose = useCallback(() => {
+    const dialog = ref.current;
+    if (!dialog) return;
+    if (open && !notified.current) {
+      notified.current = true;
+      onClose();
+    }
+    if (dialog.open) dialog.close();
+    restoreFocus();
+  }, [onClose, open, restoreFocus]);
+
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
     if (open) {
       notified.current = false;
-      if (!dialog.open) dialog.showModal();
+      if (!dialog.open) {
+        const activeElement = document.activeElement;
+        previousFocus.current =
+          activeElement instanceof HTMLElement ? activeElement : null;
+        dialog.showModal();
+      }
+      return;
     }
-    if (!open && dialog.open) dialog.close();
-  }, [open]);
+    if (dialog.open) dialog.close();
+    restoreFocus();
+  }, [open, restoreFocus]);
   return (
     <dialog
       ref={ref}
@@ -40,12 +66,18 @@ export function Dialog({
           notified.current = true;
           onClose();
         }
+        restoreFocus();
       }}
       onCancel={(event) => {
         event.preventDefault();
-        ref.current?.close();
+        requestClose();
       }}
       onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          requestClose();
+          return;
+        }
         if (event.key !== 'Tab') return;
         const controls = Array.from(
           event.currentTarget.querySelectorAll<HTMLElement>(
@@ -78,7 +110,7 @@ export function Dialog({
         <Button
           variant="ghost"
           aria-label="Close dialog"
-          onClick={() => ref.current?.close()}
+          onClick={requestClose}
         >
           ×
         </Button>
