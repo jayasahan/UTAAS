@@ -609,3 +609,33 @@ demonstrably limited to records personally handled by a named officer. Keep
 history integration in a separate PR after confirming whether role-wide
 history is intended or actor-level scoping is required. The endpoint and DTO
 are available; live integration is unverified.
+
+### Lecturer Dashboard and My Requests — 2026-10-22
+
+Inspected the current fetched origin/mvp source at
+a82b0f4fab526aa2cdbc2e0c3b09057be2dffeb8. The existing route is
+GET /api/v1/requests/my-requests?page=<number>&limit=<number>, protected by
+JwtAuthGuard and supplied with the authenticated CurrentUser. The service
+queries only applicantId: user.id, orders by createdAt DESC, and uses
+findAndCount pagination. Each returned row contains id, trackingNumber,
+requestType, status, currentStageKey, numeric totalAmount, metadata (from
+formData.metadata or {}), and ISO createdAt. meta contains total, page, limit,
+and totalPages; the list has no status filter, search/sort parameters, or
+per-status aggregates. The query has no status condition, so the all-pages
+server total also includes drafts. Source inspection and backend tests are not
+live endpoint verification.
+
+The dashboard requests page 1 with a limit of five, so its recent status metrics
+are explicitly scoped to that response. It uses meta.total only for the
+server-reported all-pages total and derives pending (SUBMITTED plus
+UNDER_REVIEW), returned (RETURNED_FOR_CORRECTION), and completed (APPROVED plus
+SETTLED) counts from those five rows. Drafts and REJECTED are not counted as
+pending or completed. No estimate of global per-status totals is made. The
+client first decodes GET /api/v1/auth/me; it does not request lecturer list data
+unless the verified profile role is LECTURER.
+
+The production app currently has no production authentication/session provider,
+so dashboard API requests are not available there. The existing mock-login
+session is development-only and uses in-memory bearer authentication.
+Issue #26's officer-specific review-history authorization/scope decision remains
+pending; this dashboard does not query or change that endpoint.
