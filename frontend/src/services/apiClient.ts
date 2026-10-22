@@ -110,14 +110,12 @@ export async function requestJson<T>(
   try {
     response = await fetch(url.href, {
       method: options.method ?? 'GET',
-      headers: options.token
-        ? {
-            Authorization: `Bearer ${options.token}`,
-            ...(options.body === undefined
-              ? {}
-              : { 'Content-Type': 'application/json' }),
-          }
-        : {},
+      headers: {
+        ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+        ...(options.body === undefined
+          ? {}
+          : { 'Content-Type': 'application/json' }),
+      },
       ...(options.body === undefined
         ? {}
         : { body: JSON.stringify(options.body) }),

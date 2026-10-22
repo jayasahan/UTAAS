@@ -3,6 +3,7 @@ import { Sidebar } from './Sidebar';
 import type { NavigationItem } from './Sidebar';
 import { Header } from './Header';
 import { PageContainer } from './PageContainer';
+import { useSession } from '../../auth/session';
 
 const navigation = [
   { to: '/', label: 'Dashboard', end: true },
@@ -17,9 +18,14 @@ interface AppLayoutProps {
 }
 export function AppLayout({
   variant = 'lecturer',
-  items = navigation,
+  items,
   workspaceLabel = 'Faculty Administration',
 }: AppLayoutProps) {
+  const session = useSession();
+  const defaultItems =
+    variant === 'lecturer' && session.user?.role === 'LECTURER'
+      ? navigation
+      : [];
   return (
     <div
       className={
@@ -33,7 +39,7 @@ export function AppLayout({
         Skip to content
       </a>
       <Sidebar
-        items={items}
+        items={items ?? defaultItems}
         portalLabel={
           variant === 'officer' ? 'Officer portal' : 'Lecturer portal'
         }

@@ -1,5 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
+import { AuthGuard } from './auth/AuthGuard';
+import { SignInPage } from './pages/SignInPage';
 import { AppLayout } from './components/layout/AppLayout';
 import { DashboardPage } from './pages/DashboardPage';
 import { ApplicationsPage } from './pages/ApplicationsPage';
@@ -27,17 +29,36 @@ const DevOfficerReviewHistoryPreview = import.meta.env.DEV
 export default function App() {
   return (
     <Routes>
-      <Route element={<AppLayout />}>
-        {import.meta.env.DEV && (
-          <Route path="design-system" element={<DesignSystemPage />} />
-        )}
+      <Route path="login" element={<SignInPage />} />
+      <Route
+        element={
+          <AuthGuard allowedRoles={['LECTURER']}>
+            <AppLayout />
+          </AuthGuard>
+        }
+      >
         <Route index element={<DashboardPage />} />
         <Route path="requests" element={<ApplicationsPage />} />
         <Route path="requests/new" element={<NewRequestPage />} />
         <Route path="requests/:requestId" element={<RequestDetailPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
-      <Route element={<OfficerPortalLayout />}>
+      <Route
+        element={
+          <AuthGuard
+            allowedRoles={[
+              'HOD',
+              'DEAN',
+              'EXAMINATION_OFFICER',
+              'FINANCIAL_OFFICER',
+              'ASSISTANT_BURSAR',
+              'ADMIN',
+            ]}
+          >
+            <OfficerPortalLayout />
+          </AuthGuard>
+        }
+      >
         <Route path="officer" element={<OfficerDashboardPage />} />
         <Route path="officer/queue" element={<OfficerQueuePage />} />
         <Route
@@ -49,6 +70,11 @@ export default function App() {
           element={<OfficerReviewHistoryPage />}
         />
       </Route>
+      {import.meta.env.DEV && (
+        <Route element={<AppLayout />}>
+          <Route path="design-system" element={<DesignSystemPage />} />
+        </Route>
+      )}
       {import.meta.env.DEV && (
         <Route
           element={

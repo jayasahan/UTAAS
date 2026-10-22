@@ -15,6 +15,14 @@ export interface StaffProfile {
   departmentCode: string | null;
   departmentId: string | null;
 }
+export interface AuthResponse {
+  accessToken: string;
+  user: StaffProfile;
+}
+export interface LogoutResponse {
+  success: true;
+  message: string;
+}
 export interface CircularRates {
   circularReference: string;
   rates: Record<string, { label: string; unit: string; rate: number }>;
@@ -45,6 +53,49 @@ export function decodeProfile(value: unknown): StaffProfile {
     departmentCode: nullableText(data.departmentCode),
     departmentId: nullableText(data.departmentId),
   };
+}
+export function decodeAuthResponse(value: unknown): AuthResponse {
+  const data = record(value);
+  return {
+    accessToken: text(data.accessToken),
+    user: decodeProfile(data.user),
+  };
+}
+export function decodeLogoutResponse(value: unknown): LogoutResponse {
+  const data = record(value);
+  if (data.success !== true) throw new Error('Invalid contract');
+  return { success: true, message: text(data.message) };
+}
+/** Reads only exp for local timeout scheduling; identity and role always come from /auth/me. */
+export function jwtExpiresAt(accessToken: string): number {
+  const payloadSegment = accessToken.split('.')[1];
+  if (!payloadSegment) throw new Error('Invalid token');
+  try {
+    const normalized = payloadSegment.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    const payload: unknown = JSON.parse(atob(padded));
+    const exp = record(payload).exp;
+    if (typeof exp !== 'number' || !Number.isFinite(exp) || exp <= 0)
+      throw new Error('Invalid expiry');
+    const expiresAt = exp * 1000;
+    if (!Number.isSafeInteger(expiresAt)) throw new Error('Invalid expiry');
+    return expiresAt;
+  } catch {
+    throw new Error('Invalid token expiry');
+  }
+}
+export function profilesMatch(
+  left: StaffProfile,
+  right: StaffProfile,
+): boolean {
+  return (
+    left.id === right.id &&
+    left.email === right.email &&
+    left.fullName === right.fullName &&
+    left.role === right.role &&
+    left.departmentCode === right.departmentCode &&
+    left.departmentId === right.departmentId
+  );
 }
 export function decodeCircular(value: unknown): CircularRates {
   const data = record(value);

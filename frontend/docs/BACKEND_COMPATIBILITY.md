@@ -833,3 +833,22 @@ rollout invalidation, and live deployment behavior were not verified here.
 The frontend production authentication provider is also still absent, and no
 live authenticated flow was tested. No backend source was modified in this
 frontend task.
+### Production hybrid authentication integration — 2026-10-22 (PR #45)
+
+Inspected against `origin/mvp` at `def0977d1be84801c40d13c1a4797719a16fe948`, which includes backend PR #45 and frontend stabilization PR #46. Backend controller, DTO, service, JWT strategy, role enum, configuration and regression tests were reviewed. Issue #44 is reported closed; the merged source and tests, rather than issue status, are the evidence below.
+
+| Contract | Verified request/response | Frontend use |
+| --- | --- | --- |
+| `POST /api/v1/auth/login` | `LoginDto` accepts `{ email, password? }`; successful `AuthResponse` is `{ accessToken, user: { id, email, fullName, role, departmentCode, departmentId } }`. The UI requires both email and password. Active pre-provisioned accounts with a password hash are authenticated by bcrypt. | Bearer token is retained in a React ref only. The returned profile is not trusted until a subsequent `/auth/me` response matches it. |
+| `GET /api/v1/auth/me` | Bearer-protected; returns the authenticated user's `id`, `email`, `fullName`, `role`, `departmentCode`, and `departmentId`. | Used to confirm identity and exact role before exposing protected routes. |
+| `POST /api/v1/auth/logout` | Bearer-protected, bodyless; returns `{ success: true, message }`. The service increments `tokenVersion`; new JWTs include the version and the strategy compares it to the current user version. | Clears local in-memory state immediately and sends the revocation request. The UI reports server logout only after a successful response. |
+
+Backend PR #45 source/tests verify that production skips default persona seeding, password login rejects users without a configured password hash, Google OAuth requires `GOOGLE_CLIENT_ID` as its token audience and only accepts active pre-registered accounts, and logout revokes tokens carrying the current version. Exact roles are `LECTURER`, `HOD`, `DEAN`, `EXAMINATION_OFFICER`, `FINANCIAL_OFFICER`, `ASSISTANT_BURSAR`, and `ADMIN`.
+
+There is no refresh-token endpoint. A full browser reload therefore returns to signed-out state and requires a new login. The frontend reads JWT `exp` only to schedule local session expiry; identity and roles come only from `/auth/me`. The backend strategy only checks token version when a JWT contains a numeric `tokenVersion`, so legacy tokens without that claim may remain valid until expiry. Deployment must account for that rollout window.
+
+The backend's Nest `@Post` routes do not specify `@HttpCode`, so Nest's default successful POST status is 201 even though Swagger documents 200. The frontend accepts any 2xx response. This status was verified from source, not from a live server.
+
+Production CORS must be configured with the deployed frontend origin through `CORS_ALLOWED_ORIGINS`. In production, absent configuration results in a false CORS origin setting. Although the backend enables credentialed CORS, this frontend uses bearer authorization with `credentials: 'omit'`; it does not use cookies. The frontend does not persist tokens and does not implement refresh. Google sign-in remains unavailable in the UI because the frontend has no verified client configuration. No live backend was listening at `127.0.0.1:4000` during verification, so runtime login, `/auth/me`, logout and deployment CORS remain unverified.
+
+Related evidence: [Issue #44](https://github.com/jayasahan/UTAAS/issues/44), [backend PR #45](https://github.com/jayasahan/UTAAS/pull/45), and [frontend PR #46](https://github.com/jayasahan/UTAAS/pull/46).

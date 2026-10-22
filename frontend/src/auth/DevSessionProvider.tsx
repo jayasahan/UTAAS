@@ -7,7 +7,13 @@ import {
   createApiClient,
   requestJson,
 } from '../services/apiClient';
-import { decodeProfile, record, text } from './contracts';
+import {
+  decodeAuthResponse,
+  decodeLogoutResponse,
+  decodeProfile,
+  jwtExpiresAt,
+  profilesMatch,
+} from './contracts';
 import type { StaffProfile } from './contracts';
 import { SessionContext } from './session';
 import type { Session, SessionStatus } from './session';
@@ -28,13 +34,20 @@ export default function DevSessionProvider({
       'Sign in with a backend development persona to load verified role and identity.',
     client: null,
     version: 0,
+    user: null,
   });
   function clear(status: SessionStatus, message: string) {
     generation.current++;
     token.current = null;
     pending.current?.abort();
     clearTimeout(timer.current);
-    setSession({ status, message, client: null, version: generation.current });
+    setSession({
+      status,
+      message,
+      client: null,
+      version: generation.current,
+      user: null,
+    });
   }
   useEffect(
     () => () => {
@@ -76,18 +89,13 @@ export default function DevSessionProvider({
         apiBaseUrl(),
         `/auth/mock-login/${role}`,
         (value) => {
-          const data = record(value);
-          const profile = decodeProfile(data.user);
+          const decoded = decodeAuthResponse(value);
+          const profile = decoded.user;
           if (profile.role !== role) throw new Error('Invalid role response');
-          const accessToken = text(data.accessToken);
-          const parts = accessToken.split('.');
-          if (parts.length !== 3) throw new Error('Invalid session');
-          const payload = record(
-            JSON.parse(atob(parts[1]!.replace(/-/g, '+').replace(/_/g, '/'))),
-          );
-          if (typeof payload.exp !== 'number' || !Number.isFinite(payload.exp))
-            throw new Error('Invalid expiry');
-          return { accessToken, expiresAt: payload.exp * 1000 };
+          return {
+            ...decoded,
+            expiresAt: jwtExpiresAt(decoded.accessToken),
+          };
         },
         { method: 'POST', signal: controller.signal },
       );
@@ -109,6 +117,7 @@ export default function DevSessionProvider({
           timer.current = setTimeout(expire, Math.min(remaining, 2147483647));
       };
       expire();
+      if (attempt !== generation.current) return;
       const client = createApiClient(
         apiBaseUrl(),
         () => token.current,
@@ -125,6 +134,7 @@ export default function DevSessionProvider({
         message: `Development ${roleLabels[role]} session active. Authorization is checked from the profile and by the backend.`,
         client,
         version: attempt,
+        user: login.user,
       });
     } catch (error) {
       if (controller.signal.aborted || attempt !== generation.current) return;
@@ -140,8 +150,115 @@ export default function DevSessionProvider({
       );
     }
   }
+
+  async function login(email: string, password: string): Promise<StaffProfile> {
+    if (pending.current) throw new ApiError('server');
+    clear('signing-in', 'Signing in to the development backend…');
+    const attempt = generation.current;
+    const controller = new AbortController();
+    pending.current = controller;
+    try {
+      const result = await requestJson(
+        apiBaseUrl(),
+        '/auth/login',
+        (value) => {
+          const decoded = decodeAuthResponse(value);
+          return { ...decoded, expiresAt: jwtExpiresAt(decoded.accessToken) };
+        },
+        {
+          method: 'POST',
+          body: { email: email.trim(), password },
+          signal: controller.signal,
+        },
+      );
+      if (result.expiresAt <= Date.now()) throw new ApiError('unauthorized');
+      token.current = result.accessToken;
+      const client = createApiClient(
+        apiBaseUrl(),
+        () => token.current,
+        () => {
+          if (attempt === generation.current)
+            clear(
+              'unauthorized',
+              'The session is no longer valid. Sign in again.',
+            );
+        },
+      );
+      const profile = await client.get(
+        '/auth/me',
+        decodeProfile,
+        controller.signal,
+      );
+      if (!profilesMatch(result.user, profile))
+        throw new ApiError('invalid-response');
+      if (controller.signal.aborted || attempt !== generation.current)
+        throw new DOMException('Sign-in cancelled', 'AbortError');
+      const expire = () => {
+        if (attempt !== generation.current) return;
+        const remaining = result.expiresAt - Date.now();
+        if (remaining <= 0)
+          clear(
+            'expired',
+            'The development session has expired. Sign in again.',
+          );
+        else
+          timer.current = setTimeout(expire, Math.min(remaining, 2147483647));
+      };
+      expire();
+      if (attempt !== generation.current) throw new ApiError('unauthorized');
+      pending.current = null;
+      setSession({
+        status: 'authenticated',
+        message: 'Authenticated development session active.',
+        client,
+        version: attempt,
+        user: profile,
+      });
+      return profile;
+    } catch (error) {
+      if (!controller.signal.aborted && attempt === generation.current) {
+        clear(
+          error instanceof ApiError && error.kind === 'unauthorized'
+            ? 'unauthorized'
+            : error instanceof ApiError && error.kind === 'unavailable'
+              ? 'unavailable'
+              : 'error',
+          error instanceof ApiError
+            ? error.message
+            : 'Sign-in could not be completed.',
+        );
+      }
+      throw error;
+    } finally {
+      if (pending.current === controller) pending.current = null;
+    }
+  }
+
+  async function logout(): Promise<boolean> {
+    const accessToken = token.current;
+    clear('signing-out', 'Signing out of the development backend…');
+    let serverRevoked = false;
+    if (accessToken) {
+      try {
+        await requestJson(apiBaseUrl(), '/auth/logout', decodeLogoutResponse, {
+          method: 'POST',
+          token: accessToken,
+        });
+        serverRevoked = true;
+      } catch {
+        // Development sign-out still clears the local persona if the backend is unavailable.
+      }
+    }
+    clear(
+      'signed-out',
+      serverRevoked
+        ? 'Signed out. The development backend revoked this session.'
+        : 'Signed out locally. Development backend revocation could not be confirmed.',
+    );
+    return serverRevoked;
+  }
   return (
-    <SessionContext.Provider value={session}>
+    <SessionContext.Provider value={{ ...session, login, logout }}>
       <aside
         aria-label="Development authentication"
         className="border-b border-border bg-blue-50 p-4 text-brand"
@@ -180,15 +297,7 @@ export default function DevSessionProvider({
           )}
           {(session.status === 'authenticated' ||
             session.status === 'signing-in') && (
-            <Button
-              variant="ghost"
-              onClick={() =>
-                clear(
-                  'signed-out',
-                  'Signed out. In-memory authentication and verified data were cleared.',
-                )
-              }
-            >
+            <Button variant="ghost" onClick={() => void logout()}>
               Log out
             </Button>
           )}
