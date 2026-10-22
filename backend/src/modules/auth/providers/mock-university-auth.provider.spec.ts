@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { UnauthorizedException } from '@nestjs/common';
+import * as bcrypt from 'bcryptjs';
 import { MockUniversityAuthProvider } from './mock-university-auth.provider';
 import { User, UserRole } from '../../../database/entities/user.entity';
 import { Department } from '../../../database/entities/department.entity';
@@ -11,12 +12,23 @@ describe('MockUniversityAuthProvider', () => {
   let mockDeptRepo: any;
   const originalEnv = process.env.NODE_ENV;
 
+  const defaultHash = bcrypt.hashSync('Utaas@2026', 10);
+
   beforeEach(async () => {
     process.env.NODE_ENV = 'development';
+
+    const createQb = (returnedUser: any) => ({
+      addSelect: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(returnedUser),
+    });
+
     mockUserRepo = {
       findOne: jest.fn(),
       create: jest.fn().mockImplementation((dto) => dto),
       save: jest.fn().mockImplementation((entity) => Promise.resolve({ id: 'new-id', ...entity })),
+      createQueryBuilder: jest.fn().mockImplementation(() => createQb(null)),
     };
 
     mockDeptRepo = {
@@ -38,33 +50,110 @@ describe('MockUniversityAuthProvider', () => {
     process.env.NODE_ENV = originalEnv;
   });
 
-  it('should authenticate existing active university user', async () => {
+  it('should authenticate existing active university user without password in development', async () => {
     const existingUser = {
       id: 'uuid-1',
       email: 'lecturer@eng.ruh.ac.lk',
       isActive: true,
       role: UserRole.LECTURER,
+      passwordHash: defaultHash,
     };
-    mockUserRepo.findOne.mockResolvedValue(existingUser);
+    mockUserRepo.createQueryBuilder.mockReturnValue({
+      addSelect: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(existingUser),
+    });
 
     const user = await provider.authenticate('lecturer@eng.ruh.ac.lk');
-    expect(user).toEqual(existingUser);
+    expect(user.id).toBe(existingUser.id);
+  });
+
+  it('should authenticate existing active university user with valid password', async () => {
+    const existingUser = {
+      id: 'uuid-1',
+      email: 'lecturer@eng.ruh.ac.lk',
+      isActive: true,
+      role: UserRole.LECTURER,
+      passwordHash: defaultHash,
+    };
+    mockUserRepo.createQueryBuilder.mockReturnValue({
+      addSelect: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(existingUser),
+    });
+
+    const user = await provider.authenticate('lecturer@eng.ruh.ac.lk', 'Utaas@2026');
+    expect(user.id).toBe(existingUser.id);
+  });
+
+  it('should reject existing user when wrong password is provided', async () => {
+    const existingUser = {
+      id: 'uuid-1',
+      email: 'lecturer@eng.ruh.ac.lk',
+      isActive: true,
+      role: UserRole.LECTURER,
+      passwordHash: defaultHash,
+    };
+    mockUserRepo.createQueryBuilder.mockReturnValue({
+      addSelect: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(existingUser),
+    });
+
+    await expect(provider.authenticate('lecturer@eng.ruh.ac.lk', 'WrongPassword123')).rejects.toThrow(
+      /Invalid credentials: password does not match/,
+    );
+  });
+
+  it('should require password in production environment', async () => {
+    process.env.NODE_ENV = 'production';
+    const existingUser = {
+      id: 'uuid-1',
+      email: 'lecturer@eng.ruh.ac.lk',
+      isActive: true,
+      role: UserRole.LECTURER,
+      passwordHash: defaultHash,
+    };
+    mockUserRepo.createQueryBuilder.mockReturnValue({
+      addSelect: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(existingUser),
+    });
+
+    await expect(provider.authenticate('lecturer@eng.ruh.ac.lk')).rejects.toThrow(
+      /Password is required for production authentication/,
+    );
   });
 
   it('should throw UnauthorizedException if user is deactivated', async () => {
-    mockUserRepo.findOne.mockResolvedValue({
+    const disabledUser = {
       id: 'uuid-2',
       email: 'disabled@eng.ruh.ac.lk',
       isActive: false,
+    };
+    mockUserRepo.createQueryBuilder.mockReturnValue({
+      addSelect: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(disabledUser),
     });
 
     await expect(provider.authenticate('disabled@eng.ruh.ac.lk')).rejects.toThrow(
-      UnauthorizedException,
+      /University account has been deactivated/,
     );
   });
 
   it('should auto-provision new lecturer if email ends with @eng.ruh.ac.lk in development', async () => {
-    mockUserRepo.findOne.mockResolvedValue(null);
+    mockUserRepo.createQueryBuilder.mockReturnValue({
+      addSelect: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(null),
+    });
 
     const user = await provider.authenticate('new.lecturer@eng.ruh.ac.lk');
     expect(user.email).toBe('new.lecturer@eng.ruh.ac.lk');
@@ -74,16 +163,26 @@ describe('MockUniversityAuthProvider', () => {
 
   it('should disallow auto-provisioning in production environment', async () => {
     process.env.NODE_ENV = 'production';
-    mockUserRepo.findOne.mockResolvedValue(null);
+    mockUserRepo.createQueryBuilder.mockReturnValue({
+      addSelect: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(null),
+    });
 
-    await expect(provider.authenticate('unregistered@eng.ruh.ac.lk')).rejects.toThrow(
+    await expect(provider.authenticate('unregistered@eng.ruh.ac.lk', 'somePassword')).rejects.toThrow(
       UnauthorizedException,
     );
     expect(mockUserRepo.save).not.toHaveBeenCalled();
   });
 
   it('should reject non-university emails', async () => {
-    mockUserRepo.findOne.mockResolvedValue(null);
+    mockUserRepo.createQueryBuilder.mockReturnValue({
+      addSelect: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(null),
+    });
 
     await expect(provider.authenticate('outsider@gmail.com')).rejects.toThrow(
       UnauthorizedException,

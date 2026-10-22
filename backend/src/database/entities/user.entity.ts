@@ -32,6 +32,9 @@ export class User {
   })
   role: UserRole;
 
+  @Column({ nullable: true, select: false })
+  passwordHash?: string | null;
+
   @Column({ nullable: true })
   departmentId: string;
 

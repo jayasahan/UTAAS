@@ -1,10 +1,13 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as bcrypt from 'bcryptjs';
 import { Department } from '../entities/department.entity';
 import { User, UserRole } from '../entities/user.entity';
 import { RequestType } from '../entities/request-type.entity';
 import { WorkflowTemplate } from '../entities/workflow-template.entity';
+
+export const DEFAULT_SEED_PASSWORD = 'Utaas@2026';
 
 @Injectable()
 export class SeedService implements OnApplicationBootstrap {
@@ -59,6 +62,8 @@ export class SeedService implements OnApplicationBootstrap {
   }
 
   private async seedUsers(departments: Record<string, Department>) {
+    const defaultPasswordHash = bcrypt.hashSync(DEFAULT_SEED_PASSWORD, 10);
+
     const userDefs = [
       {
         email: 'lecturer@eng.ruh.ac.lk',
@@ -102,13 +107,33 @@ export class SeedService implements OnApplicationBootstrap {
         role: UserRole.ASSISTANT_BURSAR,
         departmentId: null,
       },
+      {
+        email: 'admin@eng.ruh.ac.lk',
+        fullName: 'System Administrator',
+        role: UserRole.ADMIN,
+        departmentId: null,
+      },
     ];
 
     for (const def of userDefs) {
-      const exists = await this.userRepo.findOne({ where: { email: def.email } });
+      const exists = await this.userRepo
+        .createQueryBuilder('user')
+        .addSelect('user.passwordHash')
+        .where('user.email = :email', { email: def.email })
+        .getOne();
+
       if (!exists) {
-        await this.userRepo.save(this.userRepo.create(def));
-        this.logger.log(`Seeded User: ${def.fullName} (${def.role})`);
+        await this.userRepo.save(
+          this.userRepo.create({
+            ...def,
+            passwordHash: defaultPasswordHash,
+          }),
+        );
+        this.logger.log(`Seeded User: ${def.fullName} (${def.role}) with default password`);
+      } else if (!exists.passwordHash) {
+        exists.passwordHash = defaultPasswordHash;
+        await this.userRepo.save(exists);
+        this.logger.log(`Updated User password hash for: ${def.email}`);
       }
     }
   }
@@ -141,7 +166,6 @@ export class SeedService implements OnApplicationBootstrap {
         this.workflowTemplateRepo.create({
           requestTypeId: requestType.id,
           version: 1,
-          isActive: true,
           stages: [
             {
               order: 0,
@@ -181,6 +205,7 @@ export class SeedService implements OnApplicationBootstrap {
               requiredRole: UserRole.ASSISTANT_BURSAR,
             },
           ],
+          isActive: true,
         }),
       );
       this.logger.log(`Seeded 6-Stage WorkflowTemplate v1 for ${requestType.code}`);

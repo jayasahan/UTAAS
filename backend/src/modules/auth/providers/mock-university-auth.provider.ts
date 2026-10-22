@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as bcrypt from 'bcryptjs';
 import { User, UserRole } from '../../../database/entities/user.entity';
 import { Department } from '../../../database/entities/department.entity';
 import { IAuthProvider } from '../interfaces/auth-provider.interface';
@@ -28,16 +29,37 @@ export class MockUniversityAuthProvider implements IAuthProvider {
   async authenticate(email: string, password?: string): Promise<User> {
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Check if user exists in the database
-    let user = await this.userRepository.findOne({
-      where: { email: normalizedEmail },
-      relations: ['department'],
-    });
+    // Query user by email with passwordHash included
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.passwordHash')
+      .leftJoinAndSelect('user.department', 'department')
+      .where('LOWER(user.email) = :email', { email: normalizedEmail })
+      .getOne();
 
     if (user) {
       if (!user.isActive) {
         throw new UnauthorizedException('University account has been deactivated');
       }
+
+      // Password verification
+      if (password && user.passwordHash) {
+        const passwordMatches = await bcrypt.compare(password, user.passwordHash);
+        if (!passwordMatches) {
+          throw new UnauthorizedException('Invalid credentials: password does not match');
+        }
+      } else if (process.env.NODE_ENV === 'production') {
+        if (!password) {
+          throw new UnauthorizedException('Password is required for production authentication');
+        }
+        if (user.passwordHash) {
+          const passwordMatches = await bcrypt.compare(password, user.passwordHash);
+          if (!passwordMatches) {
+            throw new UnauthorizedException('Invalid credentials: password does not match');
+          }
+        }
+      }
+
       return user;
     }
 
@@ -59,21 +81,24 @@ export class MockUniversityAuthProvider implements IAuthProvider {
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
         .join(' ');
 
-      user = this.userRepository.create({
+      const defaultPasswordHash = bcrypt.hashSync('Utaas@2026', 10);
+
+      const newUser = this.userRepository.create({
         email: normalizedEmail,
         fullName: `Dr. ${formattedName}`,
         role: UserRole.LECTURER,
+        passwordHash: defaultPasswordHash,
         department: defaultDept || undefined,
         departmentId: defaultDept?.id || undefined,
         isActive: true,
       });
 
       this.logger.log(`Auto-provisioning mock university user: ${normalizedEmail}`);
-      return await this.userRepository.save(user);
+      return await this.userRepository.save(newUser);
     }
 
     throw new UnauthorizedException(
-      `Invalid university identity: ${email}. Please use a registered university test account or @eng.ruh.ac.lk email.`,
+      `Invalid university identity: ${email}. Please use a registered university account or @eng.ruh.ac.lk email.`,
     );
   }
 

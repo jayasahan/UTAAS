@@ -11,6 +11,7 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
+import { GoogleLoginDto } from './dto/google-login.dto';
 import { AuthResponseDto, UserProfileDto, LogoutResponseDto } from './dto/auth-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -24,13 +25,24 @@ export class AuthController {
 
   @Post('login')
   @ApiOperation({
-    summary: 'University Identity SSO Login',
-    description: 'Authenticates a university faculty or staff member and returns a JWT access token',
+    summary: 'University Identity Login',
+    description: 'Authenticates a university faculty or staff member with email and verified password, returning a JWT access token',
   })
   @ApiResponse({ status: 200, description: 'Authentication successful', type: AuthResponseDto })
   @ApiResponse({ status: 401, description: 'Invalid university credentials or unverified identity' })
   async login(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
     return this.authService.login(loginDto);
+  }
+
+  @Post('google')
+  @ApiOperation({
+    summary: 'Google Workspace OIDC SSO Login',
+    description: 'Authenticates a faculty member using a verified Google OAuth2 ID token (@eng.ruh.ac.lk / @ruh.ac.lk)',
+  })
+  @ApiResponse({ status: 200, description: 'Authentication successful', type: AuthResponseDto })
+  @ApiResponse({ status: 401, description: 'Invalid Google token, unverified email, or non-university domain' })
+  async googleLogin(@Body() googleLoginDto: GoogleLoginDto): Promise<AuthResponseDto> {
+    return this.authService.googleLogin(googleLoginDto);
   }
 
   @Post('logout')
@@ -49,7 +61,7 @@ export class AuthController {
   @Post('mock-login/:role')
   @ApiOperation({
     summary: 'One-Click Persona Login (Development / Testing)',
-    description: 'Instant login as one of the 7 standard university test personas (disabled in production)',
+    description: 'Instant login as one of the standard university test personas (disabled in production)',
   })
   @ApiParam({
     name: 'role',
