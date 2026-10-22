@@ -6,4 +6,5 @@ export interface JwtPayload {
   role: UserRole;
   departmentId?: string | null;
   departmentCode?: string | null;
+  tokenVersion?: number;
 }

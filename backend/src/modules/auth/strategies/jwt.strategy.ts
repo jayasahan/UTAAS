@@ -32,6 +32,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('User account is invalid or deactivated');
     }
 
+    if (
+      typeof payload.tokenVersion === 'number' &&
+      payload.tokenVersion !== (user.tokenVersion || 0)
+    ) {
+      throw new UnauthorizedException('Token has been revoked upon logout. Please sign in again.');
+    }
+
     return user;
   }
 }

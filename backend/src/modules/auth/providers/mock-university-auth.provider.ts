@@ -42,21 +42,33 @@ export class MockUniversityAuthProvider implements IAuthProvider {
         throw new UnauthorizedException('University account has been deactivated');
       }
 
-      // Password verification
-      if (password && user.passwordHash) {
+      // Password verification logic
+      if (process.env.NODE_ENV === 'production') {
+        if (!user.passwordHash) {
+          throw new UnauthorizedException(
+            'This account does not have password authentication enabled. Please sign in using Google Workspace SSO.',
+          );
+        }
+        if (!password) {
+          throw new UnauthorizedException('Password is required for production authentication');
+        }
         const passwordMatches = await bcrypt.compare(password, user.passwordHash);
         if (!passwordMatches) {
           throw new UnauthorizedException('Invalid credentials: password does not match');
         }
-      } else if (process.env.NODE_ENV === 'production') {
-        if (!password) {
-          throw new UnauthorizedException('Password is required for production authentication');
-        }
+      } else {
+        // Development / non-production environment
         if (user.passwordHash) {
-          const passwordMatches = await bcrypt.compare(password, user.passwordHash);
-          if (!passwordMatches) {
-            throw new UnauthorizedException('Invalid credentials: password does not match');
+          if (password) {
+            const passwordMatches = await bcrypt.compare(password, user.passwordHash);
+            if (!passwordMatches) {
+              throw new UnauthorizedException('Invalid credentials: password does not match');
+            }
           }
+        } else if (password) {
+          throw new UnauthorizedException(
+            'This account does not have password authentication enabled. Please sign in using Google Workspace SSO.',
+          );
         }
       }
 

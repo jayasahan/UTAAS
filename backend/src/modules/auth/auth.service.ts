@@ -31,6 +31,7 @@ export class AuthService {
       role: user.role,
       departmentId: user.departmentId || user.department?.id || null,
       departmentCode: user.department?.code || null,
+      tokenVersion: user.tokenVersion || 0,
     };
 
     const accessToken = await this.jwtService.signAsync(payload);
@@ -50,6 +51,7 @@ export class AuthService {
       role: user.role,
       departmentId: user.departmentId || user.department?.id || null,
       departmentCode: user.department?.code || null,
+      tokenVersion: user.tokenVersion || 0,
     };
 
     const accessToken = await this.jwtService.signAsync(payload);
@@ -61,9 +63,12 @@ export class AuthService {
   }
 
   async logout(user: User): Promise<LogoutResponseDto> {
+    // Increment tokenVersion in database to invalidate previously issued JWTs
+    await this.userRepository.increment({ id: user.id }, 'tokenVersion', 1);
+
     return {
       success: true,
-      message: `User ${user.email} logged out successfully`,
+      message: `User ${user.email} logged out successfully and session was revoked`,
     };
   }
 

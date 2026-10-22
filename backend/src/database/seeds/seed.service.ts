@@ -62,6 +62,12 @@ export class SeedService implements OnApplicationBootstrap {
   }
 
   private async seedUsers(departments: Record<string, Department>) {
+    // Security Guard: Never seed default personas or shared default passwords in production
+    if (process.env.NODE_ENV === 'production') {
+      this.logger.log('Production environment detected: Skipping automated default test persona and shared password seeding.');
+      return;
+    }
+
     const defaultPasswordHash = bcrypt.hashSync(DEFAULT_SEED_PASSWORD, 10);
 
     const userDefs = [
