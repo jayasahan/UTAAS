@@ -6,7 +6,7 @@ import { User } from '../../database/entities/user.entity';
 import { AUTH_PROVIDER, IAuthProvider } from './interfaces/auth-provider.interface';
 import { MockUniversityAuthProvider, TestActorInfo } from './providers/mock-university-auth.provider';
 import { LoginDto } from './dto/login.dto';
-import { AuthResponseDto, UserProfileDto } from './dto/auth-response.dto';
+import { AuthResponseDto, UserProfileDto, LogoutResponseDto } from './dto/auth-response.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 
 @Injectable()
@@ -35,6 +35,13 @@ export class AuthService {
     return {
       accessToken,
       user: this.mapToProfileDto(user),
+    };
+  }
+
+  async logout(user: User): Promise<LogoutResponseDto> {
+    return {
+      success: true,
+      message: `User ${user.email} logged out successfully`,
     };
   }
 

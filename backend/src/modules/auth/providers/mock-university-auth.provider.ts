@@ -41,8 +41,14 @@ export class MockUniversityAuthProvider implements IAuthProvider {
       return user;
     }
 
-    // Auto-provision unseeded university emails as LECTURER in default COM department
+    // Auto-provision unseeded university emails as LECTURER in default COM department (development only)
     if (normalizedEmail.endsWith('@eng.ruh.ac.lk') || normalizedEmail.endsWith('@ruh.ac.lk')) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new UnauthorizedException(
+          `User account '${normalizedEmail}' is not registered. Dynamic auto-provisioning is strictly disabled in production.`,
+        );
+      }
+
       const defaultDept = await this.departmentRepository.findOne({
         where: { code: 'COM' },
       });

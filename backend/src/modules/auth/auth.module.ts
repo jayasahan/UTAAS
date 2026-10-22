@@ -14,6 +14,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { DepartmentScopeGuard } from './guards/department-scope.guard';
+import { getJwtSecret } from './auth.constants';
 
 @Module({
   imports: [
@@ -23,9 +24,9 @@ import { DepartmentScopeGuard } from './guards/department-scope.guard';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET', 'utaas-secure-jwt-secret-key-2026'),
+        secret: getJwtSecret(config),
         signOptions: {
-          expiresIn: config.get<string>('JWT_EXPIRES_IN', '1d'),
+          expiresIn: config.get<string>('JWT_EXPIRES_IN') || config.get<string>('JWT_EXPIRATION') || '1d',
         },
       }),
     }),
