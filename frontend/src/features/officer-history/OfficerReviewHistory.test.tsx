@@ -157,7 +157,9 @@ describe('Officer Review History page', () => {
       screen.getByText('Officer review history is unavailable'),
     ).toBeVisible();
     expect(
-      screen.getByText(/does not provide a secure officer-specific list/),
+      screen.getByText(
+        /scopes records by reviewer role and completed stage, not by the signed-in officer/,
+      ),
     ).toBeVisible();
     expect(
       screen.getByRole('link', { name: '← Back to Approval Queue' }),
@@ -207,7 +209,30 @@ describe('Officer Review History page', () => {
     expect(within(table).getAllByRole('row')).toHaveLength(5);
     expect(within(table).getByText('UTAAS-DEMO-021')).toBeVisible();
     expect(within(table).getByText('Dr. Example Fernando')).toBeVisible();
+    expect(
+      within(table).getAllByText('Paper Setting & Marking Payment'),
+    ).toHaveLength(4);
+    expect(
+      within(table).queryByText(/General Reimbursement|Examination Duty/),
+    ).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps the summary card wrap-safe across tablet breakpoints', () => {
+    renderDevelopmentPreview();
+
+    const scope = screen.getByText(/View scope:/);
+    expect(scope).toHaveClass(
+      'min-w-0',
+      'break-words',
+      'sm:col-span-2',
+      'xl:col-span-1',
+    );
+    expect(scope.parentElement).toHaveClass(
+      'grid-cols-1',
+      'sm:grid-cols-2',
+      'xl:grid-cols-[minmax(12rem,1fr)_minmax(12rem,1fr)_minmax(0,2fr)]',
+    );
   });
 
   it('applies accessible search, decision, department, and date controls locally', () => {

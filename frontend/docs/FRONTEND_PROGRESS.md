@@ -1144,3 +1144,85 @@ responses, and live authenticated correction saves, uploads, resubmission,
 populated responsive views, and independent QA remain unverified. Production
 authentication is still a separate dependency. Backend contract details and
 remaining limits are recorded in `BACKEND_COMPATIBILITY.md`.
+
+
+## MVP stabilization and Officer Review History recheck — 2026-10-22
+
+The clean stabilization worktree is on feature/frontend-mvp-stabilization at
+origin/mvp 0af255c7bb2f877c31d091fe3dd557b41803e702, which includes merged
+backend PR #43. The original persistence checkout remains on its existing
+branch with its pre-existing tracked and untracked work preserved. This task
+did not modify backend, CI, agent, authentication, or other feature worktrees.
+
+The confirmed MVP scope is Paper Setting & Marking Payment only. General
+Reimbursement and Examination Duty Reimbursement are post-MVP and are not
+implemented by this stabilization change.
+
+### Officer Review History
+
+The PRIMARY Figma target is Officer Review History frame 60:81. The existing
+development preview retains the summary, filters, decision table, status
+presentation, and expandable history structure. Its four fictional examples
+now all use the Paper Setting & Marking claim type; no other claim type is
+shown. Sample labels explicitly identify the figures and decisions as fictional.
+
+The production route remains unavailable. It uses the existing officer profile
+gate, but does not call the history list or request-specific history endpoints.
+Issue #26 is closed and its comment says PR #30 delivered the history endpoint;
+source inspection shows two requirements remain unmet:
+
+- QA-03: the query selects completed stages by reviewer role, not by the
+  authenticated reviewer actor ID. RequestStageHistory has actorId, but the
+  listing query does not use it. HOD results are filtered by applicant
+  department; the response is still not “my reviews.”
+- QA-04: decision mapping uses the request's current status as a fallback.
+  A later return can therefore label an earlier completed officer stage as
+  returned. Summary counts use these mapped decisions and can inherit the same
+  error.
+
+The controller exposes GET /api/v1/requests/review-history with JWT
+authentication and page, limit, decision, and search query parameters. It has
+no date or department filter. The response includes data and meta pagination
+(total, page, limit, totalPages) plus summaryCounts. Do not enable production
+history or describe these counts as personal decisions until backend
+source/tests establish actor scope and historical decision semantics.
+
+### Verified frontend stabilization
+
+The development preview summary now uses one column below the small breakpoint,
+two columns through tablet widths, and three columns at extra-large widths.
+Grid children can shrink and the scope text wraps. The table remains in its
+horizontal scroll container on narrow screens.
+
+Automated validation on Node 25.2.1: focused Officer Review History tests
+passed 13/13; full Vitest passed 253/253 across 25 files; ESLint, strict
+TypeScript, and the production build passed. Changed TypeScript/TSX and the new E2E matrix passed Prettier. Full-file checks
+still report historical formatting drift in both long-lived Markdown trackers; earlier sections were not reformatted.
+
+Playwright checked the fictional development preview at CSS widths 390, 768,
+1024, and 1440. No document-level horizontal overflow occurred. At 390px the
+table scrolls inside its own overflow container. Keyboard Tab reached the
+search and filter controls with a visible 1.6px focus outline. No /api/ request
+was observed. These checks cover the preview only, not the authenticated
+workflow or populated production screens. The production build was also checked
+for fictional fixture markers.
+
+### Authentication and end-to-end readiness
+
+Backend authentication hardening PR #45 is merged in origin/mvp at
+0af255c7bb2f877c31d091fe3dd557b41803e702. Source and backend regression tests
+now cover production default-user seeding protection, rejection of password
+login without a password hash, required Google audience configuration,
+pre-registered Google accounts only, and JWT token-version revocation. The
+JwtStrategy still skips version comparison for a legacy token without a numeric
+tokenVersion claim; deployment invalidation/expiry for such tokens remains to
+be verified. The frontend production authentication provider is not
+implemented, and live authentication has not been tested. The separate
+hybrid-auth worktree was not changed.
+
+The detailed Paper Setting & Marking verification plan is
+[MVP_E2E_TEST_MATRIX.md](MVP_E2E_TEST_MATRIX.md). It separates live backend
+cases from mocked frontend evidence. No live authenticated workflow or
+mutating action was run because a safe disposable backend/database was not
+available. End-to-end QA, independent review, CI, and teammate approval remain
+pending. This feature branch is uncommitted; no push, PR, or merge was created.

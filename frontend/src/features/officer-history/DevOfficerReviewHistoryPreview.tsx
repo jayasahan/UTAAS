@@ -99,25 +99,24 @@ export function DevOfficerReviewHistoryPreview() {
           Review History
         </h1>
         <p className="mt-2 text-muted">
-          Previously handled applications · individual officer decisions and
-          authorized audit access
+          Fictional completed reviews · sample officer activity only
         </p>
       </header>
 
-      <Card className="grid gap-4 sm:grid-cols-[minmax(12rem,1fr)_minmax(12rem,1fr)_2fr] sm:items-center">
-        <div>
+      <Card className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 sm:items-center xl:grid-cols-[minmax(12rem,1fr)_minmax(12rem,1fr)_minmax(0,2fr)]">
+        <div className="min-w-0">
           <p className="text-sm text-muted">Sample completed decisions</p>
           <p className="mt-1 text-2xl font-bold text-brand">
             {reviewHistoryFixtures.length}
           </p>
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-sm text-muted">Returned for correction (sample)</p>
           <p className="mt-1 text-2xl font-bold text-brand">
             {String(returnedCount).padStart(2, '0')}
           </p>
         </div>
-        <p className="text-sm text-muted sm:text-right">
+        <p className="min-w-0 break-words text-sm text-muted sm:col-span-2 xl:col-span-1 sm:text-left xl:text-right">
           View scope: fictional sample actions and sample audit events only
         </p>
       </Card>
@@ -226,7 +225,7 @@ export function DevOfficerReviewHistoryPreview() {
               <tr className="bg-[#e4edf1]">
                 <TableHead>Reference</TableHead>
                 <TableHead>Applicant / Type</TableHead>
-                <TableHead>Your decision</TableHead>
+                <TableHead>Sample decision</TableHead>
                 <TableHead>Decision date</TableHead>
                 <TableHead>Details</TableHead>
               </tr>

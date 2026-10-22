@@ -19,24 +19,26 @@ function UnavailableOfficerReviewHistory() {
 
       <Alert title="Officer review history is unavailable" tone="info">
         <p>
-          The backend currently provides history for a known request ID, but it
-          does not provide a secure officer-specific list of applications you
-          have handled. This page has not requested any request history or
-          application details.
+          The backend exposes a completed-review history endpoint, but its
+          current query scopes records by reviewer role and completed stage, not
+          by the signed-in officer. Its response can infer a past decision from
+          the request&apos;s current status, so a later return can mislabel an
+          earlier approval. This page does not request that list or any
+          request-specific history.
         </p>
         <p className="mt-2">
-          GitHub issue #19 is closed, but source review at the current MVP
-          revision still shows reviewer-stage authorization gaps on
-          request-specific history reads. The list remains unavailable until a
-          scoped backend contract is provided.
+          GitHub issue #26 is closed, but source verification shows its
+          individual-reviewer scope and historical-decision requirements are not
+          met by the merged endpoint. The list remains unavailable until those
+          contracts are clarified and corrected.
         </p>
         <a
           className="mt-2 inline-block font-semibold underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
-          href="https://github.com/jayasahan/UTAAS/issues/19"
+          href="https://github.com/jayasahan/UTAAS/issues/26"
           target="_blank"
           rel="noreferrer"
         >
-          Review backend issue #19
+          Review backend issue #26
         </a>
       </Alert>
 
