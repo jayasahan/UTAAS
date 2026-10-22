@@ -35,6 +35,7 @@ export function ReviewStep({
   errors,
   onEdit,
   onDeclaration,
+  correctionMode = false,
 }: {
   form: ClaimForm;
   rates?: VerifiedRates;
@@ -42,6 +43,7 @@ export function ReviewStep({
   errors: FieldError[];
   onEdit: (step: number) => void;
   onDeclaration: (value: boolean) => void;
+  correctionMode?: boolean;
 }) {
   return (
     <section
@@ -49,7 +51,7 @@ export function ReviewStep({
       className="min-w-0 space-y-6 [overflow-wrap:anywhere]"
     >
       <h2 id="review-heading" className="text-2xl font-bold text-brand">
-        Review & Submit
+        {correctionMode ? 'Review corrections & resubmit' : 'Review & Submit'}
       </h2>
       <div className="space-y-4 rounded-control border border-border p-4">
         <SectionHeading number={1}>
@@ -167,7 +169,11 @@ export function ReviewStep({
                   .message,
               }
             : {})}
-          hint="Acceptance applies to this local review only. Editing any application details resets the declaration. It does not enable submission while persistence is unavailable."
+          hint={
+            correctionMode
+              ? 'Confirm that the corrected information is accurate before resubmitting this same returned request.'
+              : 'Acceptance applies to this local review only. Editing any application details resets the declaration. It does not enable submission while persistence is unavailable.'
+          }
         />
       </div>
     </section>

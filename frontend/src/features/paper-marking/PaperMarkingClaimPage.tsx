@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
+import { Dialog } from '../../components/common/Dialog';
 import { FormStepper } from '../../components/tracking/Steppers';
 import { persistenceUnavailable, steps } from './model';
 import { useClaimForm } from './useClaimForm';
@@ -26,6 +27,17 @@ import type { PersistedDocument } from './persistence';
 import { ApiError } from '../../services/apiClient';
 import { verifiedRatesFromCircular } from './estimates';
 import type { PersistedClaim } from './persistence';
+import {
+  decodeRequestDetail,
+  decodeRequestHistory,
+} from '../requests/contracts';
+import { useCorrectionRequest } from '../corrections/useCorrectionRequest';
+import {
+  expectedCorrectionStage,
+  toCorrectionDraftPayload,
+  toCorrectionPayload,
+  verifyCorrectionResponse,
+} from '../corrections/correctionPersistence';
 
 function apiFailureMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError)
@@ -35,27 +47,51 @@ function apiFailureMessage(error: unknown, fallback: string): string {
 
 function SubmissionNavigation({
   claim,
+  correction = false,
 }: {
   claim: Pick<PersistedClaim, 'id' | 'trackingNumber' | 'totalAmount'>;
+  correction?: boolean;
 }) {
   const navigate = useNavigate();
   useEffect(() => {
     navigate(`/requests/${encodeURIComponent(claim.id)}`, {
       state: {
-        submissionConfirmed: {
+        [correction ? 'resubmissionConfirmed' : 'submissionConfirmed']: {
           trackingNumber: claim.trackingNumber,
           totalAmount: claim.totalAmount,
         },
       },
     });
-  }, [claim, navigate]);
-  return <p role="status">Opening the submitted request details…</p>;
+  }, [claim, correction, navigate]);
+  return (
+    <p role="status">
+      {correction
+        ? 'Opening the resubmitted request details…'
+        : 'Opening the submitted request details…'}
+    </p>
+  );
 }
 
 export function PaperMarkingClaimPage() {
   const claim = useClaimForm();
   const integration = useReadOnlyData();
-  const draftId = new URLSearchParams(window.location.search).get('draftId');
+  const location = useLocation();
+  const search = new URLSearchParams(location.search);
+  const correctionMode = search.has('correctionId');
+  const conflictingIds = correctionMode && search.has('draftId');
+  const correctionId = correctionMode
+    ? conflictingIds
+      ? ''
+      : search.get('correctionId')
+    : null;
+  const draftId = correctionMode ? null : search.get('draftId');
+  const correctionRequest = useCorrectionRequest(
+    correctionId,
+    integration.session.client,
+    integration.profile,
+    claim.restore,
+  );
+  const correction = correctionRequest.resource;
   const [draftBusy, setDraftBusy] = useState(Boolean(draftId));
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [draftError, setDraftError] = useState('');
@@ -63,18 +99,27 @@ export function PaperMarkingClaimPage() {
   const [persistedDocuments, setPersistedDocuments] = useState<
     PersistedDocument[]
   >([]);
+  const [correctionDocumentOverride, setCorrectionDocumentOverride] = useState<{
+    requestId: string;
+    documents: PersistedDocument[];
+  } | null>(null);
   const [uploadStatus, setUploadStatus] = useState<
     Record<string, 'uploading' | 'error'>
   >({});
   const [uploadErrors, setUploadErrors] = useState<Record<string, string>>({});
   const [submitBusy, setSubmitBusy] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [resubmitDialogOpen, setResubmitDialogOpen] = useState(false);
+  const [resubmitUnknown, setResubmitUnknown] = useState(false);
+  const [statusCheckBusy, setStatusCheckBusy] = useState(false);
+  const [submittedAsCorrection, setSubmittedAsCorrection] = useState(false);
   const [submittedClaim, setSubmittedClaim] = useState<Pick<
     PersistedClaim,
     'id' | 'trackingNumber' | 'totalAmount'
   > | null>(null);
   const uploadLocks = useRef(new Set<string>());
   const submitLock = useRef(false);
+  const resubmitLock = useRef(false);
   const [savedClaim, setSavedClaim] = useState<{
     id: string;
     trackingNumber: string;
@@ -87,21 +132,60 @@ export function PaperMarkingClaimPage() {
   const lecturerSession =
     hasSession && integration.profile.data?.role === 'LECTURER';
   const verifiedRates = verifiedRatesFromCircular(integration.circular.data);
+  const correctionContext = correction.status === 'ready' ? correction : null;
+  const currentDocuments = correctionContext
+    ? correctionDocumentOverride?.requestId === correctionContext.request.id
+      ? correctionDocumentOverride.documents
+      : correctionContext.restored.persistedDocuments
+    : persistedDocuments;
+  const currentSavedClaim =
+    correctionContext && savedClaim?.id !== correctionContext.request.id
+      ? {
+          id: correctionContext.request.id,
+          trackingNumber: correctionContext.request.trackingNumber,
+          totalAmount: correctionContext.request.totalAmount,
+        }
+      : savedClaim;
+  function updateCurrentDocuments(
+    update: (documents: PersistedDocument[]) => PersistedDocument[],
+  ) {
+    if (correctionContext) {
+      const requestId = correctionContext.request.id;
+      setCorrectionDocumentOverride((current) => ({
+        requestId,
+        documents: update(
+          current?.requestId === requestId
+            ? current.documents
+            : correctionContext.restored.persistedDocuments,
+        ),
+      }));
+      return;
+    }
+    setPersistedDocuments(update);
+  }
   const navigateClaim = (target: number) =>
-    claim.navigate(target, persistedDocuments.length);
-  const actionHelp = !hasSession
-    ? 'Sign in with the development lecturer account to upload documents, save drafts, or submit.'
-    : !integration.profile.data
-      ? 'Actions remain unavailable until the backend confirms the authenticated lecturer profile.'
-      : !lecturerSession
-        ? 'This claim workflow is available to an authenticated lecturer account only.'
-        : claim.form.documents.length > 0
-          ? 'Upload every locally selected document before saving or submitting.'
-          : claim.step === 3 && persistedDocuments.length === 0
-            ? 'Upload at least one supporting document before submission.'
-            : claim.step === 3 && !claim.form.declaration
-              ? 'Accept the declaration before submission.'
-              : persistenceUnavailable;
+    claim.navigate(target, currentDocuments.length);
+  const actionHelp = correctionMode
+    ? claim.form.documents.length > 0
+      ? 'Upload locally selected documents before saving or resubmitting; uploaded references remain separate from the request until saved.'
+      : claim.step === 3 && currentDocuments.length === 0
+        ? 'Attach at least one supporting document before resubmitting.'
+        : claim.step === 3 && !claim.form.declaration
+          ? 'Accept the declaration before resubmitting.'
+          : 'Saving updates this returned request. Resubmission returns the same request to the backend-defined review stage.'
+    : !hasSession
+      ? 'Sign in with the development lecturer account to upload documents, save drafts, or submit.'
+      : !integration.profile.data
+        ? 'Actions remain unavailable until the backend confirms the authenticated lecturer profile.'
+        : !lecturerSession
+          ? 'This claim workflow is available to an authenticated lecturer account only.'
+          : claim.form.documents.length > 0
+            ? 'Upload every locally selected document before saving or submitting.'
+            : claim.step === 3 && currentDocuments.length === 0
+              ? 'Upload at least one supporting document before submission.'
+              : claim.step === 3 && !claim.form.declaration
+                ? 'Accept the declaration before submission.'
+                : persistenceUnavailable;
   useEffect(() => {
     const client = integration.session.client;
     if (!draftId || loadedDraft.current === draftId) return;
@@ -142,9 +226,10 @@ export function PaperMarkingClaimPage() {
     return () => controller.abort();
   }, [draftId, integration.session.client, restore]);
   useEffect(() => {
+    if (correctionMode) return;
     if (!hasSession) applyProfile(null);
     else if (loadedProfile) applyProfile(loadedProfile);
-  }, [hasSession, loadedProfile, applyProfile]);
+  }, [correctionMode, hasSession, loadedProfile, applyProfile]);
   const heading = useRef<HTMLHeadingElement>(null);
   const summary = useRef<HTMLDivElement>(null);
   const pendingFocus = useRef<string | null>(null);
@@ -192,14 +277,45 @@ export function PaperMarkingClaimPage() {
   }, [claim.form]);
   async function saveDraft() {
     const client = integration.session.client;
-    if (!client || draftBusy) return;
+    if (!client || draftBusy || (correctionMode && correctionContext === null))
+      return;
     setDraftBusy(true);
     setDraftError('');
     setDraftMessage('');
     try {
+      if (correctionMode && correctionContext && correctionId) {
+        const saved = await client.post(
+          '/requests/paper-marking/draft',
+          toCorrectionDraftPayload(
+            claim.form,
+            currentDocuments,
+            correctionContext.request.formData.comments,
+          ),
+          decodeRequestDetail,
+          { draftId: correctionId },
+        );
+        verifyCorrectionResponse(
+          saved,
+          correctionId,
+          'RETURNED_FOR_CORRECTION',
+          'LECTURER_CORRECTION',
+        );
+        setSavedClaim({
+          id: saved.id,
+          trackingNumber: saved.trackingNumber,
+          totalAmount: saved.totalAmount,
+        });
+        updateCurrentDocuments((documents) =>
+          documents.map((document) => ({ ...document, attachedToClaim: true })),
+        );
+        setDraftMessage(
+          `Corrections saved to ${saved.trackingNumber}. The backend-confirmed total is ${new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' }).format(saved.totalAmount)}.`,
+        );
+        return;
+      }
       const saved = await client.post(
         '/requests/paper-marking/draft',
-        toDraftPayload(claim.form, persistedDocuments),
+        toDraftPayload(claim.form, currentDocuments),
         decodePersistedClaim,
         savedClaim ? { draftId: savedClaim.id } : undefined,
       );
@@ -208,7 +324,7 @@ export function PaperMarkingClaimPage() {
         trackingNumber: saved.trackingNumber,
         totalAmount: saved.totalAmount,
       });
-      setPersistedDocuments((documents) =>
+      updateCurrentDocuments((documents) =>
         documents.map((document) => ({ ...document, attachedToClaim: true })),
       );
       setDraftMessage(`Draft saved on the server (${saved.trackingNumber}).`);
@@ -240,6 +356,7 @@ export function PaperMarkingClaimPage() {
         document.file,
         document.category,
         decodeUploadedDocument,
+        correctionMode ? (correctionId ?? undefined) : undefined,
       );
       if (
         uploaded.name !== document.file.name ||
@@ -250,7 +367,7 @@ export function PaperMarkingClaimPage() {
         throw new Error(
           'The server upload response did not match the selected file.',
         );
-      setPersistedDocuments((old) => [
+      updateCurrentDocuments((old) => [
         ...old.filter((item) => item.url !== uploaded.url),
         { ...uploaded, attachedToClaim: false },
       ]);
@@ -277,21 +394,30 @@ export function PaperMarkingClaimPage() {
     }
   }
   function removeUploadedDocument(url: string) {
-    setPersistedDocuments((old) =>
+    updateCurrentDocuments((old) =>
       old.filter((document) => document.url !== url),
     );
     setDraftMessage(
-      'Document reference removed from this form. Save the draft to persist this change.',
+      correctionMode
+        ? 'Document reference removed from this correction. Save corrections to persist this change.'
+        : 'Document reference removed from this form. Save the draft to persist this change.',
     );
   }
   async function submitClaim() {
     const client = integration.session.client;
-    if (!client || !lecturerSession || submitLock.current || submitBusy) return;
-    const errors = validateReview(claim.form, persistedDocuments.length);
+    if (
+      correctionMode ||
+      !client ||
+      !lecturerSession ||
+      submitLock.current ||
+      submitBusy
+    )
+      return;
+    const errors = validateReview(claim.form, currentDocuments.length);
     if (errors.length) {
       claim.setErrors(errors);
       const firstStep = Math.min(...errors.map((error) => error.step));
-      claim.navigate(firstStep, persistedDocuments.length);
+      claim.navigate(firstStep, currentDocuments.length);
       return;
     }
     if (uploadLocks.current.size > 0) return;
@@ -302,7 +428,7 @@ export function PaperMarkingClaimPage() {
     try {
       const submitted = await client.post(
         '/requests/paper-marking/submit',
-        toSubmissionPayload(claim.form, persistedDocuments),
+        toSubmissionPayload(claim.form, currentDocuments),
         decodeSubmittedClaim,
         savedClaim ? { draftId: savedClaim.id } : undefined,
       );
@@ -319,7 +445,228 @@ export function PaperMarkingClaimPage() {
       setSubmitBusy(false);
     }
   }
-  if (submittedClaim) return <SubmissionNavigation claim={submittedClaim} />;
+  function openResubmissionConfirmation() {
+    if (!correctionMode || !correctionContext || submitBusy || draftBusy)
+      return;
+    const errors = validateReview(claim.form, currentDocuments.length);
+    if (errors.length) {
+      claim.setErrors(errors);
+      const firstStep = Math.min(...errors.map((error) => error.step));
+      claim.navigate(firstStep, currentDocuments.length);
+      return;
+    }
+    if (claim.form.documents.length || uploadLocks.current.size > 0) {
+      setSubmitError(
+        'Upload every selected document before reviewing and resubmitting corrections.',
+      );
+      return;
+    }
+    setSubmitError('');
+    setResubmitDialogOpen(true);
+  }
+  async function resubmitCorrection() {
+    const client = integration.session.client;
+    const current = correctionContext;
+    if (
+      !client ||
+      !lecturerSession ||
+      !current ||
+      resubmitLock.current ||
+      submitBusy ||
+      resubmitUnknown ||
+      claim.form.documents.length ||
+      uploadLocks.current.size > 0
+    )
+      return;
+    const errors = validateReview(claim.form, currentDocuments.length);
+    if (errors.length) {
+      setResubmitDialogOpen(false);
+      claim.setErrors(errors);
+      const firstStep = Math.min(...errors.map((error) => error.step));
+      claim.navigate(firstStep, currentDocuments.length);
+      return;
+    }
+    resubmitLock.current = true;
+    setSubmitBusy(true);
+    setSubmitError('');
+    setDraftMessage('');
+    let mutationStarted = false;
+    const detailPath = `/requests/paper-marking/${encodeURIComponent(current.request.id)}`;
+    try {
+      const latest = await client.get(detailPath, decodeRequestDetail);
+      verifyCorrectionResponse(
+        latest,
+        current.request.id,
+        'RETURNED_FOR_CORRECTION',
+        'LECTURER_CORRECTION',
+      );
+      const latestHistory = await client.get(
+        `/requests/${encodeURIComponent(current.request.id)}/history`,
+        decodeRequestHistory,
+      );
+      if (latestHistory.requestId !== current.request.id)
+        throw new Error(
+          'The backend returned history for a different request.',
+        );
+      const expectedStage = expectedCorrectionStage(latestHistory);
+      const updatedFormData = toCorrectionPayload(claim.form, currentDocuments);
+      mutationStarted = true;
+      const resubmitted = await client.post(
+        `/requests/${encodeURIComponent(current.request.id)}/actions`,
+        { action: 'RESUBMIT', updatedFormData },
+        decodeRequestDetail,
+      );
+      verifyCorrectionResponse(
+        resubmitted,
+        current.request.id,
+        'UNDER_REVIEW',
+        expectedStage,
+      );
+      setSubmittedAsCorrection(true);
+      setSubmittedClaim({
+        id: resubmitted.id,
+        trackingNumber: resubmitted.trackingNumber,
+        totalAmount: resubmitted.totalAmount,
+      });
+      setResubmitDialogOpen(false);
+    } catch (error) {
+      const uncertain =
+        mutationStarted &&
+        (!(error instanceof ApiError) ||
+          error.kind === 'network' ||
+          error.kind === 'invalid-response' ||
+          (error.status !== undefined &&
+            error.status !== 400 &&
+            error.status !== 401 &&
+            error.status !== 403 &&
+            error.status !== 404));
+      setResubmitUnknown(uncertain);
+      setSubmitError(
+        uncertain
+          ? 'The resubmission outcome could not be confirmed. Check the request status before trying again.'
+          : apiFailureMessage(
+              error,
+              'The corrections were not confirmed as resubmitted.',
+            ),
+      );
+      setResubmitDialogOpen(false);
+    } finally {
+      resubmitLock.current = false;
+      setSubmitBusy(false);
+    }
+  }
+  async function checkResubmissionStatus() {
+    const client = integration.session.client;
+    const current = correctionContext;
+    if (!client || !current || statusCheckBusy) return;
+    setStatusCheckBusy(true);
+    setSubmitError('');
+    try {
+      const id = current.request.id;
+      const [latest, latestHistory] = await Promise.all([
+        client.get(
+          `/requests/paper-marking/${encodeURIComponent(id)}`,
+          decodeRequestDetail,
+        ),
+        client.get(
+          `/requests/${encodeURIComponent(id)}/history`,
+          decodeRequestHistory,
+        ),
+      ]);
+      if (latestHistory.requestId !== id)
+        throw new Error(
+          'The backend returned history for a different request.',
+        );
+      const expectedStage = expectedCorrectionStage(latestHistory);
+      if (
+        latest.id === id &&
+        latest.status === 'UNDER_REVIEW' &&
+        latest.currentStageKey === expectedStage
+      ) {
+        setResubmitUnknown(false);
+        setSubmittedAsCorrection(true);
+        setSubmittedClaim({
+          id: latest.id,
+          trackingNumber: latest.trackingNumber,
+          totalAmount: latest.totalAmount,
+        });
+        return;
+      }
+      if (
+        latest.id === id &&
+        latest.status === 'RETURNED_FOR_CORRECTION' &&
+        latest.currentStageKey === 'LECTURER_CORRECTION'
+      ) {
+        setResubmitUnknown(false);
+        setSubmitError(
+          'The backend confirms this request is still awaiting your corrections. Review the current form and resubmit when ready.',
+        );
+        return;
+      }
+      setSubmitError(
+        'The request has a different status or workflow stage. It remains unavailable for another resubmission attempt.',
+      );
+    } catch (error) {
+      setSubmitError(
+        `The request status could not be verified. Do not retry yet. ${apiFailureMessage(error, 'Try checking again.')}`,
+      );
+    } finally {
+      setStatusCheckBusy(false);
+    }
+  }
+  if (submittedClaim)
+    return (
+      <SubmissionNavigation
+        claim={submittedClaim}
+        correction={submittedAsCorrection}
+      />
+    );
+  if (correctionMode && conflictingIds)
+    return (
+      <section aria-labelledby="correction-error-title" className="space-y-4">
+        <h1
+          id="correction-error-title"
+          className="text-3xl font-bold text-brand"
+        >
+          Correction unavailable
+        </h1>
+        <p role="alert" className="rounded-control border border-danger p-4">
+          The URL contains both a correction request and a draft identifier.
+          Open the returned application again from My Applications.
+        </p>
+        <Link className="underline text-action" to="/requests">
+          Return to My Applications
+        </Link>
+      </section>
+    );
+  if (correctionMode && correction.status !== 'ready')
+    return (
+      <section aria-labelledby="correction-loading-title" className="space-y-4">
+        <h1
+          id="correction-loading-title"
+          className="text-3xl font-bold text-brand"
+        >
+          {correction.status === 'loading'
+            ? 'Loading returned application'
+            : 'Correction unavailable'}
+        </h1>
+        <p
+          role={correction.status === 'loading' ? 'status' : 'alert'}
+          className="rounded-control border border-border p-4"
+        >
+          {correction.message}
+        </p>
+        {(correction.status === 'error' ||
+          correction.status === 'unavailable') && (
+          <Button variant="secondary" onClick={correctionRequest.retry}>
+            Retry
+          </Button>
+        )}
+        <Link className="block underline text-action" to="/requests">
+          Return to My Applications
+        </Link>
+      </section>
+    );
   if (draftId && integration.session.client && draftBusy && !draftLoaded)
     return (
       <section aria-live="polite">
@@ -337,15 +684,49 @@ export function PaperMarkingClaimPage() {
           tabIndex={-1}
           className="text-3xl font-bold text-brand"
         >
-          Paper setting & marking payment
+          {correctionMode
+            ? 'Application Detail & Correction'
+            : 'Paper setting & marking payment'}
         </h1>
         <p className="mt-2 text-muted">
-          Step {claim.step + 1} of 4 ·{' '}
-          {savedClaim
-            ? `Draft saved as ${savedClaim.trackingNumber}`
-            : 'Local preparation · Not saved'}
+          {correctionContext
+            ? `${correctionContext.request.trackingNumber} · Step ${claim.step + 1} of 4`
+            : `Step ${claim.step + 1} of 4 · ${savedClaim ? `Draft saved as ${savedClaim.trackingNumber}` : 'Local preparation · Not saved'}`}
         </p>
       </header>
+      {correctionContext && (
+        <section
+          aria-labelledby="correction-instructions-title"
+          className="rounded-control border border-warning bg-amber-50 p-4 text-ink"
+        >
+          <h2
+            id="correction-instructions-title"
+            className="font-bold text-brand"
+          >
+            Returned for correction
+          </h2>
+          <p className="mt-2">{correctionContext.correctionComment}</p>
+          <p className="mt-2 text-sm text-muted">
+            Corrected changes will update this request. Its next review stage is
+            determined by the backend from the returning officer’s role.
+          </p>
+        </section>
+      )}
+      {correctionContext && correctionContext.restored.warnings.length > 0 && (
+        <div
+          role="status"
+          className="rounded-control border border-warning bg-amber-50 p-4 text-ink"
+        >
+          <h2 className="font-semibold text-brand">
+            Verify information not present in the returned record
+          </h2>
+          <ul className="mt-2 list-inside list-disc space-y-1 text-sm">
+            {correctionContext.restored.warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <ReadOnlyInformation integration={integration} />
       {draftId && !integration.session.client && (
         <div
@@ -381,8 +762,20 @@ export function PaperMarkingClaimPage() {
         >
           <p>{submitError}</p>
           <p className="mt-1 text-sm">
-            No successful submission is shown unless the backend confirms it.
+            {resubmitUnknown
+              ? 'Do not resubmit until the server status has been checked.'
+              : 'No successful submission is shown unless the backend confirms it.'}
           </p>
+          {resubmitUnknown && (
+            <Button
+              className="mt-3"
+              variant="secondary"
+              pending={statusCheckBusy}
+              onClick={() => void checkResubmissionStatus()}
+            >
+              Check request status
+            </Button>
+          )}
         </div>
       )}
       {hasSession && integration.profile.data && !lecturerSession && (
@@ -394,22 +787,28 @@ export function PaperMarkingClaimPage() {
           only.
         </div>
       )}
-      {savedClaim && (
+      {currentSavedClaim && (
         <p className="text-sm text-muted">
-          Draft reference: {savedClaim.trackingNumber} · Server-calculated
-          total:{' '}
+          {correctionMode ? 'Returned request' : 'Draft reference'}:{' '}
+          {currentSavedClaim.trackingNumber} · Server-calculated total:{' '}
           {new Intl.NumberFormat('en-LK', {
             style: 'currency',
             currency: 'LKR',
-          }).format(savedClaim.totalAmount)}
+          }).format(currentSavedClaim.totalAmount)}
         </p>
       )}
       <div className="rounded-control border border-warning bg-amber-50 p-4 text-sm text-brand">
-        <p>{persistenceUnavailable}</p>
+        <p>
+          {correctionMode
+            ? 'Correction updates use the verified returned-request draft and resubmission contracts. The backend recalculates payment totals.'
+            : persistenceUnavailable}
+        </p>
         <p className="mt-2">
-          {savedClaim
-            ? 'Form data in the last successful server save can be resumed from My Requests. Changes made since that save remain local.'
-            : 'Entries and files remain in this page only until the first successful draft save. No claim is submitted.'}
+          {correctionMode
+            ? 'The original request identifier and paper rows are preserved. No new claim is created by this correction form.'
+            : savedClaim
+              ? 'Form data in the last successful server save can be resumed from My Requests. Changes made since that save remain local.'
+              : 'Entries and files remain in this page only until the first successful draft save. No claim is submitted.'}
         </p>
       </div>
       {claim.step === 3 ? (
@@ -465,7 +864,7 @@ export function PaperMarkingClaimPage() {
           if (claim.step < 3) navigateClaim(claim.step + 1);
           else
             claim.setErrors(
-              validateReview(claim.form, persistedDocuments.length),
+              validateReview(claim.form, currentDocuments.length),
             );
         }}
       >
@@ -503,6 +902,7 @@ export function PaperMarkingClaimPage() {
           {claim.step === 2 && (
             <>
               <DocumentsStep
+                correctionMode={correctionMode}
                 documents={claim.form.documents}
                 errors={claim.errors}
                 fileErrors={claim.fileErrors}
@@ -510,12 +910,12 @@ export function PaperMarkingClaimPage() {
                   claim.selectDocuments(
                     files,
                     category,
-                    persistedDocuments.length,
+                    currentDocuments.length,
                   )
                 }
                 category={claim.form.selectedDocumentCategory}
                 onCategoryChange={claim.setDocumentCategory}
-                uploadedDocuments={persistedDocuments}
+                uploadedDocuments={currentDocuments}
                 uploadStatus={uploadStatus}
                 uploadErrors={uploadErrors}
                 onUpload={(document) => void uploadDocument(document)}
@@ -532,10 +932,11 @@ export function PaperMarkingClaimPage() {
             <ReviewStep
               form={claim.form}
               {...(verifiedRates ? { rates: verifiedRates } : {})}
-              uploadedDocuments={persistedDocuments}
+              uploadedDocuments={currentDocuments}
               errors={claim.errors}
               onEdit={navigateClaim}
               onDeclaration={claim.setDeclaration}
+              correctionMode={correctionMode}
             />
           )}
         </Card>
@@ -569,13 +970,14 @@ export function PaperMarkingClaimPage() {
             pending={draftBusy}
             disabled={
               !lecturerSession ||
+              (correctionMode && correctionContext === null) ||
               claim.form.documents.length > 0 ||
               Boolean(draftId && draftBusy)
             }
             aria-describedby="persistence-reason"
             onClick={() => void saveDraft()}
           >
-            Save draft
+            {correctionMode ? 'Save corrections' : 'Save draft'}
           </Button>
           {claim.step < 3 ? (
             <Button
@@ -593,24 +995,30 @@ export function PaperMarkingClaimPage() {
           ) : (
             <>
               <Button type="submit" disabled={submitBusy}>
-                Validate review
+                {correctionMode ? 'Validate corrections' : 'Validate review'}
               </Button>
               <Button
                 variant="success"
                 pending={submitBusy}
                 disabled={
                   !lecturerSession ||
+                  (correctionMode &&
+                    (correctionContext === null || resubmitUnknown)) ||
                   claim.form.documents.length > 0 ||
                   Object.values(uploadStatus).some(
                     (status) => status === 'uploading',
                   ) ||
-                  persistedDocuments.length === 0
+                  currentDocuments.length === 0
                 }
                 aria-describedby="persistence-reason"
                 className="sm:ml-auto"
-                onClick={() => void submitClaim()}
+                onClick={() =>
+                  correctionMode
+                    ? openResubmissionConfirmation()
+                    : void submitClaim()
+                }
               >
-                Submit Application
+                {correctionMode ? 'Review & Resubmit' : 'Submit Application'}
               </Button>
             </>
           )}
@@ -619,6 +1027,48 @@ export function PaperMarkingClaimPage() {
           {actionHelp} Local files are not sent with claim data.
         </p>
       </form>
+      {correctionMode && correctionContext && (
+        <Dialog
+          open={resubmitDialogOpen}
+          onClose={() => setResubmitDialogOpen(false)}
+          title="Confirm correction and resubmission"
+          description="This updates the existing returned application and sends it back to the backend-defined review stage."
+        >
+          <div className="space-y-4">
+            <p>
+              Request {correctionContext.request.trackingNumber} will keep the
+              same request reference. The backend will recalculate the payment
+              amount from the corrected paper rows.
+            </p>
+            <p className="text-sm text-muted">
+              Current server-confirmed amount:{' '}
+              {new Intl.NumberFormat('en-LK', {
+                style: 'currency',
+                currency: 'LKR',
+              }).format(correctionContext.request.totalAmount)}
+              . The corrected amount is confirmed only in the resubmission
+              response.
+            </p>
+            <div className="flex flex-wrap justify-end gap-3">
+              <Button
+                variant="ghost"
+                disabled={submitBusy}
+                onClick={() => setResubmitDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="success"
+                pending={submitBusy}
+                disabled={resubmitUnknown}
+                onClick={() => void resubmitCorrection()}
+              >
+                Confirm resubmission
+              </Button>
+            </div>
+          </div>
+        </Dialog>
+      )}
     </div>
   );
 }

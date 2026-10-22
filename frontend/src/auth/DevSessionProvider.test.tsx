@@ -7,6 +7,7 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import DevSessionProvider from './DevSessionProvider';
 import { useSession } from './session';
 import { PaperMarkingClaimPage } from '../features/paper-marking/PaperMarkingClaimPage';
@@ -145,9 +146,11 @@ describe('development authentication and read-only integration', () => {
     vi.stubGlobal('fetch', fetcher);
     const user = userEvent.setup({ delay: null });
     render(
-      <DevSessionProvider>
-        <PaperMarkingClaimPage />
-      </DevSessionProvider>,
+      <MemoryRouter>
+        <DevSessionProvider>
+          <PaperMarkingClaimPage />
+        </DevSessionProvider>
+      </MemoryRouter>,
     );
     await user.click(
       screen.getByRole('button', { name: 'Sign in as development lecturer' }),
@@ -167,9 +170,11 @@ describe('development authentication and read-only integration', () => {
     vi.stubGlobal('fetch', fetcher);
     const user = userEvent.setup({ delay: null });
     const view = render(
-      <DevSessionProvider>
-        <PaperMarkingClaimPage />
-      </DevSessionProvider>,
+      <MemoryRouter>
+        <DevSessionProvider>
+          <PaperMarkingClaimPage />
+        </DevSessionProvider>
+      </MemoryRouter>,
     );
     expect(fetcher).not.toHaveBeenCalled();
     await user.click(
@@ -229,9 +234,11 @@ describe('development authentication and read-only integration', () => {
     vi.stubGlobal('fetch', fetcher);
     const user = userEvent.setup({ delay: null });
     render(
-      <DevSessionProvider>
-        <PaperMarkingClaimPage />
-      </DevSessionProvider>,
+      <MemoryRouter>
+        <DevSessionProvider>
+          <PaperMarkingClaimPage />
+        </DevSessionProvider>
+      </MemoryRouter>,
     );
     await user.click(
       screen.getByRole('button', { name: 'Sign in as development lecturer' }),
@@ -268,10 +275,12 @@ describe('development authentication and read-only integration', () => {
     vi.stubGlobal('fetch', fetcher);
     const user = userEvent.setup({ delay: null });
     render(
-      <DevSessionProvider>
-        <Probe />
-        <PaperMarkingClaimPage />
-      </DevSessionProvider>,
+      <MemoryRouter>
+        <DevSessionProvider>
+          <Probe />
+          <PaperMarkingClaimPage />
+        </DevSessionProvider>
+      </MemoryRouter>,
     );
     await user.click(
       screen.getByRole('button', { name: 'Sign in as development lecturer' }),
@@ -304,9 +313,11 @@ describe('development authentication and read-only integration', () => {
     vi.stubGlobal('fetch', fetcher);
     const user = userEvent.setup({ delay: null });
     render(
-      <DevSessionProvider>
-        <PaperMarkingClaimPage />
-      </DevSessionProvider>,
+      <MemoryRouter>
+        <DevSessionProvider>
+          <PaperMarkingClaimPage />
+        </DevSessionProvider>
+      </MemoryRouter>,
     );
     await user.click(
       screen.getByRole('button', { name: 'Sign in as development lecturer' }),
@@ -383,7 +394,11 @@ describe('development authentication and read-only integration', () => {
   it('keeps production/no-provider behavior unavailable and sends no requests', () => {
     const fetcher = vi.fn();
     vi.stubGlobal('fetch', fetcher);
-    render(<PaperMarkingClaimPage />);
+    render(
+      <MemoryRouter>
+        <PaperMarkingClaimPage />
+      </MemoryRouter>,
+    );
     expect(
       screen.getByText(/Production authentication is not implemented/),
     ).toBeVisible();

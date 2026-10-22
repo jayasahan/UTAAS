@@ -10,6 +10,7 @@ import type {
   RequestTracking,
 } from '../requests/contracts';
 import { summarizeCorrection } from './correctionSummary';
+import { restoreCorrectionForm } from './correctionPersistence';
 
 const lkr = new Intl.NumberFormat('en-LK', {
   style: 'currency',
@@ -69,20 +70,71 @@ function FieldList({ fields }: { fields: { label: string; value: string }[] }) {
   );
 }
 
+function paperRows(formData: Record<string, unknown>) {
+  if (!Array.isArray(formData.papers)) return [];
+  return formData.papers.map((value, index) => {
+    const row =
+      value && typeof value === 'object' && !Array.isArray(value)
+        ? (value as Record<string, unknown>)
+        : {};
+    const display = (key: string) => {
+      const cell = row[key];
+      return typeof cell === 'string' ||
+        (typeof cell === 'number' && Number.isFinite(cell))
+        ? String(cell)
+        : 'Not returned';
+    };
+    const unit =
+      row.assessmentUnit === 'hours' || row.assessmentUnit === 'candidates'
+        ? row.assessmentUnit
+        : 'unit unavailable';
+    return {
+      key: `${typeof row.id === 'string' ? row.id : 'paper'}-${index}`,
+      title:
+        typeof row.title === 'string' && row.title.trim()
+          ? row.title
+          : `Paper ${index + 1}`,
+      duration: display('durationHours'),
+      setting: display('settingCount'),
+      moderation: display('moderationCount'),
+      translation: display('translationCount'),
+      marking: display('scriptCount'),
+      secondMarking: display('secondMarkingCount'),
+      assessment: `${display('assessmentQuantity')} ${unit}`,
+    };
+  });
+}
+
 export function CorrectionReview({
   request,
   tracking,
   history,
+  canEdit,
+  editReason,
 }: {
   request: RequestDetail;
   tracking: RequestTracking | null;
   history: RequestHistory | null;
+  canEdit: boolean;
+  editReason?: string;
 }) {
   const summary = summarizeCorrection(request, tracking, history);
   const returnedBy = summary.returningRole ?? 'reviewing officer';
   const reason =
     summary.comment ??
     'No correction comment was included in the available return record.';
+  const rows = paperRows(request.formData);
+  let snapshotError: string | null = null;
+  try {
+    restoreCorrectionForm(request.formData);
+  } catch (error) {
+    snapshotError =
+      error instanceof Error
+        ? error.message
+        : 'The original form data is incomplete.';
+  }
+  const editEnabled = canEdit && !snapshotError;
+  const editExplanation = canEdit ? (snapshotError ?? editReason) : editReason;
 
   return (
     <div className="space-y-5" aria-labelledby="correction-review-title">
@@ -132,9 +184,9 @@ export function CorrectionReview({
       <NumberedSection number={1} title="Personal & Application Information">
         <FieldList fields={summary.applicantFields} />
         <p className="mt-4 text-sm text-muted">
-          Applicant name and department come from the returned account relation.
-          Designation and staff ID are not included in the verified request
-          response.
+          Applicant name and department use the verified account relation when
+          available. Other details appear only when they were stored in the
+          submitted form.
         </p>
         <div className="mt-5 border-t border-border pt-4">
           <h3 className="mb-3 font-semibold text-brand">
@@ -146,11 +198,79 @@ export function CorrectionReview({
 
       <NumberedSection number={2} title="Paper Setting & Marking Details">
         <FieldList fields={summary.claimFields} />
-        <p className="mt-4 text-sm text-muted">
-          The current backend response stores aggregate quantities. It does not
-          return the original per-paper rows or indicate a specific field to
-          correct.
-        </p>
+        {rows.length > 0 && (
+          <div
+            className="mt-4 overflow-x-auto rounded-control border border-border"
+            tabIndex={0}
+            aria-label="Submitted paper rows; scroll horizontally to view all columns"
+          >
+            <table className="min-w-[60rem] w-full border-collapse text-left text-sm">
+              <caption className="sr-only">
+                Original Paper Setting & Marking rows
+              </caption>
+              <thead className="bg-action text-white">
+                <tr>
+                  <th scope="col" className="p-3">
+                    Paper
+                  </th>
+                  <th scope="col" className="p-3">
+                    Duration (hours)
+                  </th>
+                  <th scope="col" className="p-3">
+                    Setting
+                  </th>
+                  <th scope="col" className="p-3">
+                    Moderation
+                  </th>
+                  <th scope="col" className="p-3">
+                    Translation
+                  </th>
+                  <th scope="col" className="p-3">
+                    Marking
+                  </th>
+                  <th scope="col" className="p-3">
+                    Second marking
+                  </th>
+                  <th scope="col" className="p-3">
+                    Assessment
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {rows.map((row) => (
+                  <tr key={row.key}>
+                    <th
+                      scope="row"
+                      className="max-w-64 p-3 font-semibold [overflow-wrap:anywhere]"
+                    >
+                      {row.title}
+                    </th>
+                    <td className="p-3">{row.duration}</td>
+                    <td className="p-3">{row.setting}</td>
+                    <td className="p-3">{row.moderation}</td>
+                    <td className="p-3">{row.translation}</td>
+                    <td className="p-3">{row.marking}</td>
+                    <td className="p-3">{row.secondMarking}</td>
+                    <td className="p-3">{row.assessment}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {Array.isArray(request.formData.papers) ? (
+          <p className="mt-4 text-sm text-muted">
+            The returned claim includes its original paper rows. Review and
+            update those rows in the correction form; the backend recalculates
+            the authoritative amount when the request is saved or resubmitted.
+          </p>
+        ) : (
+          <p className="mt-4 text-sm text-muted">
+            This returned record contains aggregate quantities only. The
+            correction editor stays unavailable because individual paper rows
+            cannot be reconstructed safely.
+          </p>
+        )}
         <div className="mt-5 border-t border-border pt-4">
           <h3 className="font-semibold text-brand">Server-confirmed amount</h3>
           <p className="mt-1 text-xl font-bold text-brand">
@@ -215,17 +335,24 @@ export function CorrectionReview({
       </NumberedSection>
 
       <NumberedSection number={4} title="Correction & Resubmission">
-        <Alert title="Editing and resubmission are unavailable" tone="info">
-          <p>
-            The backend has no correction-specific save operation or validated
-            editable-field schema. Its resubmission payload accepts generic form
-            data without field-level validation. This page therefore remains
-            read-only until that contract is defined.
-          </p>
-          {!summary.hasLecturerCorrectionStage && (
-            <p className="mt-2">
-              The request is not currently assigned to the lecturer correction
-              stage.
+        <Alert
+          title={
+            editEnabled
+              ? 'Correction editing is available'
+              : 'Correction editing is unavailable'
+          }
+          tone={editEnabled ? 'info' : 'warning'}
+        >
+          {editEnabled ? (
+            <p>
+              Save corrected details to this returned request, then review and
+              resubmit it. The backend preserves the request and routes it back
+              to the returning officer’s workflow stage.
+            </p>
+          ) : (
+            <p>
+              {editExplanation ??
+                'Editing is available only to the original lecturer while the request is assigned to lecturer correction.'}
             </p>
           )}
         </Alert>
@@ -240,13 +367,22 @@ export function CorrectionReview({
           >
             My Applications
           </Link>
-          <Button
-            variant="warning"
-            disabled
-            aria-describedby="correction-action-help"
-          >
-            Edit corrections
-          </Button>
+          {editEnabled ? (
+            <Link
+              to={`/requests/new?correctionId=${encodeURIComponent(request.id)}`}
+              className="inline-flex min-h-11 items-center justify-center rounded-control border border-action bg-blue-50 px-4 py-3 text-sm font-semibold text-action hover:bg-blue-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+            >
+              Edit corrections
+            </Link>
+          ) : (
+            <Button
+              variant="warning"
+              disabled
+              aria-describedby="correction-action-help"
+            >
+              Edit corrections
+            </Button>
+          )}
           <Button
             variant="primary"
             disabled

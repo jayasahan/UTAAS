@@ -440,6 +440,7 @@ describe('paper-marking claim UI', () => {
       file,
       'EXAM_TIMETABLE',
       expect.any(Function),
+      undefined,
     );
     await user.click(
       screen.getByRole('button', { name: 'Review application →' }),

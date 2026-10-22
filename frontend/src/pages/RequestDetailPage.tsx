@@ -1,4 +1,5 @@
 import { Link, useLocation, useParams } from 'react-router-dom';
+import { decodeProfile } from '../auth/contracts';
 import { Card } from '../components/common/Card';
 import { Alert, EmptyState, Skeleton } from '../components/common/Feedback';
 import { RequestStatusBadge } from '../components/tracking/RequestStatusBadge';
@@ -78,8 +79,15 @@ function RequestLoadState({
 export function RequestDetailPage() {
   const { requestId = '' } = useParams();
   const location = useLocation();
-  const routeState = location.state as { submissionConfirmed?: unknown } | null;
-  const confirmation = submissionConfirmation(routeState?.submissionConfirmed);
+  const routeState = location.state as {
+    submissionConfirmed?: unknown;
+    resubmissionConfirmed?: unknown;
+  } | null;
+  const resubmission = submissionConfirmation(
+    routeState?.resubmissionConfirmed,
+  );
+  const confirmation =
+    submissionConfirmation(routeState?.submissionConfirmed) ?? resubmission;
   const validId = uuidPattern.test(requestId);
   const pathId = validId ? encodeURIComponent(requestId) : null;
   const detail = useRequestResource(
@@ -94,6 +102,22 @@ export function RequestDetailPage() {
     pathId && detail.data ? `/requests/${pathId}/history` : null,
     decodeRequestHistory,
   );
+  const correctionProfile = useRequestResource(
+    detail.data?.status === 'RETURNED_FOR_CORRECTION' ? '/auth/me' : null,
+    decodeProfile,
+  );
+  const canEditCorrection =
+    detail.data?.status === 'RETURNED_FOR_CORRECTION' &&
+    detail.data.currentStageKey === 'LECTURER_CORRECTION' &&
+    correctionProfile.data?.role === 'LECTURER';
+  const correctionEditReason =
+    detail.data?.currentStageKey !== 'LECTURER_CORRECTION'
+      ? 'This request is not currently assigned to the lecturer correction stage.'
+      : correctionProfile.status === 'loading'
+        ? 'Checking the authenticated account before enabling editing.'
+        : correctionProfile.data?.role !== 'LECTURER'
+          ? 'Only the authenticated lecturer can edit this returned application.'
+          : undefined;
 
   if (!validId)
     return (
@@ -116,7 +140,11 @@ export function RequestDetailPage() {
           role="status"
           className="rounded-control border border-success bg-teal-50 p-4 text-brand"
         >
-          <h2 className="font-bold">Claim submitted successfully</h2>
+          <h2 className="font-bold">
+            {resubmission
+              ? 'Corrections resubmitted successfully'
+              : 'Claim submitted successfully'}
+          </h2>
           <p>
             Reference {confirmation.trackingNumber} · Server-confirmed total:{' '}
             {amount.format(confirmation.totalAmount)}
@@ -161,6 +189,10 @@ export function RequestDetailPage() {
           request={detail.data}
           tracking={tracking.data}
           history={history.data}
+          canEdit={canEditCorrection}
+          {...(correctionEditReason
+            ? { editReason: correctionEditReason }
+            : {})}
         />
       )}
       {detail.data && detail.data.status !== 'RETURNED_FOR_CORRECTION' && (
