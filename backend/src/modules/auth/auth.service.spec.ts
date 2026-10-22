@@ -83,6 +83,16 @@ describe('AuthService', () => {
     });
   });
 
+  describe('logout', () => {
+    it('should return logout success message for user', async () => {
+      const result = await service.logout(mockUser);
+      expect(result).toEqual({
+        success: true,
+        message: `User ${mockUser.email} logged out successfully`,
+      });
+    });
+  });
+
   describe('getProfile', () => {
     it('should return user profile if found', async () => {
       mockUserRepository.findOne.mockResolvedValue(mockUser);

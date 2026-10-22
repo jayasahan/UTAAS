@@ -22,9 +22,32 @@ async function bootstrap() {
     }),
   );
 
-  // Enable CORS
+  // Enable CORS with whitelist configuration
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  const allowedOriginsEnv = process.env.CORS_ALLOWED_ORIGINS;
+
+  let corsOrigin: boolean | string | string[];
+
+  if (allowedOriginsEnv) {
+    corsOrigin = allowedOriginsEnv
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter((origin) => origin.length > 0);
+    logger.log(`CORS whitelist configured: ${Array.isArray(corsOrigin) ? corsOrigin.join(', ') : corsOrigin}`);
+  } else if (nodeEnv === 'production') {
+    logger.warn('WARNING: CORS_ALLOWED_ORIGINS is not set in production. Restricting CORS access.');
+    corsOrigin = false;
+  } else {
+    corsOrigin = [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'http://localhost:4000',
+      'http://127.0.0.1:4000',
+    ];
+  }
+
   app.enableCors({
-    origin: true,
+    origin: corsOrigin,
     credentials: true,
   });
 
@@ -36,6 +59,7 @@ async function bootstrap() {
     )
     .setVersion('1.0')
     .addTag('Health', 'System health and status endpoints')
+    .addTag('Authentication & Identity', 'SSO, persona authentication, and session management')
     .addTag('Requests', 'Workflow request creation, tracking, and actions')
     .addTag('Paper Marking', 'Paper setting and marking payment claim processing')
     .addBearerAuth()

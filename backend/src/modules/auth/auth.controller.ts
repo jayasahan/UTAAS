@@ -1,8 +1,17 @@
-import { Controller, Post, Body, Get, UseGuards, Param, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  UseGuards,
+  Param,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import { AuthResponseDto, UserProfileDto } from './dto/auth-response.dto';
+import { AuthResponseDto, UserProfileDto, LogoutResponseDto } from './dto/auth-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { User, UserRole } from '../../database/entities/user.entity';
@@ -24,10 +33,23 @@ export class AuthController {
     return this.authService.login(loginDto);
   }
 
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'User Logout',
+    description: 'Invalidates session and signals token removal for current authenticated user',
+  })
+  @ApiResponse({ status: 200, description: 'Logout successful', type: LogoutResponseDto })
+  @ApiResponse({ status: 401, description: 'Unauthorized / Token invalid' })
+  async logout(@CurrentUser() user: User): Promise<LogoutResponseDto> {
+    return this.authService.logout(user);
+  }
+
   @Post('mock-login/:role')
   @ApiOperation({
     summary: 'One-Click Persona Login (Development / Testing)',
-    description: 'Instant login as one of the 7 standard university test personas',
+    description: 'Instant login as one of the 7 standard university test personas (disabled in production)',
   })
   @ApiParam({
     name: 'role',
@@ -35,7 +57,13 @@ export class AuthController {
     description: 'Role persona to impersonate for testing',
   })
   @ApiResponse({ status: 200, description: 'Mock login successful', type: AuthResponseDto })
+  @ApiResponse({ status: 400, description: 'Unknown role persona' })
+  @ApiResponse({ status: 404, description: 'Mock login endpoint is disabled in production environments' })
   async mockLoginRole(@Param('role') role: UserRole): Promise<AuthResponseDto> {
+    if (process.env.NODE_ENV === 'production') {
+      throw new NotFoundException('Mock login is disabled in production environments');
+    }
+
     const roleEmailMap: Record<UserRole, string> = {
       [UserRole.LECTURER]: 'lecturer@eng.ruh.ac.lk',
       [UserRole.HOD]: 'hod.computer@eng.ruh.ac.lk',
@@ -70,10 +98,14 @@ export class AuthController {
   @Get('test-actors')
   @ApiOperation({
     summary: 'List Seeded University Test Personas',
-    description: 'Returns the list of seeded university actors for workflow testing and role verification',
+    description: 'Returns the list of seeded university actors for workflow testing and role verification (disabled in production)',
   })
   @ApiResponse({ status: 200, description: 'List of test actors' })
+  @ApiResponse({ status: 404, description: 'Test personas listing is disabled in production environments' })
   getTestActors(): TestActorInfo[] {
+    if (process.env.NODE_ENV === 'production') {
+      throw new NotFoundException('Test personas listing is disabled in production environments');
+    }
     return this.authService.getTestActors();
   }
 }

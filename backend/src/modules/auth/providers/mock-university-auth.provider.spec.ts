@@ -9,8 +9,10 @@ describe('MockUniversityAuthProvider', () => {
   let provider: MockUniversityAuthProvider;
   let mockUserRepo: any;
   let mockDeptRepo: any;
+  const originalEnv = process.env.NODE_ENV;
 
   beforeEach(async () => {
+    process.env.NODE_ENV = 'development';
     mockUserRepo = {
       findOne: jest.fn(),
       create: jest.fn().mockImplementation((dto) => dto),
@@ -30,6 +32,10 @@ describe('MockUniversityAuthProvider', () => {
     }).compile();
 
     provider = module.get<MockUniversityAuthProvider>(MockUniversityAuthProvider);
+  });
+
+  afterEach(() => {
+    process.env.NODE_ENV = originalEnv;
   });
 
   it('should authenticate existing active university user', async () => {
@@ -57,13 +63,23 @@ describe('MockUniversityAuthProvider', () => {
     );
   });
 
-  it('should auto-provision new lecturer if email ends with @eng.ruh.ac.lk', async () => {
+  it('should auto-provision new lecturer if email ends with @eng.ruh.ac.lk in development', async () => {
     mockUserRepo.findOne.mockResolvedValue(null);
 
     const user = await provider.authenticate('new.lecturer@eng.ruh.ac.lk');
     expect(user.email).toBe('new.lecturer@eng.ruh.ac.lk');
     expect(user.role).toBe(UserRole.LECTURER);
     expect(mockUserRepo.save).toHaveBeenCalled();
+  });
+
+  it('should disallow auto-provisioning in production environment', async () => {
+    process.env.NODE_ENV = 'production';
+    mockUserRepo.findOne.mockResolvedValue(null);
+
+    await expect(provider.authenticate('unregistered@eng.ruh.ac.lk')).rejects.toThrow(
+      UnauthorizedException,
+    );
+    expect(mockUserRepo.save).not.toHaveBeenCalled();
   });
 
   it('should reject non-university emails', async () => {

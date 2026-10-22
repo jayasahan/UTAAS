@@ -31,3 +31,11 @@ export class AuthResponseDto {
   @ApiProperty({ type: UserProfileDto })
   user: UserProfileDto;
 }
+
+export class LogoutResponseDto {
+  @ApiProperty({ example: true, description: 'Indicates if the logout was successful' })
+  success: boolean;
+
+  @ApiProperty({ example: 'Logged out successfully', description: 'Logout status message' })
+  message: string;
+}
