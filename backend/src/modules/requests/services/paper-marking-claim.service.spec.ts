@@ -228,6 +228,53 @@ describe('PaperMarkingClaimService', () => {
       expect(result.formData.papers[0].title).toBe('Software Engineering');
       expect(result.formData.papers[1].title).toBe('Computer Networks');
     });
+
+    it('should allow saving intermediate corrections as draft on a returned claim', async () => {
+      const existingReturnedClaim = {
+        id: 'claim-returned-1',
+        applicantId: mockUser.id,
+        status: RequestStatus.RETURNED_FOR_CORRECTION,
+        currentStageKey: 'LECTURER_CORRECTION',
+        returningOfficerId: 'hod-1',
+        totalAmount: 15500,
+        formData: {
+          supportingDocuments: [{ id: 'doc-1', name: 'appointment.pdf' }],
+        },
+      };
+
+      mockRequestRepo.findOne.mockResolvedValue(existingReturnedClaim);
+      (mockFeeService.calculateClaimFees as jest.Mock).mockReturnValue({
+        currency: 'LKR',
+        totalAmount: 12000.0,
+        items: [],
+      });
+
+      const result = await service.saveDraft(mockUser, {
+        metadata: { courseCode: 'EC5060', courseTitle: 'Software Engineering' },
+      } as any, 'claim-returned-1');
+
+      expect(result.status).toBe(RequestStatus.RETURNED_FOR_CORRECTION);
+      expect(result.currentStageKey).toBe('LECTURER_CORRECTION');
+      expect(result.totalAmount).toBe(12000.0);
+      // Preserved existing documents
+      expect(result.formData.supportingDocuments).toHaveLength(1);
+      expect(result.formData.supportingDocuments[0].name).toBe('appointment.pdf');
+    });
+
+    it('should throw BadRequestException if trying to edit a claim that is UNDER_REVIEW', async () => {
+      const existingUnderReview = {
+        id: 'claim-under-review',
+        applicantId: mockUser.id,
+        status: RequestStatus.UNDER_REVIEW,
+        currentStageKey: 'HEAD_OF_DEPARTMENT',
+      };
+
+      mockRequestRepo.findOne.mockResolvedValue(existingUnderReview);
+
+      await expect(
+        service.saveDraft(mockUser, sampleDto, 'claim-under-review'),
+      ).rejects.toThrow('Cannot edit a claim that has already been submitted');
+    });
   });
 
   describe('submitClaim', () => {

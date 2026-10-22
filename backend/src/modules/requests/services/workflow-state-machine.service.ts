@@ -320,9 +320,9 @@ export class WorkflowStateMachineService {
         throw new ForbiddenException('Only the Head of Department or applicant can resubmit this claim');
       }
     } else {
-      if (request.applicantId !== actor.id && actor.role !== UserRole.ADMIN) {
-        throw new ForbiddenException('Only the original applicant can resubmit a returned claim');
-      }
+      throw new BadRequestException(
+        `Cannot resubmit claim: stage '${request.currentStageKey}' is not awaiting correction`,
+      );
     }
 
     // Apply corrected form data if provided and recalculate statutory fees server-side
@@ -461,14 +461,37 @@ export class WorkflowStateMachineService {
     await manager.save(AuditEvent, audit);
   }
   private applyAndRecalculateFormData(request: Request, updatedFormData: Record<string, any>) {
-    const updatedPersonal = updatedFormData.personal || request.formData?.personal || {};
-    const updatedMetadata = updatedFormData.metadata || updatedFormData.academic || request.formData?.metadata || request.formData?.academic || {};
-    const updatedPapers = updatedFormData.papers !== undefined ? updatedFormData.papers : request.formData?.papers;
-    const updatedItems = updatedFormData.items !== undefined
-      ? updatedFormData.items
+    const allowedFields = [
+      'personal',
+      'metadata',
+      'academic',
+      'papers',
+      'items',
+      'supportingDocuments',
+      'declaration',
+      'comments',
+    ];
+
+    const sanitizedUpdates: Record<string, any> = {};
+    for (const key of Object.keys(updatedFormData || {})) {
+      if (allowedFields.includes(key)) {
+        sanitizedUpdates[key] = updatedFormData[key];
+      }
+    }
+
+    const updatedPersonal = sanitizedUpdates.personal || request.formData?.personal || {};
+    const updatedMetadata = sanitizedUpdates.metadata || sanitizedUpdates.academic || request.formData?.metadata || request.formData?.academic || {};
+    const updatedPapers = sanitizedUpdates.papers !== undefined ? sanitizedUpdates.papers : request.formData?.papers;
+    const updatedItems = sanitizedUpdates.items !== undefined
+      ? sanitizedUpdates.items
       : (updatedPapers && Array.isArray(updatedPapers) && updatedPapers.length > 0
           ? this.feeCalculationService.aggregateFromPaperRows(updatedPapers)
           : request.formData?.items);
+
+    // Preserve existing documents if not explicitly replaced
+    const preservedDocuments = sanitizedUpdates.supportingDocuments !== undefined
+      ? sanitizedUpdates.supportingDocuments
+      : (request.formData?.supportingDocuments || []);
 
     const feeCalculation = this.feeCalculationService.calculateClaimFees(updatedItems, updatedPapers);
     if (feeCalculation.totalAmount <= 0) {
@@ -479,12 +502,13 @@ export class WorkflowStateMachineService {
 
     request.formData = {
       ...request.formData,
-      ...updatedFormData,
+      ...sanitizedUpdates,
       personal: updatedPersonal,
       metadata: updatedMetadata,
       academic: updatedMetadata,
       papers: updatedPapers || [],
       items: updatedItems,
+      supportingDocuments: preservedDocuments,
       feeCalculation,
     };
     request.totalAmount = feeCalculation.totalAmount;

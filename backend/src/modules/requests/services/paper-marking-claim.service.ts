@@ -77,11 +77,25 @@ export class PaperMarkingClaimService {
         throw new NotFoundException(`Draft claim with ID ${draftId} not found`);
       }
 
-      if (existing.status !== RequestStatus.DRAFT) {
+      const isInitialDraft = existing.status === RequestStatus.DRAFT;
+      const isReturnedForCorrection =
+        existing.status === RequestStatus.RETURNED_FOR_CORRECTION &&
+        existing.currentStageKey === 'LECTURER_CORRECTION';
+
+      if (!isInitialDraft && !isReturnedForCorrection) {
         throw new BadRequestException('Cannot edit a claim that has already been submitted');
       }
 
-      existing.formData = formData;
+      // Preserve existing supporting documents if not explicitly updated
+      const preservedDocuments = dto.supportingDocuments !== undefined
+        ? dto.supportingDocuments
+        : (existing.formData?.supportingDocuments || []);
+
+      existing.formData = {
+        ...existing.formData,
+        ...formData,
+        supportingDocuments: preservedDocuments,
+      };
       existing.totalAmount = feeCalculation.totalAmount;
 
       return await this.requestRepo.save(existing);
