@@ -66,7 +66,7 @@ describe('TrackingHistoryController', () => {
   });
 
   describe('getReviewHistory', () => {
-    it('should call trackingHistoryService.getReviewHistory with params', async () => {
+    it('should call trackingHistoryService.getReviewHistory with params and default personal scope', async () => {
       await controller.getReviewHistory(mockUser, 2, 20, 'APPROVED', 'claim');
       expect(mockTrackingService.getReviewHistory).toHaveBeenCalledWith(
         mockUser,
@@ -74,6 +74,19 @@ describe('TrackingHistoryController', () => {
         20,
         'APPROVED',
         'claim',
+        'personal',
+      );
+    });
+
+    it('should call trackingHistoryService.getReviewHistory with role scope when specified', async () => {
+      await controller.getReviewHistory(mockUser, 1, 10, 'all', undefined, 'role');
+      expect(mockTrackingService.getReviewHistory).toHaveBeenCalledWith(
+        mockUser,
+        1,
+        10,
+        'all',
+        undefined,
+        'role',
       );
     });
   });

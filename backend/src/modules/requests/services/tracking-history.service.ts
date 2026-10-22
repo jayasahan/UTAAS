@@ -274,8 +274,9 @@ export class TrackingHistoryService {
   }
 
   /**
-   * Retrieves paginated review history for the logged-in reviewer role.
-   * Includes claims previously acted upon by the officer, scoped by department where applicable.
+   * Retrieves paginated review history for the logged-in reviewer.
+   * Supports 'personal' scope (default, claims personally acted upon by user.id)
+   * and 'role' scope (all claims acted upon within the role/department).
    */
   async getReviewHistory(
     user: User,
@@ -283,6 +284,7 @@ export class TrackingHistoryService {
     limit = 10,
     decisionFilter?: string,
     search?: string,
+    scope: 'personal' | 'role' = 'personal',
   ): Promise<ReviewHistoryResponseDto> {
     const emptyResponse: ReviewHistoryResponseDto = {
       data: [],
@@ -326,26 +328,54 @@ export class TrackingHistoryService {
       .leftJoinAndSelect('request.stageHistory', 'stageHistory')
       .leftJoinAndSelect('request.auditEvents', 'auditEvents');
 
-    // Subquery to find requests where this reviewer role completed an action
-    if (user.role === UserRole.ADMIN) {
-      qb.where((subQb) => {
-        const subQuery = subQb
-          .subQuery()
-          .select('sh.requestId')
-          .from(RequestStageHistory, 'sh')
-          .where('sh.completedAt IS NOT NULL');
-        return `request.id IN ${subQuery.getQuery()}`;
-      });
+    // Subquery to find requests where this reviewer role/actor completed an action
+    if (scope === 'role') {
+      if (user.role === UserRole.ADMIN) {
+        qb.where((subQb) => {
+          const subQuery = subQb
+            .subQuery()
+            .select('sh.requestId')
+            .from(RequestStageHistory, 'sh')
+            .where('sh.completedAt IS NOT NULL');
+          return `request.id IN ${subQuery.getQuery()}`;
+        });
+      } else {
+        qb.where((subQb) => {
+          const subQuery = subQb
+            .subQuery()
+            .select('sh.requestId')
+            .from(RequestStageHistory, 'sh')
+            .where('sh.stageKey = :targetStageKey')
+            .andWhere('sh.completedAt IS NOT NULL');
+          return `request.id IN ${subQuery.getQuery()}`;
+        }).setParameter('targetStageKey', targetStageKey);
+      }
     } else {
-      qb.where((subQb) => {
-        const subQuery = subQb
-          .subQuery()
-          .select('sh.requestId')
-          .from(RequestStageHistory, 'sh')
-          .where('sh.stageKey = :targetStageKey')
-          .andWhere('sh.completedAt IS NOT NULL');
-        return `request.id IN ${subQuery.getQuery()}`;
-      }).setParameter('targetStageKey', targetStageKey);
+      // Default: 'personal' scope (matching actorId)
+      if (user.role === UserRole.ADMIN) {
+        qb.where((subQb) => {
+          const subQuery = subQb
+            .subQuery()
+            .select('sh.requestId')
+            .from(RequestStageHistory, 'sh')
+            .where('sh.actorId = :userId')
+            .andWhere('sh.completedAt IS NOT NULL');
+          return `request.id IN ${subQuery.getQuery()}`;
+        }).setParameter('userId', user.id);
+      } else {
+        qb.where((subQb) => {
+          const subQuery = subQb
+            .subQuery()
+            .select('sh.requestId')
+            .from(RequestStageHistory, 'sh')
+            .where('sh.stageKey = :targetStageKey')
+            .andWhere('sh.actorId = :userId')
+            .andWhere('sh.completedAt IS NOT NULL');
+          return `request.id IN ${subQuery.getQuery()}`;
+        })
+          .setParameter('targetStageKey', targetStageKey)
+          .setParameter('userId', user.id);
+      }
     }
 
     // Department boundary isolation for HOD
@@ -367,31 +397,51 @@ export class TrackingHistoryService {
 
     // Map each request to ReviewHistoryEntry
     const mappedEntries: ReviewHistoryEntryDto[] = allReviewedRequests.map((req) => {
-      const myStage = user.role === UserRole.ADMIN
-        ? (req.stageHistory || []).find((s) => s.completedAt !== null)
-        : (req.stageHistory || []).find((s) => s.stageKey === targetStageKey);
+      const completedStages = (req.stageHistory || []).filter(
+        (s) => s.completedAt !== null && (user.role === UserRole.ADMIN || s.stageKey === targetStageKey),
+      );
 
+      const personalStages = completedStages
+        .filter((s) => s.actorId === user.id)
+        .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+
+      const myStage =
+        scope === 'personal'
+          ? personalStages[0] || completedStages[0]
+          : completedStages.sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())[0] ||
+            (req.stageHistory || []).find((s) => s.stageKey === targetStageKey);
+
+      // QA-04 Fix: Determine decision strictly from myStage action, independent of subsequent request status
       let decision: 'APPROVED' | 'RETURNED_FOR_CORRECTION' | 'REJECTED' = 'APPROVED';
-      if (myStage?.action === StageAction.REJECT_RETURN || req.status === RequestStatus.RETURNED_FOR_CORRECTION) {
+      if (myStage?.action === StageAction.REJECT_RETURN) {
         decision = 'RETURNED_FOR_CORRECTION';
+      } else if (myStage?.action === ('REJECT' as any)) {
+        decision = 'REJECTED';
+      } else if (
+        myStage?.action === StageAction.APPROVED ||
+        myStage?.action === StageAction.APPROVE_PAYOUT
+      ) {
+        decision = 'APPROVED';
       } else if (req.status === RequestStatus.REJECTED) {
         decision = 'REJECTED';
+      } else if (req.status === RequestStatus.RETURNED_FOR_CORRECTION) {
+        decision = 'RETURNED_FOR_CORRECTION';
       } else {
         decision = 'APPROVED';
       }
 
       const decisionDate = myStage?.completedAt
-        ? myStage.completedAt.toISOString()
-        : req.updatedAt.toISOString();
+        ? new Date(myStage.completedAt).toISOString()
+        : new Date(req.updatedAt).toISOString();
 
       const events: ReviewHistoryEventDto[] = (req.auditEvents || [])
-        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
         .map((evt) => ({
           id: evt.id,
           action: evt.actionType,
           actor: evt.actorName || 'System',
           role: evt.actorRole || 'System',
-          occurredAt: evt.createdAt.toISOString(),
+          occurredAt: new Date(evt.createdAt).toISOString(),
           summary: evt.comment || evt.actionType,
         }));
 

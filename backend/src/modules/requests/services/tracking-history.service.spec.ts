@@ -369,6 +369,14 @@ describe('TrackingHistoryService', () => {
         ...sampleReviewedRequest,
         id: 'req-returned-1',
         status: RequestStatus.RETURNED_FOR_CORRECTION,
+        stageHistory: [
+          sampleReviewedRequest.stageHistory[0],
+          {
+            ...sampleReviewedRequest.stageHistory[1],
+            action: StageAction.REJECT_RETURN,
+            comments: 'Please correct course code',
+          },
+        ],
       };
       mockQueryBuilder.getMany.mockResolvedValue([sampleReviewedRequest, returnedRequest]);
       const hodUser: User = {
@@ -381,9 +389,91 @@ describe('TrackingHistoryService', () => {
       const result = await service.getReviewHistory(hodUser, 1, 10, 'RETURNED_FOR_CORRECTION');
       expect(result.data).toHaveLength(1);
       expect(result.data[0].id).toBe('req-returned-1');
+      expect(result.data[0].decision).toBe('RETURNED_FOR_CORRECTION');
       expect(result.meta.total).toBe(1);
       expect(result.meta.summaryCounts.approved).toBe(1);
       expect(result.meta.summaryCounts.returned).toBe(1);
+    });
+
+    it('QA-04 regression: should preserve APPROVED decision for officer when a later officer returns request for correction', async () => {
+      // HOD approved stage 1, but downstream Examination Officer returned the claim at stage 2
+      const claimReturnedDownstream: Request = {
+        ...sampleReviewedRequest,
+        id: 'req-downstream-returned',
+        status: RequestStatus.RETURNED_FOR_CORRECTION, // live request status is RETURNED_FOR_CORRECTION
+        stageHistory: [
+          sampleReviewedRequest.stageHistory[0],
+          {
+            stageKey: 'HEAD_OF_DEPARTMENT',
+            stageName: 'Head of Department Recommendation',
+            stageOrder: 1,
+            requiredRole: UserRole.HOD,
+            action: StageAction.APPROVED, // HOD approved this claim!
+            actorId: 'hod-1',
+            enteredAt: new Date('2026-10-21T00:00:00Z'),
+            completedAt: new Date('2026-10-21T01:00:00Z'),
+            comments: 'Recommended for approval',
+          } as any,
+          {
+            stageKey: 'EXAMINATION_OFFICE',
+            stageName: 'Examination Office Verification',
+            stageOrder: 2,
+            requiredRole: UserRole.EXAMINATION_OFFICER,
+            action: StageAction.REJECT_RETURN, // Exam officer returned it
+            actorId: 'exam-officer-99',
+            enteredAt: new Date('2026-10-21T01:00:00Z'),
+            completedAt: new Date('2026-10-21T02:00:00Z'),
+            comments: 'Missing signature on schedule',
+          } as any,
+        ],
+      };
+
+      mockQueryBuilder.getMany.mockResolvedValue([claimReturnedDownstream]);
+      const hodUser: User = {
+        ...mockApplicant,
+        id: 'hod-1',
+        role: UserRole.HOD,
+        departmentId: 'dept-com-1',
+      };
+
+      const result = await service.getReviewHistory(hodUser, 1, 10);
+      expect(result.data).toHaveLength(1);
+      // The HOD's historical decision must remain APPROVED despite request.status being RETURNED_FOR_CORRECTION
+      expect(result.data[0].decision).toBe('APPROVED');
+      expect(result.meta.summaryCounts.approved).toBe(1);
+      expect(result.meta.summaryCounts.returned).toBe(0);
+    });
+
+    it('QA-03 regression: should scope by authenticated officer actorId in personal mode (default)', async () => {
+      mockQueryBuilder.getMany.mockResolvedValue([sampleReviewedRequest]);
+      const hodUser: User = {
+        ...mockApplicant,
+        id: 'hod-1',
+        role: UserRole.HOD,
+        departmentId: 'dept-com-1',
+      };
+
+      await service.getReviewHistory(hodUser, 1, 10);
+      expect(mockQueryBuilder.where).toHaveBeenCalled();
+      expect(mockQueryBuilder.setParameter).toHaveBeenCalledWith('userId', 'hod-1');
+      expect(mockQueryBuilder.setParameter).toHaveBeenCalledWith('targetStageKey', 'HEAD_OF_DEPARTMENT');
+    });
+
+    it('QA-03 regression: should support role scope without actorId constraint when scope is role', async () => {
+      mockQueryBuilder.getMany.mockResolvedValue([sampleReviewedRequest]);
+      mockQueryBuilder.setParameter.mockClear();
+      const hodUser: User = {
+        ...mockApplicant,
+        id: 'hod-1',
+        role: UserRole.HOD,
+        departmentId: 'dept-com-1',
+      };
+
+      await service.getReviewHistory(hodUser, 1, 10, 'all', undefined, 'role');
+      expect(mockQueryBuilder.where).toHaveBeenCalled();
+      expect(mockQueryBuilder.setParameter).toHaveBeenCalledWith('targetStageKey', 'HEAD_OF_DEPARTMENT');
+      // In role scope, userId parameter is not set on the subquery
+      expect(mockQueryBuilder.setParameter).not.toHaveBeenCalledWith('userId', 'hod-1');
     });
 
     it('should apply search filter when provided', async () => {
