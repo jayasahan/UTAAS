@@ -9,6 +9,7 @@ import { NotFoundPage } from './pages/NotFoundPage';
 import { DesignSystemPage } from './pages/DesignSystemPage';
 import { OfficerPortalLayout } from './features/officer-queue/OfficerPortalLayout';
 import { OfficerQueuePage } from './features/officer-queue/OfficerQueuePage';
+import { OfficerDashboardPage } from './features/officer-dashboard/OfficerDashboardPage';
 import { OfficerClaimReviewPage } from './features/officer-review/OfficerClaimReviewPage';
 import { OfficerReviewHistoryPage } from './features/officer-history/OfficerReviewHistoryPage';
 
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Route>
       <Route element={<OfficerPortalLayout />}>
+        <Route path="officer" element={<OfficerDashboardPage />} />
         <Route path="officer/queue" element={<OfficerQueuePage />} />
         <Route
           path="officer/queue/:requestId"
