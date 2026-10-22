@@ -154,7 +154,7 @@ describe('authenticated request pages', () => {
     expect(await screen.findByText('Course title')).toBeInTheDocument();
     expect(screen.getByText('Approval progress')).toBeInTheDocument();
     expect(
-      screen.getByText('Current stage: Head of Department'),
+      await screen.findByText('Current stage: Head of Department'),
     ).toBeInTheDocument();
     expect(screen.getByText('Paper Marking Request')).toBeInTheDocument();
     expect(screen.getByText('SUBMITTED')).toBeInTheDocument();

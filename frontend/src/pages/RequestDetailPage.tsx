@@ -9,6 +9,7 @@ import {
   decodeRequestTracking,
   displayMetadata,
 } from '../features/requests/contracts';
+import { CorrectionReview } from '../features/corrections/CorrectionReview';
 import { useRequestResource } from '../features/requests/useRequestResource';
 import type { RequestResource } from '../features/requests/useRequestResource';
 
@@ -86,11 +87,11 @@ export function RequestDetailPage() {
     decodeRequestDetail,
   );
   const tracking = useRequestResource(
-    pathId ? `/requests/${pathId}/tracking` : null,
+    pathId && detail.data ? `/requests/${pathId}/tracking` : null,
     decodeRequestTracking,
   );
   const history = useRequestResource(
-    pathId ? `/requests/${pathId}/history` : null,
+    pathId && detail.data ? `/requests/${pathId}/history` : null,
     decodeRequestHistory,
   );
 
@@ -155,7 +156,14 @@ export function RequestDetailPage() {
       {!detail.data && (
         <RequestLoadState title="Request details" resource={detail} />
       )}
-      {detail.data && (
+      {detail.data && detail.data.status === 'RETURNED_FOR_CORRECTION' && (
+        <CorrectionReview
+          request={detail.data}
+          tracking={tracking.data}
+          history={history.data}
+        />
+      )}
+      {detail.data && detail.data.status !== 'RETURNED_FOR_CORRECTION' && (
         <Card>
           <h2 className="text-lg font-bold text-brand">Claim information</h2>
           <dl className="mt-4 grid min-w-0 gap-4 sm:grid-cols-2">
@@ -177,8 +185,11 @@ export function RequestDetailPage() {
           </dl>
         </Card>
       )}
-
-      <section aria-labelledby="tracking-title" className="space-y-3">
+      <section
+        aria-labelledby="tracking-title"
+        className="space-y-3"
+        hidden={!detail.data}
+      >
         <h2 id="tracking-title" className="text-xl font-bold text-brand">
           Approval progress
         </h2>
@@ -228,7 +239,11 @@ export function RequestDetailPage() {
         )}
       </section>
 
-      <section aria-labelledby="history-title" className="space-y-3">
+      <section
+        aria-labelledby="history-title"
+        className="space-y-3"
+        hidden={!detail.data}
+      >
         <h2 id="history-title" className="text-xl font-bold text-brand">
           Approval history
         </h2>

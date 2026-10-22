@@ -84,7 +84,7 @@ There are 30 equal-weight Sprint 1 tasks below. Do not assign partial credit:
 
 | Scope             | Complete (all gates) | Implemented I | In progress IP | Blocked B | Not started NS | Total |
 | ----------------- | -------------------: | ------------: | -------------: | --------: | -------------: | ----: |
-| Sprint 1          |                    0 |             2 |             13 |         3 |             12 |    30 |
+| Sprint 1          |                    0 |             2 |             14 |         4 |             10 |    30 |
 | Future (excluded) |                    0 |             0 |              0 |         0 |              5 |     5 |
 
 Complete is an overlapping release measure, not an additional implementation
@@ -144,8 +144,8 @@ IDs, evidence IDs, decision IDs (D), or backend dependency IDs (API).
 | FE-17 | Request detail and status header        | P0       | FE-16, FE-26; API2, API4      | IP    | Code/type/title/submission time/status and current reviewer from server; all request statuses incl. APPROVED/REJECTED/SETTLED mapped without conflating them    | E14-E15; detail route/basic status fixture tested; all status/live response checks remain                  |
 | FE-18 | Workflow stepper and timeline           | P0       | FE-17; API4                   | IP    | Data-driven six-stage sequence; completed/active/future/returned distinct with text/icons; desktop horizontal and mobile vertical; prior approvals retained     | E14-E15; current-stage adapter/active-stage fixture tested; six-stage and populated browser checks pending |
 | FE-19 | Approval and audit history              | P0       | FE-17; API4                   | IP    | Chronological immutable event display with actor/role/action/time/comments and available diffs; accessible expand/collapse; no audit editing                    | E14-E15; event/diff rendering and empty-comment contract tested; ordering/live response pending            |
-| FE-20 | Correction detail and permitted editing | P0       | FE-17, FE-19; D3, D5          | NS    | Returning reviewer/reason prominent; correction sections/fields follow agreed permissions; retain existing documents and approvals                              | E0; returned-by-HOD/Exam/Finance scenarios                                                                 |
-| FE-21 | Review and resubmit corrections         | P0       | FE-20, FE-15; API5            | NS    | Review corrected values and reconfirm declaration; resubmit to same returning officer/stage; no replay of approved stages; refresh history                      | E0; Exam/Finance direct-resubmission E2E evidence required                                                 |
+| FE-20 | Correction detail and permitted editing | P0       | FE-17, FE-19; D3, D5          | IP    | Returned reason, reviewer, date, stage, and available application data are shown; correction target/edit permissions are not invented; editing remains gated by a validated backend contract | E21; read-only returned view and mocked states tested; Figma edit actions disabled pending contract |
+| FE-21 | Review and resubmit corrections         | P0       | FE-20, FE-15; API5            | B     | Corrected values, declaration, and verified resubmission transition are reviewed; duplicate submission is prevented and server response is verified | E21; no correction-save endpoint or validated updatedFormData schema; actions remain disabled |
 | FE-22 | Officer work queues                     | P0       | FE-08, FE-26; API4            | NS    | HOD/Dean/Exam/Finance/Bursar queues and request links; correct department/faculty scope; loading/error/empty and supported pagination                           | E0; all reviewer roles and forbidden-scope cases                                                           |
 | FE-23 | Officer detail and review actions | P0 | FE-22, FE-17, FE-19; API5, D3 | I | Read-only claim/evidence review; approved role/stage actions only; required return comments and valid target; confirmation, pending and failure states | Source-verified against merged PR #31; 31 focused mocked tests pass; no live mutation test |
 | FE-24 | Finance/Bursar settlement visibility    | P0       | FE-23, FE-18; API5, D8        | NS    | Distinguish finance payout authorization from Bursar settlement; show server amount/status and available settlement history; no claim of payment before SETTLED | E0; full six-stage forward path and settled read-only view                                                 |
@@ -157,7 +157,7 @@ IDs, evidence IDs, decision IDs (D), or backend dependency IDs (API).
 | ----- | ------------------------------------------------ | -------- | --------------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | FE-26 | Typed API and shared data-state integration      | P0       | FE-03, FE-07; API1-API5           | IP    | Typed verified DTO mapping, base URL, auth/error handling, cancellation, safe retries and refresh after mutations; accessible loading/retry/empty states                    | E13; profile/circular reads implemented; live authenticated GETs unverified |
 | FE-27 | Accessibility, responsive and Figma audit        | P1       | FE-04 through FE-25 as delivered  | NS    | WCAG 2.1 AA checks; keyboard/screen reader/focus/contrast; reduced motion; form/table/mobile layouts; screenshots matched to approved frames                                | E0; 390px scaffold check is not full accessibility QA                       |
-| FE-28 | Automated frontend and security regression suite | P0       | FE-13, FE-18, FE-21, FE-23, FE-26 | IP    | Component/integration/E2E tests for claims, totals, draft recovery, all stage actions, returns, IDOR/role boundaries and failure cases; agreed coverage measured            | E17; 97 local tests; live workflow/security integration remains outstanding |
+| FE-28 | Automated frontend and security regression suite | P0       | FE-13, FE-18, FE-21, FE-23, FE-26 | IP    | Component/integration/E2E tests for claims, totals, draft recovery, all stage actions, returns, IDOR/role boundaries and failure cases; agreed coverage measured            | E21; 211 local tests passed serially; live workflow/security integration remains outstanding |
 | FE-29 | CI and reproducible frontend delivery checks     | P1       | FE-01, FE-28; D9                  | NS    | npm ci, lint, type-check, build, formatting and appropriate tests required on PRs; lockfile/runtime verified; hosting fallback and env documented                           | E0; existing CI lacks frontend test/format steps and permits some failures  |
 | FE-30 | Integrated QA, UAT and Sprint 1 handoff          | P0       | FE-09 through FE-29               | NS    | Live backend six-role journey and failure/return paths verified; teammate and PR approvals, passing CI and mvp merges recorded; QA/UAT sign-off and known issues documented | E0; no frontend QA/UAT or merge evidence                                    |
 
@@ -170,10 +170,13 @@ below apply individually, not as a combined approval. Expand ranges as work move
 | ------------------------------------------------------------------------- | ------------------------------------------ | ------------------- | -------------------------------------- | --------------------------------------------------------- | ------------------------------------- | ---------- |
 | FE-01                                                                     | PASS, E2-E4/E7                             | UNVERIFIED          | PUSHED, 101184c                        | MERGED, [#8](https://github.com/jayasahan/UTAAS/pull/8)   | UNVERIFIED                            | UNVERIFIED |
 | FE-02                                                                     | PARTIAL, E5                                | PENDING             | UNCOMMITTED                            | NOT OPENED                                                | NOT RUN                               | NOT RUN    |
-| FE-03, FE-08/FE-09, FE-11, FE-16, FE-20 through FE-25, FE-27, FE-29/FE-30 | NOT RUN                                    | PENDING             | UNCOMMITTED                            | NOT OPENED                                                | NOT RUN                               | NOT RUN    |
+| FE-03, FE-08/FE-09, FE-11, FE-16, FE-22 through FE-25, FE-27, FE-29/FE-30 | NOT RUN                                    | PENDING             | UNCOMMITTED                            | NOT OPENED                                                | NOT RUN                               | NOT RUN    |
+| FE-20                                                                     | PARTIAL, E21; mocked returned-request tests, no live data | PENDING             | UNCOMMITTED                            | NOT OPENED                                                | NOT RUN                               | NOT RUN    |
+| FE-21                                                                     | PARTIAL, E21; unsupported actions disabled               | PENDING             | UNCOMMITTED                            | NOT OPENED                                                | NOT RUN                               | NOT RUN    |
 | FE-04                                                                     | PASS, E10                                  | UNVERIFIED          | PUSHED, ab47148                        | MERGED, [#9](https://github.com/jayasahan/UTAAS/pull/9)   | UNVERIFIED                            | NOT RUN    |
 | FE-05/FE-06                                                               | PARTIAL, E9/E10                            | UNVERIFIED          | PUSHED, ab47148                        | Partial scope merged in #9; full tasks remain IP          | UNVERIFIED                            | NOT RUN    |
-| FE-12/FE-13/FE-14/FE-15/FE-28                                             | PARTIAL, E11/E12/E13                       | PENDING for Phase 3 | Phase 1 PUSHED b5e2689; Phase 2 MERGED | UI scope MERGED #10; Phase 2 MERGED #12                   | PR checks unavailable; local E13 pass | NOT RUN    |
+| FE-12/FE-13/FE-14/FE-15                                             | PARTIAL, E11/E12/E13                       | PENDING for Phase 3 | Phase 1 PUSHED b5e2689; Phase 2 MERGED | UI scope MERGED #10; Phase 2 MERGED #12                   | PR checks unavailable; local E13 pass | NOT RUN    |
+| FE-28                                                                     | PARTIAL, E21; 211/211 automated tests, mocks only | PENDING             | UNCOMMITTED                            | NOT OPENED                                                | NOT RUN                               | NOT RUN    |
 | FE-07/FE-26                                                               | PARTIAL, E13                               | PENDING             | MERGED via #12                         | MERGED, [#12](https://github.com/jayasahan/UTAAS/pull/12) | No reported checks; local E13 pass    | UNVERIFIED |
 | FE-10/FE-17/FE-18/FE-19                                                   | PARTIAL, E14-E15 mocked/browser scope only | PENDING             | LOCAL, UNCOMMITTED                     | NOT OPENED                                                | NOT RUN                               | UNVERIFIED |
 
@@ -996,3 +999,53 @@ role control had a visible blue outline. The local backend was not listening on
 port 4000; populated authenticated browser states and live API integration
 remain unverified. The feature remains uncommitted and has no PR, teammate
 review, CI, merge, or independent QA evidence.
+
+## Lecturer Correction & Resubmission — read-only preparation (E21, 2026-10-22)
+
+Branch `feature/frontend-correction-resubmission` was created in a separate
+worktree from latest `origin/mvp` at `05a2153fd24e1e9c883e642417c13c681349a6b4`.
+Backend PR #31 commit `b28bc5523efdf252d59f31683f742a57e436f171` is in this base.
+The original persistence checkout, other worktrees, and recovery stashes were
+preserved.
+
+The existing lecturer request-detail route now presents returned requests with
+a read-only correction review based on the [PRIMARY Lecturer Application Detail & Correction frame 67:50](https://www.figma.com/design/BzLWUOHB9HGDnUV6fNGbrG/UTAAS?node-id=67-50). It shows
+the returned status, latest verified return comment, role and timestamp when
+provided, current workflow stage, applicant profile fields from the request
+relation, academic metadata, backend aggregate claim quantities, server fee
+breakdown/total, and supporting-document names/categories without storage URLs.
+It keeps the existing tracking and audit history view. If a structured target
+section is absent, the UI says so instead of inferring one. Edit Corrections and
+Review & Resubmit remain disabled; no workflow mutation call was added.
+
+Backend source inspection confirms `GET /api/v1/requests/paper-marking/:id`,
+`GET /api/v1/requests/:id/tracking`, and `GET /api/v1/requests/:id/history` use
+JWT-authenticated lecturer ownership checks. Request details return the
+applicant relation, `formData.metadata`, aggregate `formData.items`, optional
+server `feeCalculation`, document metadata, and request total. Tracking and
+history expose returned stages and audit comments. The UI only renders tracking
+and history after request detail access succeeds.
+
+Issue #27 was closed by merged backend PR #31. The backend exposes
+`POST /api/v1/requests/:id/actions` with `action: RESUBMIT`, optional comments,
+and optional generic `updatedFormData`. The service checks original applicant
+ownership and `RETURNED_FOR_CORRECTION`, shallow-merges generic data, and routes
+to an inferred prior stage. However, `updatedFormData` has no field-level or
+nested schema validation, correction comments/targets are not a structured
+field map, no correction-specific save endpoint exists, and the handler does
+not recalculate the fee data on this path. Existing persisted Paper Marking
+claims contain aggregate quantities rather than the frontend's per-paper rows.
+Document metadata is present, but this task does not change files or document
+associations. These contract gaps block editing and safe live resubmission;
+frontend role checks or disabled buttons are not a backend security substitute.
+
+Validation: `npm ci` completed with 0 reported vulnerabilities; focused
+correction/request-page tests passed 12/12; full Vitest passed 211/211 across 22
+files with one worker and a temporary 15-second test timeout. An initial
+parallel run hit the existing Paper Marking tests' 5-second timeout twice;
+the serial full run passed. ESLint, strict TypeScript, changed TypeScript
+Prettier checks, production build, and `git diff --check` passed. Tests use
+mocked responses only. No safe authenticated returned request was available,
+so live backend integration and populated-page browser, responsive, and keyboard
+checks were not performed. Whole-file Prettier checks report formatting drift in both long-lived Markdown trackers; their historical sections were not reformatted. Independent review, CI, and QA remain unverified.
+This worktree is uncommitted; no backend, CI, or agent files were changed.

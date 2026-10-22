@@ -639,3 +639,47 @@ so dashboard API requests are not available there. The existing mock-login
 session is development-only and uses in-memory bearer authentication.
 Issue #26's officer-specific review-history authorization/scope decision remains
 pending; this dashboard does not query or change that endpoint.
+
+## Lecturer correction and resubmission contract — PR #31 (2026-10-22)
+
+Inspected the merged backend source and tests in latest `origin/mvp` at
+`05a2153fd24e1e9c883e642417c13c681349a6b4`. Backend PR #31 commit
+`b28bc5523efdf252d59f31683f742a57e436f171` adds return-action handling and routing. GitHub Issue #27 is closed; source inspection still finds optional comment and target fields, with a generic service comment used when no comment is supplied. This is not a live integration test.
+
+| Endpoint | Verified contract and authorization | Frontend use / limitation |
+| --- | --- | --- |
+| `GET /api/v1/requests/paper-marking/:id` | JWT and UUID route; service allows a lecturer only when `applicantId` matches. Returns Request with `applicant`, `applicant.department`, `formData`, stage history, and audit events. | Existing request detail GET is reused. The correction view decodes only applicant name/department, academic metadata, aggregate items, fee data, document name/category, and total. |
+| `GET /api/v1/requests/:id/tracking` | JWT; service checks lecturer ownership. Includes current stage and returned stage status/comment/actor/time where present. | Existing tracking GET reused only after the detail GET succeeds. |
+| `GET /api/v1/requests/:id/history` | JWT; service checks lecturer ownership. Returns chronological audit events with action, actor role/name, status transition, comment, and timestamp. | Existing history GET reused only after detail access succeeds; latest return event supplies the displayed comment/role/date when present. |
+| `POST /api/v1/requests/:id/actions` with `action: RESUBMIT` | `TransitionActionDto` accepts optional `comments` and optional generic `updatedFormData: Record<string, any>`. Service checks original applicant ownership (or ADMIN) and status `RETURNED_FOR_CORRECTION`, shallow-merges updates, and resumes at a stage inferred from `returningOfficerId`; unrecognized roles fall back to HOD. It returns the updated Request. | Not called by this frontend feature. No correction editor or live resubmission is enabled. |
+| `POST /api/v1/requests/paper-marking/draft?draftId=...` | Existing draft operation accepts a Paper Marking DTO and only updates records whose status remains `DRAFT`; submitted claims are rejected. | Not a correction-save operation; it cannot safely save a returned claim. |
+
+### Remaining correction blockers
+
+- `updatedFormData` is optional generic data without `@IsObject`, nested DTO
+  validation, or an allowlist of editable fields. The service shallow-merges
+  arbitrary provided keys.
+- The return DTO accepts optional comments and an optional workflow target; omitted comments receive a generic service fallback. It does not provide a structured section/field correction target for the lecturer UI.
+- No correction-specific save endpoint exists. The DRAFT update endpoint
+  explicitly rejects non-DRAFT requests.
+- This resubmission path does not call the Paper Marking fee calculator. It
+  does not establish updated fee totals/rate recalculation for corrected data.
+- Current persisted form data uses aggregate item quantities and does not retain
+  the frontend's multiple-paper row model or separate candidate/hour assessment
+  quantities. New uploads and correction-time document association are not
+  established by this workflow contract.
+- The service checks ownership and returned status but does not explicitly
+  require `currentStageKey === LECTURER_CORRECTION` before RESUBMIT. It also has
+  no demonstrated idempotency/locking guarantee for concurrent duplicate
+  requests. Frontend controls remain disabled; request authorization is owned
+  by the backend.
+
+The frontend uses the safe read-only detail/tracking/history responses to show
+available return comments and submitted data. It omits absent section targets,
+per-paper rows, private document URLs, and unverified editable fields. No write
+request, fake response, or live authenticated integration was performed.
+
+Related: [Issue #27](https://github.com/jayasahan/UTAAS/issues/27) and
+[merged backend PR #31](https://github.com/jayasahan/UTAAS/pull/31). Issue closure
+confirms PR merge, not that the remaining field-level correction contract has
+been resolved.
