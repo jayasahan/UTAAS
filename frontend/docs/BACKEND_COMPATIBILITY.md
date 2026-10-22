@@ -683,3 +683,37 @@ Related: [Issue #27](https://github.com/jayasahan/UTAAS/issues/27) and
 [merged backend PR #31](https://github.com/jayasahan/UTAAS/pull/31). Issue closure
 confirms PR merge, not that the remaining field-level correction contract has
 been resolved.
+
+## Officer Dashboard queue contract — 2026-10-22
+
+Source-inspected `origin/mvp` at
+`1e8f4d5419b02553b2b26931ebb089d8672db61f`. The dashboard reuses
+`GET /api/v1/auth/me` and JWT-guarded
+`GET /api/v1/requests/pending-queue?page=1&limit=5`; no new backend
+endpoint or authentication transport is introduced. The queue service filters
+`UNDER_REVIEW` by active workflow stage: HOD to
+`HEAD_OF_DEPARTMENT` and applicant department ID (missing HOD department ID
+fails closed), DEAN to `DEAN`, EXAMINATION_OFFICER to
+`EXAMINATION_OFFICE`, FINANCIAL_OFFICER to `FINANCIAL_OFFICE`, and
+ASSISTANT_BURSAR to `ASSISTANT_BURSAR`. Dean results are stage-scoped in
+source, without a demonstrated faculty boundary. ADMIN can use the existing
+all-stage queue but is not shown the new reviewer dashboard.
+
+The paginated response supplies `data` and `meta.total`, `page`, `limit`,
+and `totalPages`. Each queue row has ID, tracking number, request type,
+applicant name/email, department code, status, current stage, total amount,
+metadata, and `submittedAt`. The service maps `submittedAt` from
+`request.createdAt` and orders by creation time ascending. The dashboard
+therefore labels this field `Request date` and describes its five-row
+preview as the next requests in queue order.
+
+Only Pending Reviews has an accurate role/stage-scoped total via
+`meta.total`. The queue does not provide completed-review,
+returned-for-correction, or recent-activity aggregates. Issue
+[#26](https://github.com/jayasahan/UTAAS/issues/26)'s completed-history
+individual-versus-role scope remains unresolved for frontend use; this
+dashboard does not call `/requests/review-history` or infer personal review
+counts from it. Those three metrics are explicitly unavailable. Backend
+authorization remains authoritative; frontend role checks only prevent
+inappropriate navigation and requests. Production session availability and
+live authenticated dashboard integration remain unverified.

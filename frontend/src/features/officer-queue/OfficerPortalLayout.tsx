@@ -7,6 +7,7 @@ import { useOfficerAccess } from './officerAccess';
 import type { OfficerAccessFeedbackProps } from './officerAccess';
 
 const officerNavigation = [
+  { to: '/officer', label: 'Dashboard', end: true },
   { to: '/officer/queue', label: 'Approval Queue', end: false },
   { to: '/officer/review-history', label: 'Review History', end: true },
 ] as const;
@@ -25,7 +26,13 @@ export function OfficerPortalLayout() {
       <AppLayout
         variant="officer"
         workspaceLabel="Officer Portal"
-        items={allowed ? officerNavigation : []}
+        items={
+          allowed
+            ? role === 'ADMIN'
+              ? officerNavigation.slice(1)
+              : officerNavigation
+            : []
+        }
       />
     </OfficerAccessProvider>
   );

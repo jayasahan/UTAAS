@@ -1049,3 +1049,44 @@ mocked responses only. No safe authenticated returned request was available,
 so live backend integration and populated-page browser, responsive, and keyboard
 checks were not performed. Whole-file Prettier checks report formatting drift in both long-lived Markdown trackers; their historical sections were not reformatted. Independent review, CI, and QA remain unverified.
 This worktree is uncommitted; no backend, CI, or agent files were changed.
+
+## Officer Dashboard — local implementation (E22, 2026-10-22)
+
+Branch `feature/frontend-officer-dashboard` was created in a separate clean
+worktree from `origin/mvp` at `1e8f4d5419b02553b2b26931ebb089d8672db61f`.
+All existing worktrees and recovery stashes remain untouched. The latest
+baseline includes the merged lecturer correction review.
+
+No dedicated PRIMARY Officer Dashboard frame was found in the current Figma
+officer page. The dashboard follows the PRIMARY Officer Approval Queue
+(`60:2`) for the officer shell, institutional colors, card treatment, table,
+and navigation; it does not use archived dashboard samples.
+
+The new `/officer` route is implemented for the five verified workflow reviewer
+roles: HOD, DEAN, EXAMINATION_OFFICER, FINANCIAL_OFFICER, and
+ASSISTANT_BURSAR. A decoded `/auth/me` profile is required before fetching
+`/requests/pending-queue?page=1&limit=5`. HOD access remains blocked if
+`departmentId` is missing. ADMIN retains its existing queue access but does
+not receive this reviewer dashboard. The page links to the existing Approval
+Queue, authorized request review route, and Review History presentation; it
+does not call workflow mutations or the disputed review-history endpoint.
+
+Pending Reviews uses the backend's role/stage-scoped `meta.total`, including
+when only five rows are previewed. Completed Reviews, Returned for Correction,
+and Recent Activity display `Unavailable` because accurate, authorized totals
+are not established. The preview follows the backend's ascending request
+creation order and labels its timestamp `Request date`; the API's
+`submittedAt` field currently carries `request.createdAt`. Dean wording is
+stage-scoped rather than claiming faculty-wide enforcement.
+
+Automated tests use fictional mocked responses. Focused dashboard tests passed
+16/16; the full frontend suite passed 227/227 across 23 files using one worker
+and a temporary 15-second timeout. ESLint, strict TypeScript, changed-file
+Prettier, and production build passed. At CSS viewport widths 390, 768, and
+1440, a signed-out browser smoke check found no document overflow; a keyboard
+Tab check found a visible focus outline on the development sign-in control.
+Populated dashboard browser behavior and live authenticated GET integration
+were not verified. Production authentication remains blocked by separate
+backend contract work, so populated production behavior is not claimed. This
+branch is uncommitted and has no teammate review, PR, CI, merge, or independent
+QA evidence.
