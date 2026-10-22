@@ -78,13 +78,15 @@ function reviewFor(role: TestRole): OfficerClaimReview {
 
 describe('officer workflow action contracts', () => {
   it.each([
-    ['HOD', 'APPROVE'],
-    ['DEAN', 'APPROVE'],
-    ['EXAMINATION_OFFICER', 'APPROVE'],
-    ['FINANCIAL_OFFICER', 'APPROVE_PAYOUT'],
-    ['ASSISTANT_BURSAR', 'SETTLE'],
-  ] as const)('maps %s to the verified %s action', (role, action) => {
-    expect(resolveOfficerDecision(reviewFor(role))?.action).toBe(action);
+    ['HOD', 'APPROVE', 'Approve'],
+    ['DEAN', 'APPROVE', 'Approve'],
+    ['EXAMINATION_OFFICER', 'APPROVE', 'Verify & Approve'],
+    ['FINANCIAL_OFFICER', 'APPROVE_PAYOUT', 'Authorize payout'],
+    ['ASSISTANT_BURSAR', 'SETTLE', 'Final Approve (settlement)'],
+  ] as const)('maps %s to %s with the label %s', (role, action, label) => {
+    const decision = resolveOfficerDecision(reviewFor(role));
+    expect(decision?.action).toBe(action);
+    expect(decision?.buttonLabel).toBe(label);
   });
 
   it('does not offer actions to administrators or stale/mismatched stages', () => {
@@ -380,7 +382,7 @@ describe('OfficerDecisionSection', () => {
       />,
     );
     expect(
-      screen.getByRole('button', { name: 'Final Approve' }),
+      screen.getByRole('button', { name: 'Final Approve (settlement)' }),
     ).toBeDisabled();
     expect(screen.getByText(/fictional preview/i)).toBeVisible();
     expect(previewAction).not.toHaveBeenCalled();
@@ -397,11 +399,15 @@ describe('OfficerDecisionSection', () => {
         onExecute={onExecute}
       />,
     );
-    expect(screen.getByRole('button', { name: 'Final Approve' })).toBeVisible();
+    expect(
+      screen.getByRole('button', { name: 'Final Approve (settlement)' }),
+    ).toBeVisible();
     expect(
       screen.queryByRole('button', { name: 'Return for correction' }),
     ).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Final Approve' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Final Approve (settlement)' }),
+    );
     await user.click(
       screen.getByRole('button', { name: 'Confirm settlement' }),
     );
