@@ -1238,3 +1238,40 @@ Validation on Node `v25.2.1`: focused auth/API tests passed `59/59` across 5 fil
 A production preview browser check covered CSS viewport widths 390, 768 and 1440 with no document overflow. Keyboard Tab moved through the email, password, password-visibility and submit controls with visible focus outlines; the password toggle changed its accessible label and input type; empty submission focused the email field and retained native required-field validation. Direct navigation to `/requests/new` redirected to `/login`, and no API request was made while signed out. The local backend at `127.0.0.1:4000` was unavailable, so live credentials were not submitted and authenticated populated-page behavior was not browser-verified. Browser checks are smoke checks, not independent QA.
 
 The PRIMARY Figma search found only frame `6:170`, “Authentication / Institutional sign-in”, marked provisional rather than PRIMARY. The sign-in screen follows its institutional navy/white composition and the existing UTAAS tokens, but final visual acceptance depends on an approved design. No backend, CI, agent or unrelated worktree files were changed. Independent review, CI and QA remain pending. This feature is uncommitted; no push, PR or merge was created.
+
+## Live Officer Review History integration — 2026-10-22
+
+Implemented on `feature/frontend-officer-history-final` in the separate
+`UTAAS-officer-history-final` worktree, based on `origin/mvp` commit
+`1c6e8e0039fafea51ed76e97be80d4fd9fe608e8` (backend PR #49). The production
+Officer Review History page now loads the authenticated
+`GET /api/v1/requests/review-history` contract through the shared API client.
+Personal decisions are the default; role-wide decisions require an explicit
+scope selection and are labeled as role-wide. Server-provided summary counts,
+search, decision filtering, and pagination are used. Date and department
+filters are not sent because the endpoint does not support them. The page
+renders authorized response events as request activity and does not navigate
+to request details or documents through separate endpoints.
+
+The response decoder and page handle malformed data, loading, empty results,
+401, 403, unavailable, network failure, and retry states. HOD results remain
+department-scoped by the backend; a missing HOD department fails closed. The
+existing fictional preview remains development-only and is not a production
+data source. A production bundle scan for known preview record identifiers and
+names found no matches.
+
+Validation on Node `v25.2.1`: focused Officer Review History tests passed
+`27/27`; the final serial full frontend suite passed `290/290` across 28 files
+with one worker and a 15-second test timeout. ESLint, strict TypeScript,
+production build, changed TypeScript/TSX Prettier checks, and
+`git diff --check` passed. Full-file Prettier reports historical formatting
+drift in both long-lived Markdown trackers; prior history was preserved
+without reformatting it.
+
+Playwright exercised the populated page with mocked authentication and history
+responses, not a live backend. The authenticated history GET included a bearer
+header; the record rendered at CSS widths 390, 768, 1024, and 1440 without
+document overflow. The table remained horizontally scrollable on narrow widths,
+and keyboard focus showed a visible outline. Live authenticated integration,
+independent QA, CI, and teammate review remain unverified. This feature is
+uncommitted; no push, PR, or merge was created.
