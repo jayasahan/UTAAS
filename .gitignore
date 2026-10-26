@@ -43,6 +43,7 @@ coverage/
 *.sw?
 .DS_Store
 Thumbs.db
+~$*
 
 # Docker / Temporary
 docker-compose.override.yml
