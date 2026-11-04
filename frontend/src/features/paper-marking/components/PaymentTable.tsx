@@ -21,6 +21,7 @@ export function PaymentTable({
   onRemove,
   durations,
   durationsReady,
+  settingUnavailable = false,
 }: {
   papers: PaperRow[];
   rates?: VerifiedRates;
@@ -34,6 +35,7 @@ export function PaymentTable({
   onRemove: (id: string) => void;
   durations: readonly PaperDurationOption[];
   durationsReady: boolean;
+  settingUnavailable?: boolean;
 }) {
   function field(
     row: PaperRow,
@@ -54,6 +56,17 @@ export function PaymentTable({
         label={`${label} — paper ${index + 1}`}
         value={row[key]}
         required
+        disabled={
+          key === 'settingCount' &&
+          settingUnavailable &&
+          Number(row.settingCount) === 0
+        }
+        {...(key === 'settingCount' && settingUnavailable
+          ? {
+              hint: 'Whole-paper setting is unavailable. A previously entered value can be cleared to 0; shared setting requires the shared-claims feature.',
+              max: 0,
+            }
+          : {})}
         maxLength={key === 'title' ? 200 : 16}
         className={key === 'title' ? 'min-w-48' : 'min-w-32'}
         {...(key === 'title'

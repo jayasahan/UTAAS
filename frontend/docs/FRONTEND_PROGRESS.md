@@ -1319,8 +1319,33 @@ Verification on Node `v24.18.1`:
 - Locked dependency installation reported 13 moderate advisories. Dependency
   manifests were unchanged; dependency remediation is outside this task.
 
-Review status: **PENDING**. Human reviewer: unassigned. The implementation is
-committed as `c8cc8a8` on `feature/frontend-academic-dropdowns` and is present on
-`origin/feature/frontend-academic-dropdowns`; no PR is open yet. Live
-authenticated API/database integration, current Figma/browser visual
-acceptance, independent QA, and PR CI remain outstanding.
+Review status: **MERGED**. PR [#62](https://github.com/jayasahan/UTAAS/pull/62)
+was merged into `mvp` as `8b8a16b`; all three PR checks passed. Live authenticated
+API/database integration, current Figma/browser visual acceptance, and
+independent QA remain outstanding.
+
+## 2026-11-05 — Task 5: Paper structure and quota display
+
+Branch: `feature/frontend-paper-structure-quotas`; PR base: `mvp`. Rebased on
+`origin/mvp` after academic dropdown PR #62 merged (`8b8a16b`).
+
+Implemented typed registered-structure lookup, reusable structure/registrar/
+examiner-claims/quota presentation, applicant-aware whole-paper setting
+availability, invalid-setting checks, missing-registration guidance, stale-result
+protection, retries, refreshes after relevant save/submit/correction attempts,
+and fresh structure loading on request details. HTTP 400 validation messages now
+support sanitized string and array formats. No storage fields, backend code,
+financial rules or workflow permissions were changed.
+
+The backend marking display and enforcement calculations disagree; marking
+availability remains informational. MCQ/CA usage is currently placeholder data,
+and correction/resubmission does not invoke the server quota validator. These
+limits, row-matching issues, feature-branch dependencies, source contracts, the
+file inventory and suggested PR text are recorded in
+[PAPER_STRUCTURE_QUOTAS.md](PAPER_STRUCTURE_QUOTAS.md).
+
+Verification: 330/330 tests across 30 files (40 new tests), lint, strict TypeScript,
+production build, changed-source/report formatting and diff whitespace checks
+passed. The existing date-dependent history-preview test pins its clock. Tests
+use mocked APIs; live integration, Figma/browser visual review and independent QA
+are unverified. CI and teammate review for this quota PR are pending.

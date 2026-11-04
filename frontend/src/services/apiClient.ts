@@ -34,7 +34,8 @@ async function readValidationMessages(response: Response): Promise<string[]> {
     if (!payload || typeof payload !== 'object' || Array.isArray(payload))
       return [];
     const raw = (payload as Record<string, unknown>).message;
-    const entries = Array.isArray(raw) ? raw : [];
+    const entries =
+      typeof raw === 'string' ? [raw] : Array.isArray(raw) ? raw : [];
     return entries
       .filter((entry): entry is string => typeof entry === 'string')
       .map((entry) => entry.trim().slice(0, 240))

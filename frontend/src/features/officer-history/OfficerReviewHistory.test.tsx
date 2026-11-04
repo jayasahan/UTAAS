@@ -127,9 +127,9 @@ function renderDevelopmentPreview() {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
-  vi.useRealTimers();
 });
 
 describe('Officer Review History page', () => {

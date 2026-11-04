@@ -40,6 +40,9 @@ import {
   toCorrectionPayload,
   verifyCorrectionResponse,
 } from '../corrections/correctionPersistence';
+import { usePaperStructure } from './structure/usePaperStructure';
+import { PaperStructurePanel } from './structure/PaperStructurePanel';
+import { settingAvailability, settingQuotaErrors } from './structure/quotas';
 
 function apiFailureMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError)
@@ -155,6 +158,18 @@ export function PaperMarkingClaimPage() {
   const hasSession = Boolean(integration.session.client);
   const lecturerSession =
     hasSession && integration.profile.data?.role === 'LECTURER';
+  const paperStructure = usePaperStructure(
+    lecturerSession ? integration.session.client : null,
+    claim.form.academic,
+  );
+  const quotaErrors = settingQuotaErrors(
+    claim.form.papers,
+    paperStructure.data,
+    loadedProfile?.id,
+  );
+  const settingUnavailable =
+    settingAvailability(paperStructure.data, loadedProfile?.id)
+      ?.wholePaperAvailable === false;
   const verifiedRates = verifiedRatesFromCircular(integration.circular.data);
   const correctionContext = correction.status === 'ready' ? correction : null;
   const currentDocuments = correctionContext
@@ -187,16 +202,21 @@ export function PaperMarkingClaimPage() {
     }
     setPersistedDocuments(update);
   }
-  const navigateClaim = (target: number) =>
-    claim.navigate(
-      target,
-      currentDocuments.length,
-      validateAcademicChoices(claim.form, academicChoices),
-    );
+  const academicErrors = () =>
+    validateAcademicChoices(claim.form, academicChoices);
   const reviewErrors = () => [
     ...validateReview(claim.form, currentDocuments.length),
-    ...validateAcademicChoices(claim.form, academicChoices),
+    ...academicErrors(),
+    ...quotaErrors,
   ];
+  const navigateClaim = (target: number) => {
+    if (target > 1 && target > claim.step && quotaErrors.length) {
+      if (claim.navigate(1, currentDocuments.length, academicErrors()))
+        claim.setErrors([...academicErrors(), ...quotaErrors]);
+      return false;
+    }
+    return claim.navigate(target, currentDocuments.length, academicErrors());
+  };
   const actionHelp = correctionMode
     ? claim.form.documents.length > 0
       ? 'Upload locally selected documents before saving or resubmitting; uploaded references remain separate from the request until saved.'
@@ -370,6 +390,7 @@ export function PaperMarkingClaimPage() {
     } catch (error) {
       setDraftError(apiFailureMessage(error, 'Draft could not be saved.'));
     } finally {
+      paperStructure.refresh();
       setDraftBusy(false);
     }
   }
@@ -473,6 +494,7 @@ export function PaperMarkingClaimPage() {
         ),
       );
     } finally {
+      paperStructure.refresh();
       submitLock.current = false;
       setSubmitBusy(false);
     }
@@ -583,6 +605,7 @@ export function PaperMarkingClaimPage() {
       );
       setResubmitDialogOpen(false);
     } finally {
+      paperStructure.refresh();
       resubmitLock.current = false;
       setSubmitBusy(false);
     }
@@ -915,10 +938,16 @@ export function PaperMarkingClaimPage() {
                 onCourseChange={claim.selectCourse}
                 choices={academicChoices}
               />
+              <PaperStructurePanel
+                resource={paperStructure}
+                onRefresh={paperStructure.refresh}
+                examinerId={loadedProfile?.id}
+              />
               <PaymentTable
                 papers={claim.form.papers}
                 durations={academicChoices.data?.paperDurations ?? []}
                 durationsReady={academicChoices.status === 'ready'}
+                settingUnavailable={settingUnavailable}
                 {...(verifiedRates ? { rates: verifiedRates } : {})}
                 errors={[...claim.errors, ...claim.quantityErrors]}
                 onChange={claim.updatePaper}
@@ -962,15 +991,22 @@ export function PaperMarkingClaimPage() {
             </>
           )}
           {claim.step === 3 && (
-            <ReviewStep
-              form={claim.form}
-              {...(verifiedRates ? { rates: verifiedRates } : {})}
-              uploadedDocuments={currentDocuments}
-              errors={claim.errors}
-              onEdit={navigateClaim}
-              onDeclaration={claim.setDeclaration}
-              correctionMode={correctionMode}
-            />
+            <>
+              <PaperStructurePanel
+                resource={paperStructure}
+                onRefresh={paperStructure.refresh}
+                examinerId={loadedProfile?.id}
+              />
+              <ReviewStep
+                form={claim.form}
+                {...(verifiedRates ? { rates: verifiedRates } : {})}
+                uploadedDocuments={currentDocuments}
+                errors={claim.errors}
+                onEdit={navigateClaim}
+                onDeclaration={claim.setDeclaration}
+                correctionMode={correctionMode}
+              />
+            </>
           )}
         </Card>
         {claim.step === 0 && (
