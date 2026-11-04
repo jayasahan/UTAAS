@@ -29,8 +29,11 @@ describe('SeedService', () => {
     };
 
     mockDeptRepo = {
-      findOne: jest.fn().mockResolvedValue({ id: 'dept-com', code: 'COM', name: 'Computer' }),
-      save: jest.fn(),
+      findOne: jest.fn().mockImplementation((query) => {
+        const code = query?.where?.code || 'IS';
+        return Promise.resolve({ id: `dept-${code}`, code, name: `Dept ${code}` });
+      }),
+      save: jest.fn().mockImplementation((dto) => Promise.resolve({ id: `dept-${dto.code}`, ...dto })),
       create: jest.fn().mockImplementation((dto) => dto),
     };
 
@@ -84,5 +87,6 @@ describe('SeedService', () => {
     process.env.NODE_ENV = 'development';
     await service.seedAll();
     expect(mockUserRepo.save).toHaveBeenCalled();
+    expect(mockCourseModuleRepo.save).toHaveBeenCalled();
   });
 });
