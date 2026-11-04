@@ -10,6 +10,32 @@ import {
 } from 'typeorm';
 import { User } from './user.entity';
 
+export interface HodProportionDivisionRecord {
+  essayWeightPercent: number;
+  mcqWeightPercent: number;
+  comments?: string;
+  setByHodId: string;
+  setByHodName: string;
+  setAt: Date;
+  status: 'AWAITING_LECTURER_CONSENSUS' | 'DISAGREED_RETURNED_TO_HOD' | 'CONSENSUS_REACHED';
+  responses: {
+    lecturerId: string;
+    lecturerName: string;
+    agreed: boolean;
+    comments?: string;
+    respondedAt: Date;
+  }[];
+}
+
+export interface StructureChangeHistoryRecord {
+  changedById: string;
+  changedByName: string;
+  previousTotalQuestions: number;
+  newTotalQuestions: number;
+  reason: string;
+  changedAt: Date;
+}
+
 @Entity('exam_paper_structures')
 @Index(['courseCode', 'academicYear', 'semester', 'examType'], { unique: true })
 export class ExamPaperStructure {
@@ -64,6 +90,12 @@ export class ExamPaperStructure {
 
   @Column({ length: 150 })
   registeredByEmail: string; // e.g. 'lecturer@eng.ruh.ac.lk'
+
+  @Column({ type: 'jsonb', nullable: true })
+  hodProportionDivision?: HodProportionDivisionRecord | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  structureChangeHistory?: StructureChangeHistoryRecord[] | null;
 
   @CreateDateColumn()
   createdAt: Date;

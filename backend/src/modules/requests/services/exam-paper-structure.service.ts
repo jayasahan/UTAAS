@@ -1,9 +1,24 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { ExamPaperStructure } from '../../../database/entities/exam-paper-structure.entity';
 import { Request, RequestStatus } from '../../../database/entities/request.entity';
-import { User } from '../../../database/entities/user.entity';
+import {
+  RequestStageHistory,
+  StageAction,
+} from '../../../database/entities/request-stage-history.entity';
+import { AuditEvent } from '../../../database/entities/audit-event.entity';
+import { User, UserRole } from '../../../database/entities/user.entity';
+import { FeeCalculationService } from './fee-calculation.service';
+import { UpdateExamPaperStructureDto } from '../dto/update-exam-paper-structure.dto';
+import { HodProportionDivisionDto } from '../dto/hod-proportion-division.dto';
+import { LecturerProportionConsensusDto } from '../dto/lecturer-proportion-consensus.dto';
 
 export interface SettingClaimantInfo {
   examinerId: string;
@@ -57,6 +72,8 @@ export interface PaperStructureResponse {
   message?: string;
   paperStructure?: ExamPaperStructure;
   claimsBreakdown?: PaperStructureClaimsBreakdown;
+  hodProportionDivision?: any;
+  structureChangeHistory?: any[];
   registeredBy?: {
     name: string;
     email: string;
@@ -73,6 +90,12 @@ export class ExamPaperStructureService {
     private readonly paperStructureRepo: Repository<ExamPaperStructure>,
     @InjectRepository(Request)
     private readonly requestRepo: Repository<Request>,
+    @InjectRepository(RequestStageHistory)
+    private readonly stageHistoryRepo: Repository<RequestStageHistory>,
+    @InjectRepository(AuditEvent)
+    private readonly auditEventRepo: Repository<AuditEvent>,
+    private readonly feeCalculationService: FeeCalculationService,
+    private readonly dataSource: DataSource,
   ) {}
 
   /**
@@ -107,13 +130,14 @@ export class ExamPaperStructureService {
 
     // Query active/in-flight/approved/settled claims for this identical paper
     const activeRequests = await this.queryClaimsForPaper(code, year, sem, type);
-
     const breakdown = this.aggregateClaimsForPaper(structure, activeRequests);
 
     return {
       exists: true,
       paperStructure: structure,
       claimsBreakdown: breakdown,
+      hodProportionDivision: structure.hodProportionDivision || null,
+      structureChangeHistory: structure.structureChangeHistory || [],
       registeredBy: {
         name: structure.registeredByName,
         email: structure.registeredByEmail,
@@ -190,6 +214,482 @@ export class ExamPaperStructureService {
     }
 
     return registeredStructures;
+  }
+
+  /**
+   * Editable Paper Structure Correction & Approval Step 1 Reset:
+   * If the first lecturer (or HOD/Admin) made a mistake about question numbers,
+   * they can edit it. If edited, all downstream officer approvals are invalidated and
+   * the claim(s) reset to Step 1 (HEAD_OF_DEPARTMENT) to go through the fresh approval process.
+   */
+  async updatePaperStructureAndResetApproval(
+    user: User,
+    dto: UpdateExamPaperStructureDto,
+  ): Promise<{
+    message: string;
+    paperStructure: ExamPaperStructure;
+    resetClaimsCount: number;
+  }> {
+    const code = dto.courseCode.trim().toUpperCase();
+    const academicYear = dto.academicYear.trim();
+    const semester = dto.semester.trim();
+    const examType = dto.examType.trim();
+
+    const structure = await this.paperStructureRepo.findOne({
+      where: {
+        courseCode: code,
+        academicYear,
+        semester,
+        examType,
+      },
+    });
+
+    if (!structure) {
+      throw new NotFoundException(
+        `Examination paper structure for ${code} (${academicYear} ${semester}) not found`,
+      );
+    }
+
+    // Authorization: Only the original registrant, HOD, or Admin can edit the structure
+    const isRegistrant = structure.registeredById === user.id;
+    const isHod = user.role === UserRole.HOD;
+    const isAdmin = user.role === UserRole.ADMIN;
+
+    if (!isRegistrant && !isHod && !isAdmin) {
+      throw new ForbiddenException(
+        'Only the lecturer who established this paper structure, the Head of Department, or an administrator can edit the examination paper structure',
+      );
+    }
+
+    // Validation against other examiners' already claimed questions
+    if (dto.totalQuestions !== undefined && dto.totalQuestions < structure.totalQuestions) {
+      const otherClaims = await this.queryClaimsForPaper(
+        code,
+        academicYear,
+        semester,
+        examType,
+        structure.registeredById,
+      );
+
+      let otherClaimedQuestions = 0;
+      const otherClaimants: string[] = [];
+
+      for (const req of otherClaims) {
+        const row = this.findMatchingRowInRequest(req, code);
+        if (row) {
+          const count = this.getSettingQuestionsClaimedInRow(row, structure.totalQuestions);
+          if (count > 0) {
+            otherClaimedQuestions += count;
+            const name = req.applicant?.fullName || 'Examiner';
+            otherClaimants.push(`${name} (${count} q)`);
+          }
+        }
+      }
+
+      if (dto.totalQuestions < otherClaimedQuestions) {
+        throw new BadRequestException(
+          `Cannot reduce total questions to ${dto.totalQuestions}. Other examiners have already claimed ${otherClaimedQuestions} question(s) [${otherClaimants.join(', ')}].`,
+        );
+      }
+    }
+
+    // Record change history
+    const prevTotal = structure.totalQuestions;
+    const historyEntry = {
+      changedById: user.id,
+      changedByName: user.fullName,
+      previousTotalQuestions: prevTotal,
+      newTotalQuestions: dto.totalQuestions ?? prevTotal,
+      reason: dto.correctionReason,
+      changedAt: new Date(),
+    };
+
+    structure.structureChangeHistory = [
+      ...(structure.structureChangeHistory || []),
+      historyEntry,
+    ];
+
+    if (dto.totalQuestions !== undefined) structure.totalQuestions = dto.totalQuestions;
+    if (dto.totalMcqQuestions !== undefined) structure.totalMcqQuestions = dto.totalMcqQuestions;
+    if (dto.totalCandidates !== undefined) structure.totalCandidates = dto.totalCandidates;
+    if (dto.paperDurationHours !== undefined) structure.paperDurationHours = dto.paperDurationHours;
+    if (dto.paperType !== undefined) structure.paperType = dto.paperType;
+    if (dto.essayWeightPercent !== undefined) structure.essayWeightPercent = dto.essayWeightPercent;
+    if (dto.mcqWeightPercent !== undefined) structure.mcqWeightPercent = dto.mcqWeightPercent;
+
+    const savedStructure = await this.paperStructureRepo.save(structure);
+
+    // Reset all submitted / under review claims to Step 1 (HEAD_OF_DEPARTMENT)
+    const activeRequests = await this.queryClaimsForPaper(code, academicYear, semester, examType);
+    let resetCount = 0;
+
+    for (const req of activeRequests) {
+      // 1. Synchronize paper rows with new totalQuestions and recalculate fees
+      const papers = req.formData?.papers || [];
+      for (const p of papers) {
+        const pCode = this.extractCourseCode(p.courseCode, p.title);
+        if (pCode === code) {
+          if (p.settingShare) {
+            p.settingShare.totalQuestions = savedStructure.totalQuestions;
+            if (p.settingShare.questionsClaimed > savedStructure.totalQuestions) {
+              p.settingShare.questionsClaimed = savedStructure.totalQuestions;
+            }
+            p.settingShare.proportion = p.settingShare.questionsClaimed / savedStructure.totalQuestions;
+          }
+          if (p.markingShare) {
+            p.markingShare.totalQuestions = savedStructure.totalQuestions;
+            if (p.markingShare.questionsClaimed > savedStructure.totalQuestions) {
+              p.markingShare.questionsClaimed = savedStructure.totalQuestions;
+            }
+            p.markingShare.proportion = p.markingShare.questionsClaimed / savedStructure.totalQuestions;
+          }
+        }
+      }
+
+      const computedItems = req.formData?.items || this.feeCalculationService.aggregateFromPaperRows(papers);
+      const feeCalculation = this.feeCalculationService.calculateClaimFees(computedItems, papers);
+
+      req.formData = {
+        ...req.formData,
+        papers,
+        items: computedItems,
+        feeCalculation,
+      };
+      req.totalAmount = feeCalculation.totalAmount;
+
+      // 2. Reset workflow progress to Step 1 (HEAD_OF_DEPARTMENT)
+      const prevStatus = req.status;
+      req.status = RequestStatus.UNDER_REVIEW;
+      req.currentStageKey = 'HEAD_OF_DEPARTMENT';
+      req.returningOfficerId = null;
+
+      // 3. Reset Stage History: All stages from Stage 1 (HOD) onwards become PENDING
+      const stageHistories = await this.stageHistoryRepo.find({
+        where: { requestId: req.id },
+        order: { stageOrder: 'ASC' },
+      });
+
+      for (const stg of stageHistories) {
+        if (stg.stageOrder >= 1) {
+          stg.action = StageAction.PENDING;
+          stg.actorId = null;
+          stg.completedAt = null;
+          stg.comments = null;
+          if (stg.stageKey === 'HEAD_OF_DEPARTMENT') {
+            stg.enteredAt = new Date();
+          } else {
+            stg.enteredAt = null;
+          }
+          await this.stageHistoryRepo.save(stg);
+        }
+      }
+
+      await this.requestRepo.save(req);
+
+      // 4. Record Audit Event
+      const audit = this.auditEventRepo.create({
+        requestId: req.id,
+        actorId: user.id,
+        actorName: user.fullName,
+        actorRole: user.role,
+        actionType: 'PAPER_STRUCTURE_CORRECTED_RESET',
+        previousStatus: String(prevStatus),
+        newStatus: String(RequestStatus.UNDER_REVIEW),
+        fieldDiff: {
+          previousTotalQuestions: prevTotal,
+          newTotalQuestions: savedStructure.totalQuestions,
+          correctionReason: dto.correctionReason,
+          resetToStage: 'HEAD_OF_DEPARTMENT',
+          officerApprovalsRevoked: true,
+          recalculatedTotalAmount: req.totalAmount,
+        },
+        comment: `Examination paper structure corrected by ${user.fullName} (${dto.correctionReason}). Approval workflow reset to Step 1 (Head of Department) for fresh review.`,
+      });
+      await this.auditEventRepo.save(audit);
+      resetCount++;
+    }
+
+    this.logger.log(
+      `Paper structure updated for ${code} by ${user.fullName}. ${resetCount} claim(s) reset to Step 1 (HOD).`,
+    );
+
+    return {
+      message: `Paper structure updated successfully. ${resetCount} associated claim(s) have had downstream officer approvals revoked and reset to Step 1 (Head of Department) for fresh review.`,
+      paperStructure: savedStructure,
+      resetClaimsCount: resetCount,
+    };
+  }
+
+  /**
+   * Combined Paper (MCQ + Essay) Proportion Division by Head of Department:
+   * HOD sets the proportion division (e.g. Essay 60%, MCQ 40%) which is then
+   * dispatched to the examiners/lecturers for their approval/consensus.
+   */
+  async dividePaperProportionByHod(
+    hodUser: User,
+    dto: HodProportionDivisionDto,
+  ): Promise<ExamPaperStructure> {
+    if (hodUser.role !== UserRole.HOD && hodUser.role !== UserRole.ADMIN) {
+      throw new ForbiddenException(
+        'Only the Head of Department or an administrator can assign paper proportion divisions',
+      );
+    }
+
+    const code = dto.courseCode.trim().toUpperCase();
+    const academicYear = dto.academicYear.trim();
+    const semester = dto.semester.trim();
+    const examType = dto.examType.trim();
+
+    const sum = Number(dto.essayWeightPercent) + Number(dto.mcqWeightPercent);
+    if (Math.round(sum) !== 100) {
+      throw new BadRequestException(
+        `Proportion division must total 100%. Provided: Essay ${dto.essayWeightPercent}% + MCQ ${dto.mcqWeightPercent}% = ${sum}%`,
+      );
+    }
+
+    const structure = await this.paperStructureRepo.findOne({
+      where: { courseCode: code, academicYear, semester, examType },
+    });
+
+    if (!structure) {
+      throw new NotFoundException(
+        `Paper structure for ${code} (${academicYear} ${semester}) not found. First examiner must submit paper details first.`,
+      );
+    }
+
+    structure.essayWeightPercent = dto.essayWeightPercent;
+    structure.mcqWeightPercent = dto.mcqWeightPercent;
+    structure.paperType = 'COMBINED';
+    structure.hodProportionDivision = {
+      essayWeightPercent: dto.essayWeightPercent,
+      mcqWeightPercent: dto.mcqWeightPercent,
+      comments: dto.comments || '',
+      setByHodId: hodUser.id,
+      setByHodName: hodUser.fullName,
+      setAt: new Date(),
+      status: 'AWAITING_LECTURER_CONSENSUS',
+      responses: [],
+    };
+
+    const savedStructure = await this.paperStructureRepo.save(structure);
+
+    // Route active claims to LECTURER_PROPORTION_CONSENSUS stage for review
+    const claims = await this.queryClaimsForPaper(code, academicYear, semester, examType);
+    for (const req of claims) {
+      req.currentStageKey = 'LECTURER_PROPORTION_CONSENSUS';
+      req.formData = {
+        ...req.formData,
+        hodProportionDivision: structure.hodProportionDivision,
+      };
+      await this.requestRepo.save(req);
+
+      const audit = this.auditEventRepo.create({
+        requestId: req.id,
+        actorId: hodUser.id,
+        actorName: hodUser.fullName,
+        actorRole: hodUser.role,
+        actionType: 'HOD_PROPORTION_DIVIDED',
+        previousStatus: String(req.status),
+        newStatus: String(req.status),
+        fieldDiff: {
+          essayWeightPercent: dto.essayWeightPercent,
+          mcqWeightPercent: dto.mcqWeightPercent,
+          status: 'AWAITING_LECTURER_CONSENSUS',
+        },
+        comment: `Head of Department ${hodUser.fullName} set paper proportion division: Essay ${dto.essayWeightPercent}%, MCQ ${dto.mcqWeightPercent}%. Routed to examiners for consensus.`,
+      });
+      await this.auditEventRepo.save(audit);
+    }
+
+    this.logger.log(
+      `HOD Proportion Division set for ${code}: Essay ${dto.essayWeightPercent}%, MCQ ${dto.mcqWeightPercent}%`,
+    );
+    return savedStructure;
+  }
+
+  /**
+   * Examiner / Lecturer Proportion Consensus:
+   * Lecturers review the HOD's proposed proportion division.
+   * If agree: consensus is recorded; once all examiners agree, consensus is finalized and routed to HOD.
+   * If disagree: requires comments and returns the claim back to HOD so HOD can change/adjust the proportions.
+   */
+  async recordLecturerProportionConsensus(
+    lecturerUser: User,
+    dto: LecturerProportionConsensusDto,
+  ): Promise<{
+    status: string;
+    message: string;
+    paperStructure: ExamPaperStructure;
+  }> {
+    const code = dto.courseCode.trim().toUpperCase();
+    const academicYear = dto.academicYear.trim();
+    const semester = dto.semester.trim();
+    const examType = dto.examType.trim();
+
+    const structure = await this.paperStructureRepo.findOne({
+      where: { courseCode: code, academicYear, semester, examType },
+    });
+
+    if (!structure || !structure.hodProportionDivision) {
+      throw new BadRequestException('No pending HOD proportion division found for this examination paper');
+    }
+
+    if (
+      structure.hodProportionDivision.status !== 'AWAITING_LECTURER_CONSENSUS' &&
+      structure.hodProportionDivision.status !== 'DISAGREED_RETURNED_TO_HOD'
+    ) {
+      throw new BadRequestException(
+        `HOD proportion division is currently in '${structure.hodProportionDivision.status}' state and not accepting new responses.`,
+      );
+    }
+
+    if (!dto.agreed && (!dto.comments || !dto.comments.trim())) {
+      throw new BadRequestException('Comments are mandatory when disagreeing with the HOD proportion division');
+    }
+
+    const claims = await this.queryClaimsForPaper(code, academicYear, semester, examType);
+    const isClaimant = claims.some((c) => c.applicantId === lecturerUser.id);
+    if (!isClaimant && lecturerUser.role !== UserRole.ADMIN) {
+      throw new ForbiddenException(
+        'Only lecturers who have submitted claims for this examination paper can participate in proportion consensus',
+      );
+    }
+
+    // Update or add lecturer response
+    const existingIndex = structure.hodProportionDivision.responses.findIndex(
+      (r) => r.lecturerId === lecturerUser.id,
+    );
+    const responseRecord = {
+      lecturerId: lecturerUser.id,
+      lecturerName: lecturerUser.fullName,
+      agreed: dto.agreed,
+      comments: dto.comments || '',
+      respondedAt: new Date(),
+    };
+
+    if (existingIndex >= 0) {
+      structure.hodProportionDivision.responses[existingIndex] = responseRecord;
+    } else {
+      structure.hodProportionDivision.responses.push(responseRecord);
+    }
+
+    // Case 1: Lecturer Disagrees
+    if (!dto.agreed) {
+      structure.hodProportionDivision.status = 'DISAGREED_RETURNED_TO_HOD';
+      await this.paperStructureRepo.save(structure);
+
+      for (const req of claims) {
+        req.currentStageKey = 'HEAD_OF_DEPARTMENT';
+        req.formData = {
+          ...req.formData,
+          hodProportionDivision: structure.hodProportionDivision,
+          latestDisagreement: {
+            lecturerName: lecturerUser.fullName,
+            comment: dto.comments,
+            respondedAt: new Date(),
+          },
+        };
+        await this.requestRepo.save(req);
+
+        const audit = this.auditEventRepo.create({
+          requestId: req.id,
+          actorId: lecturerUser.id,
+          actorName: lecturerUser.fullName,
+          actorRole: lecturerUser.role,
+          actionType: 'LECTURER_PROPORTION_DISAGREED',
+          previousStatus: String(req.status),
+          newStatus: String(req.status),
+          fieldDiff: {
+            disagreedBy: lecturerUser.fullName,
+            comment: dto.comments,
+            returnedTo: 'HEAD_OF_DEPARTMENT',
+          },
+          comment: `Examiner ${lecturerUser.fullName} disagreed with HOD proportion division: "${dto.comments}". Claim returned to Head of Department for adjustment.`,
+        });
+        await this.auditEventRepo.save(audit);
+      }
+
+      return {
+        status: 'DISAGREED_RETURNED_TO_HOD',
+        message: `Your disagreement was recorded. The claim has been returned to the Head of Department with your feedback: "${dto.comments}".`,
+        paperStructure: structure,
+      };
+    }
+
+    // Case 2: Lecturer Agrees
+    const distinctClaimantIds = Array.from(new Set(claims.map((c) => c.applicantId)));
+    const agreedClaimantIds = structure.hodProportionDivision.responses
+      .filter((r) => r.agreed)
+      .map((r) => r.lecturerId);
+
+    const allAgreed = distinctClaimantIds.every((id) => agreedClaimantIds.includes(id));
+
+    if (allAgreed) {
+      structure.hodProportionDivision.status = 'CONSENSUS_REACHED';
+      await this.paperStructureRepo.save(structure);
+
+      for (const req of claims) {
+        // Apply agreed proportions and recalculate fees
+        const papers = req.formData?.papers || [];
+        for (const p of papers) {
+          const pCode = this.extractCourseCode(p.courseCode, p.title);
+          if (pCode === code) {
+            p.combinedPaperConfig = {
+              ...(p.combinedPaperConfig || {}),
+              isCombinedPaper: true,
+              essayWeightPercent: structure.essayWeightPercent,
+              mcqWeightPercent: structure.mcqWeightPercent,
+            };
+          }
+        }
+        const computedItems = req.formData?.items || this.feeCalculationService.aggregateFromPaperRows(papers);
+        const feeCalculation = this.feeCalculationService.calculateClaimFees(computedItems, papers);
+
+        req.formData = {
+          ...req.formData,
+          papers,
+          items: computedItems,
+          feeCalculation,
+          hodProportionDivision: structure.hodProportionDivision,
+        };
+        req.totalAmount = feeCalculation.totalAmount;
+        req.currentStageKey = 'HEAD_OF_DEPARTMENT'; // Ready for HOD final signoff/recommendation
+
+        await this.requestRepo.save(req);
+
+        const audit = this.auditEventRepo.create({
+          requestId: req.id,
+          actorId: lecturerUser.id,
+          actorName: lecturerUser.fullName,
+          actorRole: lecturerUser.role,
+          actionType: 'PROPORTION_CONSENSUS_REACHED',
+          previousStatus: String(req.status),
+          newStatus: String(req.status),
+          fieldDiff: {
+            agreedWeights: {
+              essay: structure.essayWeightPercent,
+              mcq: structure.mcqWeightPercent,
+            },
+            status: 'CONSENSUS_REACHED',
+          },
+          comment: `All examiners agreed on HOD proportion division (Essay ${structure.essayWeightPercent}%, MCQ ${structure.mcqWeightPercent}%). Forwarded to Head of Department for formal review.`,
+        });
+        await this.auditEventRepo.save(audit);
+      }
+
+      return {
+        status: 'CONSENSUS_REACHED',
+        message: 'All examiners have agreed on the proportion division. Consensus reached and claim routed to Head of Department.',
+        paperStructure: structure,
+      };
+    } else {
+      await this.paperStructureRepo.save(structure);
+      return {
+        status: 'AWAITING_OTHER_EXAMINERS',
+        message: 'Your agreement has been recorded. Waiting for other co-examiners to confirm consensus.',
+        paperStructure: structure,
+      };
+    }
   }
 
   private async registerFirstExaminerStructure(

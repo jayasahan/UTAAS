@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   Param,
   Query,
@@ -22,6 +23,9 @@ import { AdminModulesService } from '../../admin/services/admin-modules.service'
 import { ExamPaperStructureService } from '../services/exam-paper-structure.service';
 import { CreatePaperMarkingClaimDto } from '../dto/create-paper-marking-claim.dto';
 import { SaveDraftClaimDto } from '../dto/save-draft-claim.dto';
+import { UpdateExamPaperStructureDto } from '../dto/update-exam-paper-structure.dto';
+import { HodProportionDivisionDto } from '../dto/hod-proportion-division.dto';
+import { LecturerProportionConsensusDto } from '../dto/lecturer-proportion-consensus.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { User } from '../../../database/entities/user.entity';
@@ -130,6 +134,53 @@ export class PaperMarkingController {
       semester,
       examType,
     );
+  }
+
+  @Patch('paper-structure')
+  @ApiOperation({
+    summary: 'Correct Examination Paper Structure & Reset Claim Approval to Step 1',
+    description:
+      'Allows the first lecturer who registered the paper structure, the Head of Department, or an administrator to edit question numbers and paper parameters. Downstream officer approvals are revoked and claims reset to Step 1 (HEAD_OF_DEPARTMENT) for fresh re-approval.',
+  })
+  @ApiResponse({ status: 200, description: 'Paper structure updated and claims reset to Step 1' })
+  @ApiResponse({ status: 400, description: 'Total questions cannot be less than already claimed questions' })
+  @ApiResponse({ status: 403, description: 'Forbidden: Only registrant lecturer, HOD, or admin can modify' })
+  async updatePaperStructure(
+    @CurrentUser() user: User,
+    @Body() dto: UpdateExamPaperStructureDto,
+  ) {
+    return await this.examPaperStructureService.updatePaperStructureAndResetApproval(user, dto);
+  }
+
+  @Post('hod-proportion-division')
+  @ApiOperation({
+    summary: 'Set MCQ + Essay Paper Proportion Division by Head of Department',
+    description:
+      'Head of Department sets the proportion division (e.g. Essay 60%, MCQ 40%) for a combined paper, which is dispatched to all examiners for consensus.',
+  })
+  @ApiResponse({ status: 201, description: 'Proportion division set and routed to lecturers for consensus' })
+  @ApiResponse({ status: 400, description: 'Proportion percentages must total 100%' })
+  @ApiResponse({ status: 403, description: 'Forbidden: Only HOD or admin can divide paper proportion' })
+  async dividePaperProportion(
+    @CurrentUser() user: User,
+    @Body() dto: HodProportionDivisionDto,
+  ) {
+    return await this.examPaperStructureService.dividePaperProportionByHod(user, dto);
+  }
+
+  @Post('proportion-consensus')
+  @ApiOperation({
+    summary: 'Submit Examiner Consensus on HOD Proportion Division',
+    description:
+      'Examiners review HOD proportion division. If agree, consensus is noted. If disagree, mandatory feedback is provided and the claim returns to HOD to adjust.',
+  })
+  @ApiResponse({ status: 200, description: 'Consensus response recorded' })
+  @ApiResponse({ status: 400, description: 'Comments mandatory if disagreeing, or no pending division' })
+  async recordProportionConsensus(
+    @CurrentUser() user: User,
+    @Body() dto: LecturerProportionConsensusDto,
+  ) {
+    return await this.examPaperStructureService.recordLecturerProportionConsensus(user, dto);
   }
 
   @Post('draft')

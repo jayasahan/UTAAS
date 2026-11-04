@@ -67,6 +67,18 @@ describe('PaperMarkingController', () => {
         exists: true,
         claimsBreakdown: {},
       } as any),
+      updatePaperStructureAndResetApproval: jest.fn().mockResolvedValue({
+        message: 'Updated',
+        resetClaimsCount: 1,
+      } as any),
+      dividePaperProportionByHod: jest.fn().mockResolvedValue({
+        essayWeightPercent: 60,
+        mcqWeightPercent: 40,
+      } as any),
+      recordLecturerProportionConsensus: jest.fn().mockResolvedValue({
+        status: 'CONSENSUS_REACHED',
+        message: 'Agreed',
+      } as any),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -124,6 +136,62 @@ describe('PaperMarkingController', () => {
         'End Semester Examination',
       );
       expect(res.exists).toBe(true);
+    });
+  });
+
+  describe('updatePaperStructure', () => {
+    it('should call examPaperStructureService.updatePaperStructureAndResetApproval', async () => {
+      const updateDto: any = {
+        courseCode: 'EC5060',
+        academicYear: '2023/2024',
+        semester: 'Semester 1',
+        examType: 'End Semester Examination',
+        totalQuestions: 4,
+        correctionReason: 'Correction',
+      };
+      const res = await controller.updatePaperStructure(mockUser, updateDto);
+      expect(mockExamPaperStructureService.updatePaperStructureAndResetApproval).toHaveBeenCalledWith(
+        mockUser,
+        updateDto,
+      );
+      expect(res.resetClaimsCount).toBe(1);
+    });
+  });
+
+  describe('dividePaperProportion', () => {
+    it('should call examPaperStructureService.dividePaperProportionByHod', async () => {
+      const divDto: any = {
+        courseCode: 'EC5060',
+        academicYear: '2023/2024',
+        semester: 'Semester 1',
+        examType: 'End Semester Examination',
+        essayWeightPercent: 60,
+        mcqWeightPercent: 40,
+      };
+      const res = await controller.dividePaperProportion(mockUser, divDto);
+      expect(mockExamPaperStructureService.dividePaperProportionByHod).toHaveBeenCalledWith(
+        mockUser,
+        divDto,
+      );
+      expect(res.essayWeightPercent).toBe(60);
+    });
+  });
+
+  describe('recordProportionConsensus', () => {
+    it('should call examPaperStructureService.recordLecturerProportionConsensus', async () => {
+      const conDto: any = {
+        courseCode: 'EC5060',
+        academicYear: '2023/2024',
+        semester: 'Semester 1',
+        examType: 'End Semester Examination',
+        agreed: true,
+      };
+      const res = await controller.recordProportionConsensus(mockUser, conDto);
+      expect(mockExamPaperStructureService.recordLecturerProportionConsensus).toHaveBeenCalledWith(
+        mockUser,
+        conDto,
+      );
+      expect(res.status).toBe('CONSENSUS_REACHED');
     });
   });
 
