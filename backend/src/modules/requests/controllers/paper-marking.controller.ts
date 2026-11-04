@@ -18,6 +18,7 @@ import {
 } from '@nestjs/swagger';
 import { PaperMarkingClaimService } from '../services/paper-marking-claim.service';
 import { FeeCalculationService } from '../services/fee-calculation.service';
+import { AdminModulesService } from '../../admin/services/admin-modules.service';
 import { CreatePaperMarkingClaimDto } from '../dto/create-paper-marking-claim.dto';
 import { SaveDraftClaimDto } from '../dto/save-draft-claim.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -43,6 +44,7 @@ export class PaperMarkingController {
   constructor(
     private readonly claimService: PaperMarkingClaimService,
     private readonly feeCalculationService: FeeCalculationService,
+    private readonly adminModulesService: AdminModulesService,
   ) {}
 
   @Get('rates/circular')
@@ -59,10 +61,36 @@ export class PaperMarkingController {
   @ApiOperation({
     summary: 'Get Standardized Form Dropdown Options for Engineering Faculty',
     description:
-      'Provides pre-configured dropdown choices for academic year, semester, degree programs, course modules, examination types, roles, and paper durations to minimize typing for lecturers',
+      'Provides pre-configured dropdown choices for academic year, semester, degree programs, course modules, examination types, roles, and paper durations to minimize typing for lecturers. Dynamically filters modules by semester and department.',
   })
+  @ApiQuery({ name: 'semester', required: false, type: Number, description: 'Filter modules by semester (1-8)' })
+  @ApiQuery({ name: 'departmentId', required: false, type: String, description: 'Filter modules by department UUID' })
+  @ApiQuery({ name: 'departmentCode', required: false, type: String, description: 'Filter modules by department code (CEE, MME, EIE, IS, MENA)' })
   @ApiResponse({ status: 200, description: 'Standardized dropdown options retrieved' })
-  getFormDropdownOptions(@CurrentUser() user?: User) {
+  async getFormDropdownOptions(
+    @CurrentUser() user?: User,
+    @Query('semester') semester?: number,
+    @Query('departmentId') departmentId?: string,
+    @Query('departmentCode') departmentCode?: string,
+  ) {
+    const targetDeptId = departmentId || (departmentCode ? undefined : user?.departmentId);
+    const targetDeptCode = departmentCode || (departmentId ? undefined : user?.department?.code);
+
+    let courseModules: any[] = [];
+    try {
+      courseModules = await this.adminModulesService.getFilteredModulesForClaim(
+        semester ? Number(semester) : undefined,
+        targetDeptId,
+        targetDeptCode,
+      );
+    } catch {
+      // Fallback
+    }
+
+    if (!courseModules || courseModules.length === 0) {
+      courseModules = ENGINEERING_COURSE_MODULES;
+    }
+
     return {
       academicYears: ACADEMIC_YEAR_OPTIONS,
       semesters: SEMESTER_OPTIONS,
@@ -72,7 +100,7 @@ export class PaperMarkingController {
       paperDurations: PAPER_DURATION_OPTIONS,
       scriptEvaluationTypes: SCRIPT_EVALUATION_TYPES,
       documentCategories: DOCUMENT_CATEGORY_OPTIONS,
-      courseModules: ENGINEERING_COURSE_MODULES,
+      courseModules,
       userDepartmentCode: user?.department?.code || null,
     };
   }

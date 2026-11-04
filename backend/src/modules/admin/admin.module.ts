@@ -6,6 +6,7 @@ import { Request } from '../../database/entities/request.entity';
 import { WorkflowTemplate } from '../../database/entities/workflow-template.entity';
 import { RequestType } from '../../database/entities/request-type.entity';
 import { AuditEvent } from '../../database/entities/audit-event.entity';
+import { CourseModule } from '../../database/entities/course-module.entity';
 import { AdminUsersController } from './controllers/admin-users.controller';
 import { AdminUsersService } from './services/admin-users.service';
 import { AdminDepartmentsController } from './controllers/admin-departments.controller';
@@ -16,6 +17,8 @@ import { AdminAuditController } from './controllers/admin-audit.controller';
 import { AdminAuditService } from './services/admin-audit.service';
 import { AdminDashboardController } from './controllers/admin-dashboard.controller';
 import { AdminDashboardService } from './services/admin-dashboard.service';
+import { AdminModulesController } from './controllers/admin-modules.controller';
+import { AdminModulesService } from './services/admin-modules.service';
 
 @Module({
   imports: [
@@ -26,6 +29,7 @@ import { AdminDashboardService } from './services/admin-dashboard.service';
       WorkflowTemplate,
       RequestType,
       AuditEvent,
+      CourseModule,
     ]),
   ],
   controllers: [
@@ -34,6 +38,7 @@ import { AdminDashboardService } from './services/admin-dashboard.service';
     AdminWorkflowsController,
     AdminAuditController,
     AdminDashboardController,
+    AdminModulesController,
   ],
   providers: [
     AdminUsersService,
@@ -41,6 +46,7 @@ import { AdminDashboardService } from './services/admin-dashboard.service';
     AdminWorkflowsService,
     AdminAuditService,
     AdminDashboardService,
+    AdminModulesService,
   ],
   exports: [
     AdminUsersService,
@@ -48,6 +54,7 @@ import { AdminDashboardService } from './services/admin-dashboard.service';
     AdminWorkflowsService,
     AdminAuditService,
     AdminDashboardService,
+    AdminModulesService,
   ],
 })
 export class AdminModule {}

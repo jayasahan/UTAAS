@@ -8,6 +8,7 @@ import {
   Request,
   RequestStageHistory,
   AuditEvent,
+  CourseModule,
 } from './entities';
 import { SeedService } from './seeds/seed.service';
 
@@ -21,6 +22,7 @@ import { SeedService } from './seeds/seed.service';
       Request,
       RequestStageHistory,
       AuditEvent,
+      CourseModule,
     ]),
   ],
   providers: [SeedService],
