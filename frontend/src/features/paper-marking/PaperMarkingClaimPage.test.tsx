@@ -7,6 +7,7 @@ import { ReviewStep } from './components/ReviewStep';
 import { academicLabels, createForm, personalLabels } from './model';
 import { SessionContext } from '../../auth/session';
 import type { ApiClient } from '../../services/apiClient';
+import { currentCircularFixture } from '../../test/circularRatesFixture';
 
 async function personal(user: ReturnType<typeof userEvent.setup>) {
   for (const [label, value] of [
@@ -84,38 +85,7 @@ function authenticatedClient(): ApiClient {
           departmentCode: 'ENG',
           departmentId: 'department-1',
         });
-      return decode({
-        circularReference: 'MERGED-CIRCULAR',
-        rates: {
-          PAPER_SETTING: { label: 'Setting', unit: 'per paper', rate: 3500 },
-          PAPER_MODERATION: {
-            label: 'Moderation',
-            unit: 'per paper',
-            rate: 2000,
-          },
-          PAPER_TRANSLATION: {
-            label: 'Translation',
-            unit: 'per paper',
-            rate: 1500,
-          },
-          SCRIPT_MARKING: { label: 'Marking', unit: 'per script', rate: 120 },
-          SECOND_MARKING: {
-            label: 'Second marking',
-            unit: 'per script',
-            rate: 60,
-          },
-          PRACTICAL_ASSESSMENT: {
-            label: 'Practical',
-            unit: 'per hour',
-            rate: 500,
-          },
-          CANDIDATE_ASSESSMENT: {
-            label: 'Candidates',
-            unit: 'per candidate',
-            rate: 120,
-          },
-        },
-      });
+      return decode(currentCircularFixture);
     }),
     upload: vi.fn(async (_path, file, category, decode) =>
       decode({
@@ -446,7 +416,12 @@ describe('paper-marking claim UI', () => {
       screen.getByRole('button', { name: 'Review application →' }),
     );
     expect(screen.getByText(/timetable.pdf/)).toBeVisible();
-    expect(screen.getByText(/Total estimate:/)).toHaveTextContent(/LKR/);
+    expect(screen.getByText(/Total estimate:/)).toHaveTextContent(
+      'Unavailable',
+    );
+    expect(
+      screen.getByText(/Hour-based assessment estimates are unavailable/),
+    ).toBeVisible();
     await user.click(screen.getByRole('checkbox'));
     const submit = screen.getByRole('button', { name: 'Submit Application' });
     expect(submit).toBeEnabled();

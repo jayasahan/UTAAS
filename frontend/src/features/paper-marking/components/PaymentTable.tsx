@@ -9,6 +9,7 @@ import {
 import type { VerifiedRates } from '../estimates';
 import type { FieldError, PaperRow } from '../model';
 import { quantityLabels } from '../validation';
+import { EstimateNotice } from './EstimateNotice';
 
 export function PaymentTable({
   papers,
@@ -74,10 +75,11 @@ export function PaymentTable({
         id="rate-limitation"
         className="rounded-control bg-blue-50 p-4 text-sm text-brand"
       >
-        {rates
-          ? `Estimates use the authenticated backend circular ${rates.circularReference} and its verified per-paper, per-script, per-hour, and per-candidate units. The backend calculates the final amount when the claim is submitted.`
-          : 'Estimates are unavailable because a complete, unit-matched circular response is not available. Rates and amounts cannot be entered manually.'}
+        Standard per-paper, per-script, and candidate estimates use supported
+        circular rates. Unsupported amounts are shown as Unavailable. Rates and
+        amounts cannot be entered manually.
       </p>
+      <EstimateNotice papers={papers} {...(rates ? { rates } : {})} />
       <div id="paper-table" className="paper-payment-table" tabIndex={-1}>
         <Table
           caption="Paper payment details"
@@ -196,9 +198,9 @@ export function PaymentTable({
                 <TableCell>
                   {rates
                     ? formatEstimate(
-                        row.assessmentUnit === 'hours'
-                          ? rates.assessmentPerHour
-                          : rates.assessmentPerCandidate,
+                        row.assessmentUnit === 'candidates'
+                          ? rates.assessmentPerCandidate
+                          : null,
                       )
                     : 'Unavailable'}
                 </TableCell>

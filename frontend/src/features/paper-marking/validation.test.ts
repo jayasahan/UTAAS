@@ -100,7 +100,6 @@ describe('claim validation and estimates', () => {
       translation: 4,
       marking: 2,
       secondMarking: 1,
-      assessmentPerHour: 3,
       assessmentPerCandidate: 6,
     };
     expect(estimatePaper(paper, rates)).toBe(10);
@@ -111,23 +110,19 @@ describe('claim validation and estimates', () => {
     paper.assessmentQuantity = '2';
     expect(estimatePaper(paper, rates)).toBe(26);
     paper.assessmentUnit = 'hours';
-    expect(estimatePaper(paper, rates)).toBe(20);
+    expect(estimatePaper(paper, rates)).toBeNull();
     expect(estimateTotal([paper, createPaper('two')])).toBeNull();
+    paper.scriptCount = '1';
     expect(estimatePaper(paper, { ...rates, marking: NaN })).toBeNull();
     expect(formatEstimate(null)).toBe('Unavailable');
     const fractional = createPaper('fractional');
     fractional.assessmentUnit = 'hours';
     fractional.assessmentQuantity = '0.00001';
     const fractionalSecond = { ...fractional, id: 'fractional-2' };
-    const hourlyRates = { ...rates, assessmentPerHour: 500 };
-    expect(estimatePaper(fractional, hourlyRates)).toBe(0.01);
-    expect(estimatePaper(fractionalSecond, hourlyRates)).toBe(0.01);
-    // Backend aggregates quantity first, then rounds the assessment line once.
-    expect(estimateTotal([fractional, fractionalSecond], hourlyRates)).toBe(
-      0.01,
-    );
+    expect(estimatePaper(fractional, rates)).toBeNull();
+    expect(estimateTotal([fractional, fractionalSecond], rates)).toBeNull();
   });
-  it('accepts estimates only when every backend rate key has its verified unit', () => {
+  it('accepts supported current units without requiring the removed candidate key', () => {
     const rates = verifiedRatesFromCircular({
       circularReference: 'fixture-circular',
       rates: {
@@ -150,12 +145,7 @@ describe('claim validation and estimates', () => {
         },
         PRACTICAL_ASSESSMENT: {
           label: 'Practical',
-          unit: 'per hour',
-          rate: 500,
-        },
-        CANDIDATE_ASSESSMENT: {
-          label: 'Candidates',
-          unit: 'per candidate',
+          unit: 'per script / candidate',
           rate: 120,
         },
       },

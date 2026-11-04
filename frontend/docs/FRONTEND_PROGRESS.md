@@ -1275,3 +1275,50 @@ document overflow. The table remained horizontally scrollable on narrow widths,
 and keyboard focus showed a visible outline. Live authenticated integration,
 independent QA, CI, and teammate review remain unverified. This feature is
 uncommitted; no push, PR, or merge was created.
+
+## Payment estimate contract compatibility — 2026-11-04
+
+Task 2 is implemented on `bugfix/frontend-payment-estimate-contract`, created
+directly from freshly fetched `origin/mvp` at
+`019879bb2ae1261d53d23510ab4108c0ba5585c8`. Staged, unstaged, and untracked
+changes were empty and the task branch did not exist before setup. Shared local
+branches were not modified. Task 1's dropdown commit is not merged in this base
+and is not included in this branch.
+
+The adapter no longer requires the absent `CANDIDATE_ASSESSMENT` key or treats
+`PRACTICAL_ASSESSMENT` as an hourly rate. It maps the verified
+`per script / candidate` unit to candidate assessments, validates each supported
+line independently, distinguishes absent rates from explicit zero values, and
+does not invalidate unused quantities when optional rates are missing.
+
+Supported row components remain visible when another component is unavailable.
+Claim totals aggregate quantities before line rounding and reject overflow.
+Positive hours, shared/combined metadata, and typing inputs require server
+calculation. Payment and review screens share explicit limitation/authority
+wording. Existing server totals and fee breakdowns are not replaced with local
+estimates, and no computed rates/amounts are added to claim payloads.
+
+The circular decoder validates finite, nonnegative, cent-precision rate amounts;
+unknown units remain reference data. Backend inconsistencies, supported mappings,
+changed files, and remaining integration limits are documented in
+[PAYMENT_ESTIMATE_CONTRACT.md](PAYMENT_ESTIMATE_CONTRACT.md).
+
+Verification on Node `v24.18.1`:
+
+- Full `npm.cmd test -- --maxWorkers=1 --testTimeout=30000`: **323/323 passed
+  across 30 files**, including 33 new regression cases. Coverage includes the
+  current rate response, missing optional rates, unsupported units/claim shapes,
+  malformed amounts/responses, explicit zero rates, rounding, overflow, mixed
+  assessments, presentation, and server-confirmed totals/breakdowns.
+- `npm.cmd run lint`, `npm.cmd run type-check`, and `npm.cmd run build`: passed.
+- Changed TypeScript/TSX and the new contract document pass Prettier;
+  `git diff --check` passes. Historical tracker sections were not reformatted.
+- The existing history-preview date-filter test again requires a fixed fixture
+  clock on this base; only its test clock/cleanup changed, not officer-history
+  application behavior.
+
+No backend, dependency manifest, Docker, CI, or authentication-flow change was
+made. Live API/database integration, browser/Figma visual acceptance, remote CI,
+and independent QA were not performed. Human reviewer: unassigned. Review status:
+**PENDING**. Changes remain uncommitted and unstaged; no push, PR creation, or
+merge was performed.

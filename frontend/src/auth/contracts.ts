@@ -23,9 +23,15 @@ export interface LogoutResponse {
   success: true;
   message: string;
 }
+export interface CircularRate {
+  label: string;
+  unit: string;
+  rate: number;
+}
 export interface CircularRates {
   circularReference: string;
-  rates: Record<string, { label: string; unit: string; rate: number }>;
+  /** Keys may be absent. Unknown nonempty units remain displayable reference data. */
+  rates: Record<string, CircularRate>;
 }
 export function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value))
@@ -106,7 +112,8 @@ export function decodeCircular(value: unknown): CircularRates {
         typeof item.rate !== 'number' ||
         !Number.isFinite(item.rate) ||
         item.rate < 0 ||
-        item.rate > Number.MAX_SAFE_INTEGER / 100
+        item.rate > Number.MAX_SAFE_INTEGER / 100 ||
+        Math.abs(item.rate * 100 - Math.round(item.rate * 100)) > 0.000001
       )
         throw new Error('Invalid contract');
       return [

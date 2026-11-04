@@ -7,6 +7,7 @@ import type { VerifiedRates } from '../estimates';
 import { quantityLabels } from '../validation';
 import { documentLabels } from '../model';
 import type { PersistedDocument } from '../persistence';
+import { EstimateNotice } from './EstimateNotice';
 
 function SectionHeading({
   number,
@@ -124,11 +125,7 @@ export function ReviewStep({
         <p className="font-semibold">
           Total estimate: {formatEstimate(estimateTotal(form.papers, rates))}
         </p>
-        <p className="text-sm text-muted">
-          Estimates use the displayed circular rates and are not a confirmed
-          payable amount. The backend returns the authoritative total after
-          submission.
-        </p>
+        <EstimateNotice papers={form.papers} {...(rates ? { rates } : {})} />
         <Button variant="ghost" onClick={() => onEdit(1)}>
           Edit payment details
         </Button>

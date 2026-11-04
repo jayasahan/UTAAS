@@ -78,12 +78,11 @@ export function ReadOnlyInformation({
                 <p>No rates are available in this circular.</p>
               )}
               <p className="text-sm text-muted">
-                The merged backend calculator identifies these as LKR rates and
-                uses the same keys and units for per-paper, per-script,
-                per-hour, translation, and per-candidate lines. Estimates below
-                are based on this returned circular; only a successful submit
-                response confirms a claim total. The endpoint does not return an
-                effective date.
+                These are LKR reference rates with their returned units. Only
+                supported units are used for estimates; no hourly rate is
+                inferred from a candidate rate. Server-confirmed payment
+                breakdowns and totals remain authoritative. The endpoint does
+                not return an effective date.
               </p>
             </div>
           )}
