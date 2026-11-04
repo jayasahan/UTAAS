@@ -45,13 +45,42 @@ export function useClaimForm() {
     changed();
   }
   function updateAcademic(key: keyof AcademicInformation, value: string) {
-    setForm((old) => ({
-      ...old,
-      declaration: false,
-      academic: { ...old.academic, [key]: value },
-    }));
+    setForm((old) => {
+      if (old.academic[key] === value) return old;
+      const clearsCourse = [
+        'academicYear',
+        'semester',
+        'degreeProgramme',
+        'courseCode',
+      ].includes(key);
+      return {
+        ...old,
+        declaration: false,
+        academic: {
+          ...old.academic,
+          ...(clearsCourse ? { courseCode: '', courseTitle: '' } : {}),
+          [key]: value,
+        },
+      };
+    });
     changed();
   }
+  const selectCourse = useCallback(
+    (courseCode: string, courseTitle: string) => {
+      setForm((old) =>
+        old.academic.courseCode === courseCode &&
+        old.academic.courseTitle === courseTitle
+          ? old
+          : {
+              ...old,
+              declaration: false,
+              academic: { ...old.academic, courseCode, courseTitle },
+            },
+      );
+      setErrors([]);
+    },
+    [],
+  );
   function updatePaper(
     id: string,
     key: keyof Omit<PaperRow, 'id'>,
@@ -167,11 +196,16 @@ export function useClaimForm() {
     },
     [],
   );
-  function navigate(target: number, uploadedDocumentCount = 0): boolean {
+  function navigate(
+    target: number,
+    uploadedDocumentCount = 0,
+    academicErrors: FieldError[] = [],
+  ): boolean {
     if (target > step) {
       const found = Array.from({ length: target }, (_, index) =>
         validateStep(form, index, uploadedDocumentCount),
       ).flat();
+      if (target > 1) found.push(...academicErrors);
       if (found.length) {
         // Keep summary links on the first invalid, visible step.
         setErrors(found.filter((error) => error.step === found[0]!.step));
@@ -198,6 +232,7 @@ export function useClaimForm() {
     setErrors,
     updatePersonal,
     updateAcademic,
+    selectCourse,
     updatePaper,
     addPaper,
     removePaper,

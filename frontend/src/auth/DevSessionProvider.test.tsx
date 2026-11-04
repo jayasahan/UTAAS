@@ -11,6 +11,7 @@ import { MemoryRouter } from 'react-router-dom';
 import DevSessionProvider from './DevSessionProvider';
 import { useSession } from './session';
 import { PaperMarkingClaimPage } from '../features/paper-marking/PaperMarkingClaimPage';
+import { academicOptionsFixture } from '../test/academicOptionsFixture';
 
 // Mock-only session fixtures. Never supplied to a real backend or production bundle.
 const profile = {
@@ -58,6 +59,10 @@ function sessionMock() {
       return Promise.resolve(json(loginResult(), 201));
     if (url.endsWith('/auth/me')) return Promise.resolve(json(profile));
     if (url.endsWith('/rates/circular')) return Promise.resolve(json(circular));
+    if (new URL(url).pathname.endsWith('/options/form-dropdowns'))
+      return Promise.resolve(
+        json({ ...academicOptionsFixture, userDepartmentCode: 'COM' }),
+      );
     throw new Error('Unexpected test request');
   });
 }
@@ -200,6 +205,7 @@ describe('development authentication and read-only integration', () => {
       '/api/v1/auth/mock-login/LECTURER',
       '/api/v1/auth/me',
       '/api/v1/requests/paper-marking/rates/circular',
+      '/api/v1/requests/paper-marking/options/form-dropdowns',
     ]);
     expect(calls[0]?.[1]).toMatchObject({
       method: 'POST',

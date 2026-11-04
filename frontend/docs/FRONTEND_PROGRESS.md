@@ -1275,3 +1275,52 @@ document overflow. The table remained horizontally scrollable on narrow widths,
 and keyboard focus showed a visible outline. Live authenticated integration,
 independent QA, CI, and teammate review remain unverified. This feature is
 uncommitted; no push, PR, or merge was created.
+
+## Dynamic academic form dropdowns — 2026-11-04
+
+Task 1 is implemented on `feature/frontend-academic-dropdowns`, created directly
+from freshly fetched `origin/mvp` at
+`b4f6062cf1f11433248565bfeb1e81ebe90b574a`. The working tree was clean before
+branch creation. `main`, `dev`, and `mvp` were not modified.
+
+The form loads typed academic choices through the authenticated options endpoint.
+Year, semester, programme, examination type, examiner role, linked course code/
+title, and per-paper duration use the existing native select components. Course
+queries use the verified profile department and numeric semester; local personal
+department edits never determine scope. Parent/context changes clear dependent
+course fields. Aborted or late responses cannot restore stale choices.
+
+Existing draft selections remain visible while loading and after successful
+lookup. Values absent from the current catalog are preserved for draft saving
+but cannot advance or submit until corrected. Duration payloads remain numeric;
+metadata labels and the existing DTO shape are unchanged. No runtime academic
+catalog fallback, dependency manifest, backend, Docker, or CI change was added.
+
+The backend's unfiltered legacy `level` module fallback is recognized and kept
+unselectable. Database-backed `semester` modules are required for verified scoped
+course choices. Programme/year filter mappings and duration-rate calculation
+changes are not supplied by this endpoint. Full behavior, changed-file inventory,
+and backend limitations are in [ACADEMIC_DROPDOWNS.md](ACADEMIC_DROPDOWNS.md).
+
+Verification on Node `v24.18.1`:
+
+- Full `npm.cmd test -- --maxWorkers=1 --testTimeout=30000`: **316/316 passed
+  across 31 files**. New tests cover decoding, filtering, verified department
+  changes, stale responses, title synchronization, dependent clearing, duration
+  serialization, drafts, network/403/404 failures, retry, and malformed/empty/
+  legacy responses. Existing claim and correction journeys remain covered.
+- `npm.cmd run lint`, `npm.cmd run type-check`, and `npm.cmd run build`: passed.
+- Changed TypeScript/TSX and new feature-document Prettier checks passed;
+  `git diff --check` passed. Historical tracker sections were not reformatted.
+- The initial full run exposed a 15-second Windows test timeout and an existing
+  history-preview test assuming October 2026. Only that test's clock was pinned
+  to its fixture month; no officer-history application behavior changed. The
+  final suite ran separately with a 30-second timeout and passed completely.
+- Locked dependency installation reported 13 moderate advisories. Dependency
+  manifests were unchanged; dependency remediation is outside this task.
+
+Review status: **PENDING**. Human reviewer: unassigned. The implementation is
+committed as `c8cc8a8` on `feature/frontend-academic-dropdowns` and is present on
+`origin/feature/frontend-academic-dropdowns`; no PR is open yet. Live
+authenticated API/database integration, current Figma/browser visual
+acceptance, independent QA, and PR CI remain outstanding.
