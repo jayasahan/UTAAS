@@ -62,15 +62,17 @@ const states = {
 };
 export function WorkflowStepper({
   stages,
+  vertical = false,
 }: {
   stages: readonly WorkflowDisplayStage[];
+  vertical?: boolean;
 }) {
   return (
     <section
       aria-label="Approval workflow"
-      className="rounded-card bg-surface p-6"
+      className={`rounded-card bg-surface p-6 ${vertical ? 'workflow-vertical' : ''}`}
     >
-      <ol className="flex flex-col xl:flex-row">
+      <ol className={vertical ? 'flex flex-col' : 'flex flex-col xl:flex-row'}>
         {stages.map((stage) => {
           const state = states[stage.state];
           return (
@@ -86,7 +88,7 @@ export function WorkflowStepper({
               >
                 {state.icon}
               </span>
-              <div>
+              <div className="min-w-0 [overflow-wrap:anywhere]">
                 <p className="text-sm font-semibold text-brand">
                   {stage.label}
                 </p>

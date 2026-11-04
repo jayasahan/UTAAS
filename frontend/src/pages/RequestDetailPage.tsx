@@ -1,9 +1,13 @@
+import { useCallback } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { decodeProfile } from '../auth/contracts';
 import { Card } from '../components/common/Card';
 import { Alert, EmptyState, Skeleton } from '../components/common/Feedback';
 import { RequestStatusBadge } from '../components/tracking/RequestStatusBadge';
-import { WorkflowStepper } from '../components/tracking/Steppers';
+import { RequestWorkflowProgress } from '../components/tracking/RequestWorkflowProgress';
+import { ConsensusTracking } from '../components/tracking/ConsensusTracking';
+import { WorkflowHistory } from '../components/audit/WorkflowHistory';
+import { decodeConsensusRecord } from '../features/requests/workflowTracking';
 import {
   decodeRequestDetail,
   decodeRequestHistory,
@@ -90,9 +94,18 @@ export function RequestDetailPage() {
     submissionConfirmation(routeState?.submissionConfirmed) ?? resubmission;
   const validId = uuidPattern.test(requestId);
   const pathId = validId ? encodeURIComponent(requestId) : null;
+  const decodeDetail = useCallback(
+    (value: unknown) => {
+      const result = decodeRequestDetail(value);
+      if (result.id !== requestId)
+        throw new Error('Mismatched request details');
+      return result;
+    },
+    [requestId],
+  );
   const detail = useRequestResource(
     pathId ? `/requests/paper-marking/${pathId}` : null,
-    decodeRequestDetail,
+    decodeDetail,
   );
   const tracking = useRequestResource(
     pathId && detail.data ? `/requests/${pathId}/tracking` : null,
@@ -103,7 +116,10 @@ export function RequestDetailPage() {
     decodeRequestHistory,
   );
   const correctionProfile = useRequestResource(
-    detail.data?.status === 'RETURNED_FOR_CORRECTION' ? '/auth/me' : null,
+    detail.data?.status === 'RETURNED_FOR_CORRECTION' ||
+      detail.data?.formData.hodProportionDivision != null
+      ? '/auth/me'
+      : null,
     decodeProfile,
   );
   const canEditCorrection =
@@ -170,6 +186,9 @@ export function RequestDetailPage() {
               {detail.data.trackingNumber} · Created{' '}
               {date.format(new Date(detail.data.createdAt))}
             </p>
+            <p className="mt-2 font-semibold text-brand">
+              Server-confirmed total: {amount.format(detail.data.totalAmount)}
+            </p>
           </div>
           <RequestStatusBadge status={detail.data.status} />
         </header>
@@ -217,6 +236,21 @@ export function RequestDetailPage() {
           </dl>
         </Card>
       )}
+      {detail.data?.formData.hodProportionDivision != null &&
+        !correctionProfile.data && (
+          <RequestLoadState
+            title="Consensus viewing account"
+            resource={correctionProfile}
+          />
+        )}
+      {detail.data && (
+        <ConsensusTracking
+          record={decodeConsensusRecord(
+            detail.data.formData.hodProportionDivision,
+          )}
+          viewer={correctionProfile.data ?? undefined}
+        />
+      )}
       <section
         aria-labelledby="tracking-title"
         className="space-y-3"
@@ -228,46 +262,11 @@ export function RequestDetailPage() {
         {!tracking.data && (
           <RequestLoadState title="Approval progress" resource={tracking} />
         )}
-        {tracking.data && (
-          <>
-            <Card className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="font-semibold text-brand">
-                  Current stage: {tracking.data.currentStage.name}
-                </p>
-                <p className="text-sm text-muted">
-                  Assigned role:{' '}
-                  {tracking.data.currentStage.assignedRole.replaceAll('_', ' ')}
-                </p>
-              </div>
-              <p className="font-bold text-brand">
-                Server amount: {amount.format(tracking.data.totalAmount)}
-              </p>
-            </Card>
-            <WorkflowStepper
-              stages={tracking.data.stages.map((stage) => ({
-                id: stage.key,
-                label: stage.name,
-                state:
-                  stage.status === 'APPROVED'
-                    ? 'completed'
-                    : stage.status === 'IN_PROGRESS'
-                      ? 'active'
-                      : stage.status === 'RETURNED'
-                        ? 'returned'
-                        : 'pending',
-                detail: [
-                  stage.actorName,
-                  stage.completedAt
-                    ? date.format(new Date(stage.completedAt))
-                    : null,
-                  stage.comments,
-                ]
-                  .filter(Boolean)
-                  .join(' · '),
-              }))}
-            />
-          </>
+        {detail.data && (
+          <RequestWorkflowProgress
+            detail={detail.data}
+            tracking={tracking.data}
+          />
         )}
       </section>
 
@@ -282,71 +281,16 @@ export function RequestDetailPage() {
         {!history.data && (
           <RequestLoadState title="Approval history" resource={history} />
         )}
-        {history.data && history.data.events.length === 0 && (
-          <EmptyState title="No history is available yet">
-            <p>The backend has not returned any audit events.</p>
-          </EmptyState>
-        )}
-        {history.data && history.data.events.length > 0 && (
-          <ol className="space-y-3">
-            {history.data.events.map((event) => (
-              <li key={event.id}>
-                <Card>
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-brand">
-                        {event.actionType.replaceAll('_', ' ')}
-                      </p>
-                      <p className="text-sm text-muted">
-                        {event.actorName} ·{' '}
-                        {event.actorRole.replaceAll('_', ' ')}
-                      </p>
-                    </div>
-                    <time
-                      dateTime={event.createdAt}
-                      className="text-sm text-muted"
-                    >
-                      {date.format(new Date(event.createdAt))}
-                    </time>
-                  </div>
-                  <p className="mt-3 text-sm text-ink">
-                    {event.previousStatus?.replaceAll('_', ' ') ??
-                      'Initial state'}{' '}
-                    → {event.newStatus.replaceAll('_', ' ')}
-                  </p>
-                  {event.comment && (
-                    <p className="mt-2 text-sm">{event.comment}</p>
-                  )}
-                  {event.fieldDiff &&
-                    Object.keys(event.fieldDiff).length > 0 && (
-                      <details className="mt-3 rounded-control border border-border p-3">
-                        <summary className="cursor-pointer font-semibold text-brand focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action">
-                          Changed fields
-                        </summary>
-                        <dl className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
-                          {Object.entries(event.fieldDiff).map(
-                            ([field, value]) => (
-                              <div
-                                key={field}
-                                className="min-w-0 [overflow-wrap:anywhere]"
-                              >
-                                <dt className="text-sm text-muted">{field}</dt>
-                                <dd className="font-medium text-ink">
-                                  {typeof value === 'string'
-                                    ? value
-                                    : (JSON.stringify(value) ?? '—')}
-                                </dd>
-                              </div>
-                            ),
-                          )}
-                        </dl>
-                      </details>
-                    )}
-                </Card>
-              </li>
-            ))}
-          </ol>
-        )}
+        {history.data &&
+          detail.data &&
+          (history.data.requestId === detail.data.id &&
+          history.data.trackingNumber === detail.data.trackingNumber ? (
+            <WorkflowHistory history={history.data} />
+          ) : (
+            <Alert title="History could not be verified" tone="warning">
+              <p>The returned audit history does not match this request.</p>
+            </Alert>
+          ))}
       </section>
     </section>
   );

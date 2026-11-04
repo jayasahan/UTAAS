@@ -1275,3 +1275,36 @@ document overflow. The table remained horizontally scrollable on narrow widths,
 and keyboard focus showed a visible outline. Live authenticated integration,
 independent QA, CI, and teammate review remain unverified. This feature is
 uncommitted; no push, PR, or merge was created.
+
+## 2026-11-05 — Feature 11: Expanded workflow tracking
+
+Branch: `feature/frontend-consensus-tracking`; PR base: `mvp`. Created directly
+from freshly fetched `origin/mvp` at
+`019879bb2ae1261d53d23510ab4108c0ba5585c8` after verifying a clean tree and no
+existing local/remote branch. No dependencies on unmerged Features 1, 2, 5 or 6
+were added; claim persistence and backend code remain unchanged.
+
+Lecturer and officer views now reuse a shared confirmed-stage presentation,
+typed consensus snapshot and chronological audit history. Missing consensus
+stage rows no longer cause an older stage's name/assignee to be displayed as
+current. Recorded proposals, disagreement, completed consensus, structure-change
+approval resets, correction targets and resubmission destinations receive readable
+labels. Lifecycle status, consensus snapshot status and immutable audit events
+remain separate. Lecturer individual-response visibility uses the verified own
+ID; authorized officers see only returned request-scoped records. No participant
+totals, missing agreements or synthetic history records are invented.
+
+Backend limitations include unpublished intermediate agreements, missing stage
+records, missing proposal-round IDs, and incomplete candidate/duration/reset-stage
+audit details. Source links, exact contracts, scope, file inventory and suggested
+commit/PR text are in
+[EXPANDED_WORKFLOW_TRACKING.md](EXPANDED_WORKFLOW_TRACKING.md).
+
+Verification: 343/343 tests across 30 files (53 new regressions), lint, strict
+TypeScript, production build, changed-source/report formatting and diff whitespace
+checks passed. Full `format:check` retains the baseline formatting failures in
+the two historical Markdown trackers; their origin/mvp versions fail too. The
+fixed-fixture history-preview date test pins its clock; no production history
+logic was changed. Mocked API tests passed, but live integration, Figma/browser
+visual acceptance, independent QA and CI remain unverified. Human review is
+PENDING; reviewer unassigned. No commit, push, merge or PR was made.

@@ -127,6 +127,7 @@ function renderDevelopmentPreview() {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -510,6 +511,8 @@ describe('Officer Review History page', () => {
   });
 
   it('applies accessible search, decision, department, and date controls locally', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-22T12:00:00.000Z'));
     renderDevelopmentPreview();
     const table = screen.getByRole('table', {
       name: 'Development-only sample officer review history',

@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Alert } from '../../components/common/Feedback';
+import { RequestWorkflowProgress } from '../../components/tracking/RequestWorkflowProgress';
 import { useSession } from '../../auth/session';
 import type { StaffProfile } from '../../auth/contracts';
 import { ApiError } from '../../services/apiClient';
@@ -163,6 +164,8 @@ export function OfficerClaimReviewPage() {
     )
       return { review: null, invalid: false };
     try {
+      if (detail.data.id !== requestId)
+        throw new Error('Mismatched request details');
       return {
         review: decodeOfficerClaimReview(
           detail.data,
@@ -175,7 +178,7 @@ export function OfficerClaimReviewPage() {
     } catch {
       return { review: null, invalid: true };
     }
-  }, [detail, history, reviewerRole, tracking]);
+  }, [detail, history, requestId, reviewerRole, tracking]);
 
   const onDownload = useCallback(
     async (document: ReviewDocumentMetadata) => {
@@ -321,6 +324,11 @@ export function OfficerClaimReviewPage() {
             message={errorMessage}
             onRetry={retry}
           />
+          {reviewResult.invalid &&
+            detail.data &&
+            detail.data.id === requestId && (
+              <RequestWorkflowProgress detail={detail.data} tracking={null} />
+            )}
         </>
       )}
     </OfficerAccessFeedback>

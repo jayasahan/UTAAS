@@ -157,7 +157,7 @@ describe('authenticated request pages', () => {
       await screen.findByText('Current stage: Head of Department'),
     ).toBeInTheDocument();
     expect(screen.getByText('Paper Marking Request')).toBeInTheDocument();
-    expect(screen.getByText('SUBMITTED')).toBeInTheDocument();
+    expect(screen.getByText('Claim submitted')).toBeInTheDocument();
     expect(
       screen.getByText('Initial state → UNDER REVIEW'),
     ).toBeInTheDocument();

@@ -3,8 +3,9 @@ import { Card } from '../../components/common/Card';
 import { Alert, EmptyState } from '../../components/common/Feedback';
 import { Table, TableCell, TableHead } from '../../components/common/Table';
 import { RequestStatusBadge } from '../../components/tracking/RequestStatusBadge';
-import { WorkflowStepper } from '../../components/tracking/Steppers';
-import type { WorkflowDisplayStage } from '../../components/tracking/Steppers';
+import { RequestWorkflowProgress } from '../../components/tracking/RequestWorkflowProgress';
+import { ConsensusTracking } from '../../components/tracking/ConsensusTracking';
+import { WorkflowHistory } from '../../components/audit/WorkflowHistory';
 import type { OfficerClaimReview } from './contracts';
 import { OfficerDecisionSection } from './OfficerDecisionSection';
 import type { WorkflowActionRequest } from './workflowActions';
@@ -95,28 +96,6 @@ function FieldList({
   );
 }
 
-function stageDisplay(review: OfficerClaimReview): WorkflowDisplayStage[] {
-  return review.tracking.stages.map((stage) => ({
-    id: stage.key,
-    label: stage.name,
-    state:
-      stage.status === 'APPROVED'
-        ? 'completed'
-        : stage.status === 'IN_PROGRESS'
-          ? 'active'
-          : stage.status === 'RETURNED'
-            ? 'returned'
-            : 'pending',
-    detail: [
-      stage.actorName,
-      stage.completedAt ? date.format(new Date(stage.completedAt)) : null,
-      stage.comments,
-    ]
-      .filter(Boolean)
-      .join(' · '),
-  }));
-}
-
 export function OfficerClaimReviewView({
   review,
   onDownload,
@@ -166,14 +145,6 @@ export function OfficerClaimReviewView({
           </time>
         </p>
       </header>
-
-      <Card className="bg-info-subtle">
-        <p className="font-semibold text-info-ink">Approval workflow</p>
-        <p className="mt-2 text-sm text-ink">
-          Current stage: {review.tracking.currentStage.name} · assigned role:{' '}
-          {review.tracking.currentStage.assignedRole.replaceAll('_', ' ')}
-        </p>
-      </Card>
 
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,2.15fr)_minmax(19rem,1fr)]">
         <div className="min-w-0">
@@ -371,7 +342,15 @@ export function OfficerClaimReviewView({
             <div id="review-progress-title">
               <SectionHeading number={4} title="Approval Progress" />
             </div>
-            <WorkflowStepper stages={stageDisplay(review)} />
+            <RequestWorkflowProgress
+              detail={review}
+              tracking={review.tracking}
+              compact
+            />
+            <ConsensusTracking
+              record={review.consensusSnapshot ?? { state: 'missing' }}
+              viewer={{ role: review.reviewerRole }}
+            />
           </section>
 
           <section aria-labelledby="review-history-title" className="space-y-4">
@@ -381,43 +360,10 @@ export function OfficerClaimReviewView({
             >
               Approval & Activity History
             </h2>
-            {review.history.events.length === 0 ? (
-              <EmptyState title="No review history was returned" />
-            ) : (
-              <ol className="space-y-3">
-                {review.history.events.map((event) => (
-                  <li key={event.id}>
-                    <Card className="space-y-2">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div>
-                          <p className="font-semibold text-brand">
-                            {event.actionType.replaceAll('_', ' ')}
-                          </p>
-                          <p className="text-sm text-muted">
-                            {event.actorName} ·{' '}
-                            {event.actorRole.replaceAll('_', ' ')}
-                          </p>
-                        </div>
-                        <time
-                          dateTime={event.createdAt}
-                          className="text-xs text-muted"
-                        >
-                          {date.format(new Date(event.createdAt))}
-                        </time>
-                      </div>
-                      <p className="text-sm text-ink">
-                        {event.previousStatus?.replaceAll('_', ' ') ??
-                          'Initial state'}{' '}
-                        → {event.newStatus.replaceAll('_', ' ')}
-                      </p>
-                      {event.comment && (
-                        <p className="text-sm text-muted">{event.comment}</p>
-                      )}
-                    </Card>
-                  </li>
-                ))}
-              </ol>
-            )}
+            <WorkflowHistory
+              history={review.history}
+              emptyTitle="No review history was returned"
+            />
           </section>
           {decisionNotice && (
             <Alert title="Decision recorded" tone="success">

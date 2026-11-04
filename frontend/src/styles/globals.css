@@ -58,6 +58,21 @@
     border-style: dashed;
   }
   @media (min-width: 80rem) {
+    .workflow-vertical .workflow-stage {
+      @apply flex-row pb-6 last:pb-0;
+    }
+    .workflow-vertical .workflow-stage:not(:last-child)::after {
+      top: 32px;
+      left: 15px;
+      right: auto;
+      bottom: 0;
+      border-top: 0;
+      border-left-width: 2px;
+      border-left-style: solid;
+    }
+    .workflow-vertical .workflow-stage[data-state='pending']::after {
+      border-left-style: dashed;
+    }
     .workflow-stage:not(:last-child)::after {
       top: 15px;
       left: 32px;

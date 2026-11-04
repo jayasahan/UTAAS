@@ -1,6 +1,10 @@
 import { record, text } from '../../auth/contracts';
 import type { StaffProfile } from '../../auth/contracts';
 import {
+  decodeConsensusRecord,
+  type ConsensusRecord,
+} from '../requests/workflowTracking';
+import {
   decodeRequestDetail,
   decodeRequestHistory,
   decodeRequestTracking,
@@ -77,6 +81,7 @@ export interface OfficerClaimReview {
   tracking: RequestTracking;
   history: RequestHistory;
   reviewerRole: Exclude<StaffProfile['role'], 'LECTURER'>;
+  consensusSnapshot?: ConsensusRecord;
 }
 
 const uuidPattern =
@@ -241,5 +246,12 @@ export function decodeOfficerClaimReview(
     tracking,
     history,
     reviewerRole,
+    ...(formData.hodProportionDivision == null
+      ? {}
+      : {
+          consensusSnapshot: decodeConsensusRecord(
+            formData.hodProportionDivision,
+          ),
+        }),
   };
 }
