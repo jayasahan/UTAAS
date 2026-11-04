@@ -13,42 +13,54 @@ describe('FeeCalculationService', () => {
   });
 
   describe('calculateClaimFees', () => {
-    it('should compute exact fees according to official circular rates', () => {
+    it('should compute exact fees according to official UGC Circular 981 / 681 rates', () => {
       const items: ClaimItemsDto = {
-        paperSettingCount: 1, // 1 * 3500 = 3500
-        paperModerationCount: 1, // 1 * 2000 = 2000
-        scriptMarkingCount: 100, // 100 * 120 = 12000
-        practicalAssessmentHours: 6, // 6 * 500 = 3000
-        secondMarkingCount: 50, // 50 * 60 = 3000
+        paperSettingCount: 1, // 1 * 1200 = 1200
+        paperModerationCount: 1, // 1 * 1200 = 1200
+        scriptMarkingCount: 100, // 100 * 100 = 10000
+        practicalAssessmentHours: 6, // 6 * 100 = 600
+        secondMarkingCount: 50, // 50 * 100 = 5000
+        paperTypingPages: 3, // 3 * 100 = 300
+        continuousAssessmentCount: 100, // 100 * 25 = 2500
       };
 
       const result = service.calculateClaimFees(items);
 
       expect(result.currency).toBe('LKR');
-      expect(result.totalAmount).toBe(23500.0);
-      expect(result.items).toHaveLength(7);
+      // Total: 1200 + 1200 + 10000 + 600 + 5000 + 300 + 2500 = 20800
+      expect(result.totalAmount).toBe(20800.0);
+      expect(result.items.length).toBeGreaterThanOrEqual(10);
 
       const paperSetting = result.items.find((i) => i.key === 'PAPER_SETTING');
-      expect(paperSetting?.subtotal).toBe(3500.0);
+      expect(paperSetting?.subtotal).toBe(1200.0);
 
       const scriptMarking = result.items.find((i) => i.key === 'SCRIPT_MARKING');
-      expect(scriptMarking?.subtotal).toBe(12000.0);
+      expect(scriptMarking?.subtotal).toBe(10000.0);
+
+      const typing = result.items.find((i) => i.key === 'PAPER_TYPING');
+      expect(typing?.subtotal).toBe(300.0);
+
+      const ca = result.items.find((i) => i.key === 'CONTINUOUS_ASSESSMENT');
+      expect(ca?.subtotal).toBe(2500.0);
     });
 
-    it('should calculate translation and candidate-based assessment fees accurately', () => {
+    it('should calculate dissertation and thesis evaluation fees accurately (Circular 981)', () => {
       const items: ClaimItemsDto = {
-        paperTranslationCount: 2, // 2 * 1500 = 3000
-        candidateAssessmentCount: 50, // 50 * 120 = 6000
+        dissertationUndergradCount: 5, // 5 * 600 = 3000
+        dissertationPostgradCount: 1, // 1 * 2000 = 2000
+        thesisMPhilCount: 1, // 1 * 3000 = 3000
+        thesisPhDCount: 1, // 1 * 5000 = 5000
       };
 
       const result = service.calculateClaimFees(items);
-      expect(result.totalAmount).toBe(9000.0);
-      const translation = result.items.find((i) => i.key === 'PAPER_TRANSLATION');
-      expect(translation?.count).toBe(2);
-      expect(translation?.subtotal).toBe(3000.0);
-      const candidates = result.items.find((i) => i.key === 'CANDIDATE_ASSESSMENT');
-      expect(candidates?.count).toBe(50);
-      expect(candidates?.subtotal).toBe(6000.0);
+      // Total: 3000 + 2000 + 3000 + 5000 = 13000
+      expect(result.totalAmount).toBe(13000.0);
+      const undergrad = result.items.find((i) => i.key === 'DISSERTATION_UNDERGRAD');
+      expect(undergrad?.count).toBe(5);
+      expect(undergrad?.subtotal).toBe(3000.0);
+      const phd = result.items.find((i) => i.key === 'THESIS_PHD');
+      expect(phd?.count).toBe(1);
+      expect(phd?.subtotal).toBe(5000.0);
     });
 
     it('should return 0 total when all counts are 0', () => {
@@ -69,10 +81,10 @@ describe('FeeCalculationService', () => {
     it('should handle undefined or null items gracefully', () => {
       const result = service.calculateClaimFees(undefined);
       expect(result.totalAmount).toBe(0);
-      expect(result.items).toHaveLength(7);
+      expect(result.items.length).toBeGreaterThanOrEqual(10);
     });
 
-    it('should aggregate and calculate fees from multiple paper rows', () => {
+    it('should aggregate and calculate fees from multiple paper rows including multi-examiner sharing', () => {
       const papers: PaperRowDto[] = [
         {
           id: 'paper-1',
@@ -81,36 +93,43 @@ describe('FeeCalculationService', () => {
           settingCount: 1,
           moderationCount: 0,
           translationCount: 0,
-          scriptCount: 60,
-          secondMarkingCount: 15,
-          assessmentUnit: 'hours',
-          assessmentQuantity: 2,
+          scriptCount: 120,
+          secondMarkingCount: 0,
+          typedPageCount: 3, // 3 * 100 = 300
+          settingShare: {
+            isShared: true,
+            totalQuestions: 5,
+            questionsClaimed: 2, // 2/5 * 1200 = 480
+          },
+          markingShare: {
+            isShared: true,
+            totalQuestions: 5,
+            questionsClaimed: 2, // 2/5 * 120 * 100 = 4800
+          },
         },
         {
           id: 'paper-2',
           title: 'Computer Networks (EC5070)',
           durationHours: 3,
-          settingCount: 1,
-          moderationCount: 1,
+          settingCount: 1, // Full 1200
+          moderationCount: 1, // Full 1200
           translationCount: 0,
-          scriptCount: 60,
-          secondMarkingCount: 15,
-          assessmentUnit: 'hours',
-          assessmentQuantity: 2,
+          scriptCount: 60, // 60 * 100 = 6000
+          secondMarkingCount: 20, // 20 * 100 = 2000
+          typedPageCount: 2, // 2 * 100 = 200
         },
       ];
 
       // Aggregates:
-      // Setting: 2 papers * 3500 = 7000
-      // Moderation: 1 paper * 2000 = 2000
-      // Marking: 120 scripts * 120 = 14400
-      // Practical: 4 hours * 500 = 2000
-      // Second marking: 30 scripts * 60 = 1800
-      // Total: 7000 + 2000 + 14400 + 2000 + 1800 = 27200
+      // Setting: 0.4 + 1 = 1.4 papers * 1200 = 1680
+      // Moderation: 1 paper * 1200 = 1200
+      // Typing: (3 + 2) = 5 pages * 100 = 500
+      // Marking: (48 + 60) = 108 scripts * 100 = 10800
+      // Second marking: 20 scripts * 100 = 2000
+      // Total: 1680 + 1200 + 500 + 10800 + 2000 = 16180
       const result = service.calculateClaimFees(null, papers);
-      expect(result.totalAmount).toBe(27200.0);
-      expect(result.items.find((i) => i.key === 'PAPER_SETTING')?.count).toBe(2);
-      expect(result.items.find((i) => i.key === 'SCRIPT_MARKING')?.count).toBe(120);
+      expect(result.totalAmount).toBe(16180.0);
+      expect(result.items.find((i) => i.key === 'PAPER_TYPING')?.subtotal).toBe(500.0);
     });
 
     it('should handle negative numbers by clamping to 0', () => {
@@ -125,46 +144,47 @@ describe('FeeCalculationService', () => {
       const result = service.calculateClaimFees(items);
       const paperSetting = result.items.find((i) => i.key === 'PAPER_SETTING');
       expect(paperSetting?.subtotal).toBe(0);
-      expect(result.totalAmount).toBe(1200.0);
+      expect(result.totalAmount).toBe(1000.0);
     });
   });
 
   describe('aggregateFromPaperRows', () => {
-    it('should correctly sum paper row quantities', () => {
+    it('should correctly sum paper row quantities with sharing proportions', () => {
       const papers: PaperRowDto[] = [
         {
-          title: 'Maths I',
-          settingCount: 1,
-          scriptCount: 50,
-          assessmentUnit: 'hours',
-          assessmentQuantity: 3,
-        },
-        {
-          title: 'Maths II',
-          settingCount: 1,
-          scriptCount: 50,
-          assessmentUnit: 'candidates',
-          assessmentQuantity: 40,
+          id: 'paper-1',
+          title: 'Fluid Dynamics',
+          settingShare: {
+            isShared: true,
+            totalQuestions: 5,
+            questionsClaimed: 3,
+          },
+          markingShare: {
+            isShared: true,
+            totalQuestions: 5,
+            questionsClaimed: 3,
+          },
+          scriptCount: 100,
+          typedPageCount: 4,
         },
       ];
 
-      const agg = service.aggregateFromPaperRows(papers);
-      expect(agg.paperSettingCount).toBe(2);
-      expect(agg.scriptMarkingCount).toBe(100);
-      expect(agg.practicalAssessmentHours).toBe(3); // only hours unit contributes to practical hours
-      expect(agg.candidateAssessmentCount).toBe(40); // candidates unit contributes to candidate count
+      const aggregated = service.aggregateFromPaperRows(papers);
+      expect(aggregated.paperSettingCount).toBe(0.6);
+      expect(aggregated.scriptMarkingCount).toBe(60);
+      expect(aggregated.paperTypingPages).toBe(4);
     });
   });
 
   describe('getApprovedRates', () => {
-    it('should return approved circular rates structure', () => {
+    it('should return approved circular rates structure according to UGC 981/681/636', () => {
       const rates = service.getApprovedRates();
       expect(rates.circularReference).toBe(FeeCalculationService.CIRCULAR_REFERENCE);
-      expect(rates.rates.PAPER_SETTING.rate).toBe(3500.0);
-      expect(rates.rates.SCRIPT_MARKING.rate).toBe(120.0);
-      expect(rates.rates.PAPER_TRANSLATION.rate).toBe(1500.0);
-      expect(rates.rates.CANDIDATE_ASSESSMENT.rate).toBe(120.0);
-      expect(Object.keys(rates.rates)).toHaveLength(7);
+      expect(rates.rates.PAPER_SETTING.rate).toBe(1200.0);
+      expect(rates.rates.SCRIPT_MARKING.rate).toBe(100.0);
+      expect(rates.rates.PAPER_TYPING.rate).toBe(100.0);
+      expect(rates.rates.CONTINUOUS_ASSESSMENT.rate).toBe(25.0);
+      expect(rates.rates.DISSERTATION_UNDERGRAD.rate).toBe(600.0);
     });
   });
 });

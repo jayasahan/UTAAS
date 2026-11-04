@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsString,
   IsNotEmpty,
@@ -12,17 +12,17 @@ import {
 import { Type } from 'class-transformer';
 
 export class CourseMetadataDto {
-  @ApiProperty({ example: '2023/2024', description: 'Academic year for examination' })
+  @ApiPropertyOptional({ example: '2023/2024', description: 'Academic year for examination' })
   @IsString()
   @IsNotEmpty()
   academicYear: string;
 
-  @ApiProperty({ example: 'Semester 1', description: 'Semester of the course' })
+  @ApiPropertyOptional({ example: 'Semester 1', description: 'Semester of the course' })
   @IsString()
   @IsNotEmpty()
   semester: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 'BScEng (Hons) in Computer Engineering',
     description: 'Degree programme under Faculty of Engineering',
   })
@@ -40,15 +40,15 @@ export class CourseMetadataDto {
   @IsString()
   courseTitle?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 'End Semester Examination',
-    description: 'Examination category (End Semester, Mid Semester, Continuous Assessment)',
+    description: 'Examination category (End Semester, Mid Semester, Continuous Assessment, etc.)',
   })
   @IsString()
   @IsNotEmpty()
   examType: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 'First Examiner',
     description: 'Examiner appointment capacity (First Examiner, Second Examiner, Chief Examiner, Moderator)',
   })
@@ -57,13 +57,63 @@ export class CourseMetadataDto {
   examinerRole: string;
 }
 
+export class MultiExaminerShareDto {
+  @ApiPropertyOptional({ example: false, description: 'True if paper setting/marking is shared with other examiners' })
+  @IsOptional()
+  @IsBoolean()
+  isShared?: boolean;
+
+  @ApiPropertyOptional({ example: 5, description: 'Total number of questions in paper/script' })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  totalQuestions?: number;
+
+  @ApiPropertyOptional({ example: 2, description: 'Number of questions set or marked by this examiner' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  questionsClaimed?: number;
+
+  @ApiPropertyOptional({ example: 0.4, description: 'Fractional proportion of the task claimed (questionsClaimed / totalQuestions)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  proportion?: number;
+}
+
+export class CombinedPaperConfigDto {
+  @ApiPropertyOptional({ example: false, description: 'True if paper combines Essay and MCQ sections' })
+  @IsOptional()
+  @IsBoolean()
+  isCombinedPaper?: boolean;
+
+  @ApiPropertyOptional({ example: 75, description: 'Essay section weight percentage determined by HOD (e.g. 75%)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  essayWeightPercent?: number;
+
+  @ApiPropertyOptional({ example: 25, description: 'MCQ section weight percentage determined by HOD (e.g. 25%)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  mcqWeightPercent?: number;
+
+  @ApiPropertyOptional({ example: 20, description: 'Number of MCQ questions in combined paper' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  mcqQuestionCount?: number;
+}
+
 export class PaperRowDto {
   @ApiPropertyOptional({ example: 'paper-1' })
   @IsOptional()
   @IsString()
   id?: string;
 
-  @ApiProperty({ example: 'Software Engineering (EC5060)', description: 'Title of the question paper' })
+  @ApiPropertyOptional({ example: 'Software Engineering (EC5060)', description: 'Title of the question paper' })
   @IsString()
   @IsNotEmpty()
   title: string;
@@ -114,6 +164,31 @@ export class PaperRowDto {
   @IsNumber()
   @Min(0)
   assessmentQuantity?: number;
+
+  // Multi-examiner shared task details (UGC Circular 981 Rule 2)
+  @ApiPropertyOptional({ type: MultiExaminerShareDto, description: 'Multi-examiner setting proportion' })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => MultiExaminerShareDto)
+  settingShare?: MultiExaminerShareDto;
+
+  @ApiPropertyOptional({ type: MultiExaminerShareDto, description: 'Multi-examiner script marking proportion' })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => MultiExaminerShareDto)
+  markingShare?: MultiExaminerShareDto;
+
+  @ApiPropertyOptional({ example: 0, description: 'Pages typed by teacher setting paper (Rs. 100/page, max Rs. 500)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  typedPageCount?: number;
+
+  @ApiPropertyOptional({ type: CombinedPaperConfigDto, description: 'Combined Essay + MCQ configuration' })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CombinedPaperConfigDto)
+  combinedPaperConfig?: CombinedPaperConfigDto;
 }
 
 export class PersonalInfoDto {
@@ -185,20 +260,57 @@ export class ClaimItemsDto {
   @IsNumber()
   @Min(0)
   candidateAssessmentCount?: number;
+
+  // Extended UGC Circular 981 / 681 / 636 claims
+  @ApiPropertyOptional({ example: 3, description: 'Number of question paper pages typed by setter (Rs. 100/page, max Rs. 500)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  paperTypingPages?: number;
+
+  @ApiPropertyOptional({ example: 0, description: 'Number of Continuous Assessments evaluated (Circular 681, 25% of final rate)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  continuousAssessmentCount?: number;
+
+  @ApiPropertyOptional({ example: 0, description: 'Number of Undergraduate FYP Dissertations examined (Rs. 600 each)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  dissertationUndergradCount?: number;
+
+  @ApiPropertyOptional({ example: 0, description: 'Number of Postgraduate Masters Dissertations examined (Rs. 2000 each)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  dissertationPostgradCount?: number;
+
+  @ApiPropertyOptional({ example: 0, description: 'Number of M.Phil Theses examined (Rs. 3000 each)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  thesisMPhilCount?: number;
+
+  @ApiPropertyOptional({ example: 0, description: 'Number of Ph.D. Theses examined (Rs. 5000 each)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  thesisPhDCount?: number;
 }
 
 export class SupportingDocumentDto {
-  @ApiProperty({ example: 'appointment_letter.pdf' })
+  @ApiPropertyOptional({ example: 'appointment_letter.pdf' })
   @IsString()
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ example: 'https://utaas-storage.ruh.ac.lk/docs/appointment_letter.pdf' })
+  @ApiPropertyOptional({ example: 'https://utaas-storage.ruh.ac.lk/docs/appointment_letter.pdf' })
   @IsString()
   @IsNotEmpty()
   url: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 'APPOINTMENT_LETTER',
     description: 'Document category: APPOINTMENT_LETTER, ATTENDANCE_MARKS_SHEET, EXAM_TIMETABLE',
   })

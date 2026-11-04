@@ -23,6 +23,17 @@ import { SaveDraftClaimDto } from '../dto/save-draft-claim.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { User } from '../../../database/entities/user.entity';
+import {
+  ACADEMIC_YEAR_OPTIONS,
+  SEMESTER_OPTIONS,
+  DEGREE_PROGRAMME_OPTIONS,
+  EXAM_TYPE_OPTIONS,
+  EXAMINER_ROLE_OPTIONS,
+  PAPER_DURATION_OPTIONS,
+  SCRIPT_EVALUATION_TYPES,
+  DOCUMENT_CATEGORY_OPTIONS,
+  ENGINEERING_COURSE_MODULES,
+} from '../constants/examination-options.constant';
 
 @ApiTags('Paper Marking Claims')
 @Controller('requests/paper-marking')
@@ -42,6 +53,28 @@ export class PaperMarkingController {
   @ApiResponse({ status: 200, description: 'Circular rates retrieved' })
   getApprovedRates() {
     return this.feeCalculationService.getApprovedRates();
+  }
+
+  @Get('options/form-dropdowns')
+  @ApiOperation({
+    summary: 'Get Standardized Form Dropdown Options for Engineering Faculty',
+    description:
+      'Provides pre-configured dropdown choices for academic year, semester, degree programs, course modules, examination types, roles, and paper durations to minimize typing for lecturers',
+  })
+  @ApiResponse({ status: 200, description: 'Standardized dropdown options retrieved' })
+  getFormDropdownOptions(@CurrentUser() user?: User) {
+    return {
+      academicYears: ACADEMIC_YEAR_OPTIONS,
+      semesters: SEMESTER_OPTIONS,
+      degreeProgrammes: DEGREE_PROGRAMME_OPTIONS,
+      examTypes: EXAM_TYPE_OPTIONS,
+      examinerRoles: EXAMINER_ROLE_OPTIONS,
+      paperDurations: PAPER_DURATION_OPTIONS,
+      scriptEvaluationTypes: SCRIPT_EVALUATION_TYPES,
+      documentCategories: DOCUMENT_CATEGORY_OPTIONS,
+      courseModules: ENGINEERING_COURSE_MODULES,
+      userDepartmentCode: user?.department?.code || null,
+    };
   }
 
   @Post('draft')

@@ -294,9 +294,9 @@ describe('WorkflowStateMachineService', () => {
         },
       });
 
-      // 2 * 3500 + 50 * 120 = 7000 + 6000 = 13000
-      expect(updated.totalAmount).toBe(13000);
-      expect(updated.formData.feeCalculation.totalAmount).toBe(13000);
+      // 2 * 1200 + 50 * 100 = 2400 + 5000 = 7400
+      expect(updated.totalAmount).toBe(7400);
+      expect(updated.formData.feeCalculation.totalAmount).toBe(7400);
       expect(updated.currentStageKey).toBe('DEAN');
     });
 
@@ -559,9 +559,9 @@ describe('WorkflowStateMachineService', () => {
         },
       });
 
-      // 3500 + 12000 = 15500
-      expect(updated.totalAmount).toBe(15500);
-      expect(updated.formData.feeCalculation.totalAmount).toBe(15500);
+      // 1200 + 10000 = 11200
+      expect(updated.totalAmount).toBe(11200);
+      expect(updated.formData.feeCalculation.totalAmount).toBe(11200);
       expect(updated.status).toBe(RequestStatus.UNDER_REVIEW);
       expect(updated.currentStageKey).toBe('HEAD_OF_DEPARTMENT');
     });
