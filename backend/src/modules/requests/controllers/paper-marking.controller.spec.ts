@@ -2,42 +2,44 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PaperMarkingController } from './paper-marking.controller';
 import { PaperMarkingClaimService } from '../services/paper-marking-claim.service';
 import { FeeCalculationService } from '../services/fee-calculation.service';
-import { UserRole } from '../../../database/entities/user.entity';
+import { User, UserRole } from '../../../database/entities/user.entity';
 
 describe('PaperMarkingController', () => {
   let controller: PaperMarkingController;
-  let mockClaimService: any;
-  let mockFeeService: any;
+  let mockClaimService: Partial<PaperMarkingClaimService>;
+  let mockFeeService: Partial<FeeCalculationService>;
 
-  const mockUser = {
+  const mockUser: User = {
     id: 'user-1',
+    email: 'lecturer@eng.ruh.ac.lk',
+    fullName: 'Dr. Kamal Perera',
     role: UserRole.LECTURER,
+    departmentId: 'dept-com',
+    createdAt: new Date(),
+    updatedAt: new Date(),
   } as any;
 
-  const mockDto = {
+  const mockDto: any = {
     metadata: {
       academicYear: '2023/2024',
       semester: 'Semester 1',
-      degreeProgramme: 'BScEng Computer Engineering',
+      degreeProgramme: 'BScEng (Hons) in Computer Engineering',
       courseCode: 'EC5060',
       courseTitle: 'Software Engineering',
-      examType: 'End Semester',
+      examType: 'End Semester Examination',
       examinerRole: 'First Examiner',
     },
     items: {
       paperSettingCount: 1,
-      paperModerationCount: 0,
       scriptMarkingCount: 100,
-      practicalAssessmentHours: 0,
-      secondMarkingCount: 0,
     },
   };
 
   beforeEach(async () => {
     mockClaimService = {
-      saveDraft: jest.fn().mockResolvedValue({ id: 'draft-id', status: 'DRAFT' }),
-      submitClaim: jest.fn().mockResolvedValue({ id: 'submitted-id', status: 'UNDER_REVIEW' }),
-      getClaimById: jest.fn().mockResolvedValue({ id: 'claim-123' }),
+      saveDraft: jest.fn().mockResolvedValue({ id: 'draft-1', status: 'DRAFT' } as any),
+      submitClaim: jest.fn().mockResolvedValue({ id: 'claim-1', status: 'UNDER_REVIEW' } as any),
+      getClaimById: jest.fn().mockResolvedValue({ id: 'claim-123' } as any),
     };
 
     mockFeeService = {
@@ -63,6 +65,21 @@ describe('PaperMarkingController', () => {
     it('should call feeCalculationService.getApprovedRates', () => {
       controller.getApprovedRates();
       expect(mockFeeService.getApprovedRates).toHaveBeenCalled();
+    });
+  });
+
+  describe('getFormDropdownOptions', () => {
+    it('should return standardized dropdown choices for Engineering Faculty', () => {
+      const options = controller.getFormDropdownOptions(mockUser);
+      expect(options.academicYears).toBeDefined();
+      expect(options.academicYears.length).toBeGreaterThan(0);
+      expect(options.semesters).toContain('Semester 1');
+      expect(options.degreeProgrammes).toContain('BScEng (Hons) in Computer Engineering');
+      expect(options.examTypes).toContain('End Semester Examination');
+      expect(options.examinerRoles).toContain('First Examiner (Setter)');
+      expect(options.paperDurations).toBeDefined();
+      expect(options.courseModules).toBeDefined();
+      expect(options.courseModules.some((m) => m.code === 'EC5060')).toBe(true);
     });
   });
 

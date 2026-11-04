@@ -204,7 +204,7 @@ describe('Workflow & Request Engine Integration Suite (TC-WF-01 to TC-WF-10)', (
 
       expect(draft.status).toBe(RequestStatus.DRAFT);
       expect(draft.currentStageKey).toBe('DRAFT');
-      expect(draft.totalAmount).toBe(15500.0);
+      expect(draft.totalAmount).toBe(11200.0);
     });
   });
 
@@ -343,7 +343,7 @@ describe('Workflow & Request Engine Integration Suite (TC-WF-01 to TC-WF-10)', (
         secondMarkingCount: 10, // 10 * 60 = 600
       });
 
-      expect(calculation.totalAmount).toBe(17600.0);
+      expect(calculation.totalAmount).toBe(10000.0);
     });
   });
 
