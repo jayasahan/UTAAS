@@ -5,6 +5,7 @@ import { BadRequestException, ForbiddenException, NotFoundException } from '@nes
 import { PaperMarkingClaimService } from './paper-marking-claim.service';
 import { FeeCalculationService } from './fee-calculation.service';
 import { TrackingNumberService } from './tracking-number.service';
+import { ExamPaperStructureService } from './exam-paper-structure.service';
 import { Request, RequestStatus } from '../../../database/entities/request.entity';
 import { RequestType } from '../../../database/entities/request-type.entity';
 import { WorkflowTemplate } from '../../../database/entities/workflow-template.entity';
@@ -22,6 +23,7 @@ describe('PaperMarkingClaimService', () => {
   let mockFeeService: Partial<FeeCalculationService>;
   let mockTrackingService: Partial<TrackingNumberService>;
   let mockDataSource: any;
+  let mockExamPaperStructureService: any;
 
   const mockUser: User = {
     id: 'user-lecturer-1',
@@ -119,6 +121,10 @@ describe('PaperMarkingClaimService', () => {
       }),
     };
 
+    mockExamPaperStructureService = {
+      validateAndEnforcePaperQuotas: jest.fn().mockResolvedValue([]),
+    };
+
     mockTrackingService = {
       generateTrackingNumber: jest.fn().mockResolvedValue('UTR-2026-0001'),
     };
@@ -158,6 +164,7 @@ describe('PaperMarkingClaimService', () => {
         { provide: FeeCalculationService, useValue: mockFeeService },
         { provide: TrackingNumberService, useValue: mockTrackingService },
         { provide: DataSource, useValue: mockDataSource },
+        { provide: ExamPaperStructureService, useValue: mockExamPaperStructureService },
       ],
     }).compile();
 

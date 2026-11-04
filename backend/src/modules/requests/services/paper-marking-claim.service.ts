@@ -19,6 +19,7 @@ import { User, UserRole } from '../../../database/entities/user.entity';
 import { enforceRequestAccessControl } from '../utils/access-control.util';
 import { FeeCalculationService } from './fee-calculation.service';
 import { TrackingNumberService } from './tracking-number.service';
+import { ExamPaperStructureService } from './exam-paper-structure.service';
 import { CreatePaperMarkingClaimDto } from '../dto/create-paper-marking-claim.dto';
 import { SaveDraftClaimDto } from '../dto/save-draft-claim.dto';
 
@@ -39,6 +40,7 @@ export class PaperMarkingClaimService {
     private readonly auditEventRepo: Repository<AuditEvent>,
     private readonly feeCalculationService: FeeCalculationService,
     private readonly trackingNumberService: TrackingNumberService,
+    private readonly examPaperStructureService: ExamPaperStructureService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -121,23 +123,32 @@ export class PaperMarkingClaimService {
   /**
    * Validate, calculate, and submit a paper marking claim into the 6-stage review workflow.
    * Accepts structured multiple paper rows and preserves row details in formData.
+   * Validates cross-examiner question quotas and locks paper structure upon first submission.
    */
   async submitClaim(
     user: User,
     dto: CreatePaperMarkingClaimDto,
     draftId?: string,
   ): Promise<Request> {
+    const resolvedMetadata = dto.metadata || dto.academic;
+    if (!resolvedMetadata) {
+      throw new BadRequestException('Missing examination metadata or academic information');
+    }
+
+    // Validate cross-examiner quotas and establish authoritative paper structure if first examiner
+    await this.examPaperStructureService.validateAndEnforcePaperQuotas(
+      user,
+      resolvedMetadata,
+      dto.papers || [],
+      draftId,
+    );
+
     const feeCalculation = this.feeCalculationService.calculateClaimFees(dto.items, dto.papers);
 
     if (feeCalculation.totalAmount <= 0) {
       throw new BadRequestException(
         'Invalid claim: Total claim amount must be greater than zero. Please provide at least one claim item or paper row with positive counts.',
       );
-    }
-
-    const resolvedMetadata = dto.metadata || dto.academic;
-    if (!resolvedMetadata) {
-      throw new BadRequestException('Missing examination metadata or academic information');
     }
 
     const computedItems = dto.items || this.feeCalculationService.aggregateFromPaperRows(dto.papers);

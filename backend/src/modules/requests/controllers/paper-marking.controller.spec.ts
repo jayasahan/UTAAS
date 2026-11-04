@@ -3,6 +3,7 @@ import { PaperMarkingController } from './paper-marking.controller';
 import { PaperMarkingClaimService } from '../services/paper-marking-claim.service';
 import { FeeCalculationService } from '../services/fee-calculation.service';
 import { AdminModulesService } from '../../admin/services/admin-modules.service';
+import { ExamPaperStructureService } from '../services/exam-paper-structure.service';
 import { User, UserRole } from '../../../database/entities/user.entity';
 
 describe('PaperMarkingController', () => {
@@ -10,6 +11,7 @@ describe('PaperMarkingController', () => {
   let mockClaimService: Partial<PaperMarkingClaimService>;
   let mockFeeService: Partial<FeeCalculationService>;
   let mockAdminModulesService: Partial<AdminModulesService>;
+  let mockExamPaperStructureService: Partial<ExamPaperStructureService>;
 
   const mockUser: User = {
     id: 'user-1',
@@ -60,12 +62,20 @@ describe('PaperMarkingController', () => {
       ]),
     };
 
+    mockExamPaperStructureService = {
+      getPaperStructureWithClaims: jest.fn().mockResolvedValue({
+        exists: true,
+        claimsBreakdown: {},
+      } as any),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PaperMarkingController],
       providers: [
         { provide: PaperMarkingClaimService, useValue: mockClaimService },
         { provide: FeeCalculationService, useValue: mockFeeService },
         { provide: AdminModulesService, useValue: mockAdminModulesService },
+        { provide: ExamPaperStructureService, useValue: mockExamPaperStructureService },
       ],
     }).compile();
 
@@ -96,6 +106,24 @@ describe('PaperMarkingController', () => {
       expect(options.courseModules).toBeDefined();
       expect(options.courseModules.some((m) => m.code === 'EC5060')).toBe(true);
       expect(mockAdminModulesService.getFilteredModulesForClaim).toHaveBeenCalled();
+    });
+  });
+
+  describe('getPaperStructure', () => {
+    it('should call examPaperStructureService.getPaperStructureWithClaims', async () => {
+      const res = await controller.getPaperStructure(
+        'EC5060',
+        '2023/2024',
+        'Semester 1',
+        'End Semester Examination',
+      );
+      expect(mockExamPaperStructureService.getPaperStructureWithClaims).toHaveBeenCalledWith(
+        'EC5060',
+        '2023/2024',
+        'Semester 1',
+        'End Semester Examination',
+      );
+      expect(res.exists).toBe(true);
     });
   });
 
