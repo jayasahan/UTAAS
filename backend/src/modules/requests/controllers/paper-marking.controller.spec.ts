@@ -2,12 +2,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PaperMarkingController } from './paper-marking.controller';
 import { PaperMarkingClaimService } from '../services/paper-marking-claim.service';
 import { FeeCalculationService } from '../services/fee-calculation.service';
+import { AdminModulesService } from '../../admin/services/admin-modules.service';
 import { User, UserRole } from '../../../database/entities/user.entity';
 
 describe('PaperMarkingController', () => {
   let controller: PaperMarkingController;
   let mockClaimService: Partial<PaperMarkingClaimService>;
   let mockFeeService: Partial<FeeCalculationService>;
+  let mockAdminModulesService: Partial<AdminModulesService>;
 
   const mockUser: User = {
     id: 'user-1',
@@ -46,11 +48,24 @@ describe('PaperMarkingController', () => {
       getApprovedRates: jest.fn().mockReturnValue({ rates: {} }),
     };
 
+    mockAdminModulesService = {
+      getFilteredModulesForClaim: jest.fn().mockResolvedValue([
+        {
+          code: 'EC5060',
+          title: 'Software Engineering Project',
+          departmentCode: 'EIE',
+          semester: 5,
+          credits: 3,
+        },
+      ]),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PaperMarkingController],
       providers: [
         { provide: PaperMarkingClaimService, useValue: mockClaimService },
         { provide: FeeCalculationService, useValue: mockFeeService },
+        { provide: AdminModulesService, useValue: mockAdminModulesService },
       ],
     }).compile();
 
@@ -69,8 +84,8 @@ describe('PaperMarkingController', () => {
   });
 
   describe('getFormDropdownOptions', () => {
-    it('should return standardized dropdown choices for Engineering Faculty', () => {
-      const options = controller.getFormDropdownOptions(mockUser);
+    it('should return standardized dropdown choices and filtered modules for Engineering Faculty', async () => {
+      const options = await controller.getFormDropdownOptions(mockUser, 5);
       expect(options.academicYears).toBeDefined();
       expect(options.academicYears.length).toBeGreaterThan(0);
       expect(options.semesters).toContain('Semester 1');
@@ -80,6 +95,7 @@ describe('PaperMarkingController', () => {
       expect(options.paperDurations).toBeDefined();
       expect(options.courseModules).toBeDefined();
       expect(options.courseModules.some((m) => m.code === 'EC5060')).toBe(true);
+      expect(mockAdminModulesService.getFilteredModulesForClaim).toHaveBeenCalled();
     });
   });
 

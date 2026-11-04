@@ -7,7 +7,9 @@ import { RequestStageHistory } from '../../database/entities/request-stage-histo
 import { AuditEvent } from '../../database/entities/audit-event.entity';
 import { User } from '../../database/entities/user.entity';
 import { Department } from '../../database/entities/department.entity';
+import { CourseModule } from '../../database/entities/course-module.entity';
 import { AuthModule } from '../auth/auth.module';
+import { AdminModule } from '../admin/admin.module';
 import { FeeCalculationService } from './services/fee-calculation.service';
 import { TrackingNumberService } from './services/tracking-number.service';
 import { PaperMarkingClaimService } from './services/paper-marking-claim.service';
@@ -28,8 +30,10 @@ import { DocumentsController } from './controllers/documents.controller';
       AuditEvent,
       User,
       Department,
+      CourseModule,
     ]),
     AuthModule,
+    AdminModule,
   ],
   controllers: [
     PaperMarkingController,

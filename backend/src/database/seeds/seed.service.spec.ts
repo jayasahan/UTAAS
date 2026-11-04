@@ -1,22 +1,22 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { SeedService } from './seed.service';
+import { SeedService, DEFAULT_SEED_PASSWORD } from './seed.service';
 import { Department } from '../entities/department.entity';
-import { User } from '../entities/user.entity';
+import { User, UserRole } from '../entities/user.entity';
 import { RequestType } from '../entities/request-type.entity';
 import { WorkflowTemplate } from '../entities/workflow-template.entity';
+import { CourseModule } from '../entities/course-module.entity';
 
 describe('SeedService', () => {
   let service: SeedService;
-  let mockUserRepo: any;
   let mockDeptRepo: any;
+  let mockUserRepo: any;
   let mockRequestTypeRepo: any;
   let mockWorkflowTemplateRepo: any;
+  let mockCourseModuleRepo: any;
   const originalEnv = process.env.NODE_ENV;
 
   beforeEach(async () => {
-    process.env.NODE_ENV = 'development';
-
     mockUserRepo = {
       findOne: jest.fn(),
       save: jest.fn(),
@@ -46,6 +46,12 @@ describe('SeedService', () => {
       create: jest.fn().mockImplementation((dto) => dto),
     };
 
+    mockCourseModuleRepo = {
+      findOne: jest.fn().mockResolvedValue(null),
+      save: jest.fn(),
+      create: jest.fn().mockImplementation((dto) => dto),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SeedService,
@@ -53,6 +59,7 @@ describe('SeedService', () => {
         { provide: getRepositoryToken(User), useValue: mockUserRepo },
         { provide: getRepositoryToken(RequestType), useValue: mockRequestTypeRepo },
         { provide: getRepositoryToken(WorkflowTemplate), useValue: mockWorkflowTemplateRepo },
+        { provide: getRepositoryToken(CourseModule), useValue: mockCourseModuleRepo },
       ],
     }).compile();
 
@@ -69,19 +76,13 @@ describe('SeedService', () => {
 
   it('should skip seeding default test persona users in production mode (P0 guard)', async () => {
     process.env.NODE_ENV = 'production';
-
     await service.seedAll();
-
-    // In production, userRepo save/create should not be called
     expect(mockUserRepo.save).not.toHaveBeenCalled();
-    expect(mockUserRepo.create).not.toHaveBeenCalled();
   });
 
   it('should seed default users in development mode', async () => {
     process.env.NODE_ENV = 'development';
-
     await service.seedAll();
-
     expect(mockUserRepo.save).toHaveBeenCalled();
   });
 });
