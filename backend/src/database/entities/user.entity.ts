@@ -38,6 +38,9 @@ export class User {
   @Column({ default: 0 })
   tokenVersion?: number;
 
+  @Column({ nullable: true, length: 150 })
+  designation?: string | null;
+
   @Column({ nullable: true })
   departmentId: string;
 

@@ -5,6 +5,7 @@ import { HealthModule } from './modules/health/health.module';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { RequestsModule } from './modules/requests/requests.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { RequestsModule } from './modules/requests/requests.module';
     HealthModule,
     AuthModule,
     RequestsModule,
+    AdminModule,
   ],
 })
 export class AppModule {}
