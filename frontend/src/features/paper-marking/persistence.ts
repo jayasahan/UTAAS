@@ -1,5 +1,12 @@
 import { record, text } from '../../auth/contracts';
 import type { ClaimForm, PaperRow } from './model';
+import { academicLabels, personalLabels } from './model';
+import {
+  decodeClaimItems,
+  decodeComments,
+  decodePaperExtensions,
+  preservedItems,
+} from './supportedFields';
 
 export interface PersistedDocument {
   name: string;
@@ -21,28 +28,36 @@ export interface UploadedDocument extends PersistedDocument {
   mimetype: string;
 }
 
-const documentCategories = [
-  'APPOINTMENT_LETTER',
-  'EXAM_TIMETABLE',
-  'ATTENDANCE_MARKS_SHEET',
-] as const;
-
-function decodeDocumentReference(value: unknown): PersistedDocument {
+function decodeDocumentReference(
+  value: unknown,
+  allowStoredHttps = true,
+): PersistedDocument {
   const data = record(value);
   const url = text(data.url);
   const filename = url.slice('/api/v1/requests/documents/'.length);
+  // Historical DTO records can contain HTTPS storage references. Preserve them
+  // as opaque metadata; this form never follows or downloads those URLs.
+  let storedHttps = false;
+  if (allowStoredHttps) {
+    try {
+      const parsed = new URL(url);
+      storedHttps =
+        parsed.protocol === 'https:' && !parsed.username && !parsed.password;
+    } catch {
+      /* Relative upload references are validated below. */
+    }
+  }
   if (
-    !url.startsWith('/api/v1/requests/documents/') ||
-    !filename ||
-    filename.includes('/') ||
-    filename.includes('..') ||
-    filename.includes('?') ||
-    filename.includes('#')
+    !storedHttps &&
+    (!url.startsWith('/api/v1/requests/documents/') ||
+      !filename ||
+      filename.includes('/') ||
+      filename.includes('..') ||
+      filename.includes('?') ||
+      filename.includes('#'))
   )
     throw new Error('Invalid uploaded document reference');
   const documentType = text(data.documentType);
-  if (!documentCategories.some((category) => category === documentType))
-    throw new Error('Invalid uploaded document category');
   const size = data.size;
   if (
     size !== undefined &&
@@ -72,7 +87,7 @@ export function decodePersistedClaim(value: unknown): PersistedClaim {
 
 export function decodeUploadedDocument(value: unknown): UploadedDocument {
   const data = record(value);
-  const reference = decodeDocumentReference(data);
+  const reference = decodeDocumentReference(data, false);
   const size = data.size;
   if (typeof size !== 'number' || !Number.isSafeInteger(size) || size < 1)
     throw new Error('Invalid uploaded document size');
@@ -130,6 +145,7 @@ export function toDraftPayload(
         paper.assessmentQuantity || '0',
         'Assessment quantity',
       ),
+      ...decodePaperExtensions(paper),
     }));
   const partialRows = form.papers.some(
     (paper) =>
@@ -140,28 +156,43 @@ export function toDraftPayload(
         Number(paper.translationCount) ||
         Number(paper.scriptCount) ||
         Number(paper.secondMarkingCount) ||
-        Number(paper.assessmentQuantity)),
+        Number(paper.assessmentQuantity) ||
+        paper.typedPageCount !== undefined ||
+        paper.settingShare !== undefined ||
+        paper.markingShare !== undefined ||
+        paper.combinedPaperConfig !== undefined),
   );
   if (partialRows)
     throw new Error(
       'Complete the title of each started paper row, or remove that row, before saving.',
     );
   return {
-    personal: { ...form.personal },
-    metadata: { ...form.academic },
+    personal: Object.fromEntries(
+      Object.keys(personalLabels).map((key) => [
+        key,
+        form.personal[key as keyof typeof personalLabels],
+      ]),
+    ),
+    metadata: Object.fromEntries(
+      Object.keys(academicLabels).map((key) => [
+        key,
+        form.academic[key as keyof typeof academicLabels],
+      ]),
+    ),
     papers,
-    supportingDocuments: supportingDocuments.map((document) => ({
-      name: document.name,
-      url: document.url,
-      documentType: document.documentType,
-      ...(document.size === undefined ? {} : { size: document.size }),
-    })),
+    supportingDocuments: supportingDocuments.map((document) =>
+      decodeDocumentReference(document),
+    ),
     declaration: form.declaration,
     selectedDocumentCategory: form.selectedDocumentCategory,
+    ...(form.items === undefined ? {} : { items: preservedItems(form) }),
+    ...(form.comments === undefined
+      ? {}
+      : { comments: decodeComments(form.comments) }),
   };
 }
 
-/** Maps claim state to the submit DTO; no aggregate items or UI-only category are sent. */
+/** Only DTO-supported fields; all rates and monetary totals remain server-owned. */
 export function toSubmissionPayload(
   form: ClaimForm,
   supportingDocuments: PersistedDocument[],
@@ -179,6 +210,8 @@ export function toSubmissionPayload(
     papers: draft.papers,
     supportingDocuments: draft.supportingDocuments,
     declaration: draft.declaration,
+    ...(draft.items === undefined ? {} : { items: draft.items }),
+    ...(draft.comments === undefined ? {} : { comments: draft.comments }),
   };
 }
 
@@ -201,6 +234,7 @@ function decodePaper(value: unknown, index: number): PaperRow {
     secondMarkingCount: stringOrEmpty(item.secondMarkingCount ?? 0),
     assessmentUnit: unit,
     assessmentQuantity: stringOrEmpty(item.assessmentQuantity ?? 0),
+    ...decodePaperExtensions(item),
   };
 }
 
@@ -253,9 +287,14 @@ export function restoreFormData(
         ],
     persistedDocuments: documents,
     selectedDocumentCategory:
-      category === 'EXAM_TIMETABLE' || category === 'ATTENDANCE_MARKS_SHEET'
+      typeof category === 'string' && category.trim()
         ? category
         : 'APPOINTMENT_LETTER',
     declaration: value.declaration === true,
+    ...(value.items == null ? {} : { items: decodeClaimItems(value.items) }),
+    ...(value.comments == null
+      ? {}
+      : { comments: decodeComments(value.comments) }),
+    originalPapers: structuredClone(rows),
   };
 }

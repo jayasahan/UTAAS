@@ -5,7 +5,7 @@ import type {
   AcademicInformation,
   DocumentCategory,
   FieldError,
-  PaperRow,
+  PaperInputField,
   PersonalInformation,
 } from './model';
 import { MAX_DOCUMENTS, validateFile, validateStep } from './validation';
@@ -52,11 +52,7 @@ export function useClaimForm() {
     }));
     changed();
   }
-  function updatePaper(
-    id: string,
-    key: keyof Omit<PaperRow, 'id'>,
-    value: string,
-  ) {
+  function updatePaper(id: string, key: PaperInputField, value: string) {
     const current = form.papers.find((row) => row.id === id);
     if (key === 'assessmentUnit') {
       if (!current || current.assessmentUnit === value) return;
@@ -154,7 +150,7 @@ export function useClaimForm() {
   }
   const restore = useCallback(
     (saved: Omit<ReturnType<typeof createForm>, 'documents'>) => {
-      setForm((old) => ({ ...old, ...saved, documents: [] }));
+      setForm({ ...createForm(), ...structuredClone(saved), documents: [] });
       editedPersonal.current = new Set(
         Object.keys(saved.personal) as (keyof PersonalInformation)[],
       );

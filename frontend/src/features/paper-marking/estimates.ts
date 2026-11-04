@@ -1,6 +1,7 @@
 import type { PaperRow } from './model';
 import { isMoney, isQuantity } from './validation';
 import type { CircularRates } from '../../auth/contracts';
+import { hasExtendedPaperValues, type ClaimItems } from './supportedFields';
 
 /** Future authenticated rate adapter input. No hardcoded rates or HTTP calls. */
 export interface VerifiedRates {
@@ -60,6 +61,7 @@ export function estimatePaperBreakdown(
   paper: PaperRow,
   rates?: VerifiedRates,
 ): PaperEstimate | null {
+  if (hasExtendedPaperValues(paper)) return null;
   if (
     !rates?.circularReference.trim() ||
     !Object.values(rates)
@@ -120,7 +122,13 @@ export function estimatePaper(
 export function estimateTotal(
   papers: PaperRow[],
   rates?: VerifiedRates,
+  items?: ClaimItems,
 ): number | null {
+  if (
+    papers.some(hasExtendedPaperValues) ||
+    Object.values(items ?? {}).some((value) => value > 0)
+  )
+    return null;
   if (!papers.length) return null;
   if (
     !rates?.circularReference.trim() ||

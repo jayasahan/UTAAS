@@ -60,6 +60,9 @@ export function DocumentsStep({
           onCategoryChange(event.target.value as DocumentCategory)
         }
       >
+        {!Object.hasOwn(documentLabels, category) && (
+          <option value={category}>{category}</option>
+        )}
         {(Object.keys(documentLabels) as DocumentCategory[]).map((key) => (
           <option key={key} value={key}>
             {documentLabels[key]}

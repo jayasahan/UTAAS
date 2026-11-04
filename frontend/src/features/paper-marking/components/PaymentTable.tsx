@@ -7,12 +7,15 @@ import {
   formatEstimate,
 } from '../estimates';
 import type { VerifiedRates } from '../estimates';
-import type { FieldError, PaperRow } from '../model';
+import type { FieldError, PaperRow, PaperInputField } from '../model';
 import { quantityLabels } from '../validation';
+import { ClaimFieldSummary } from './ClaimFieldSummary';
+import type { ClaimItems } from '../supportedFields';
 
 export function PaymentTable({
   papers,
   rates,
+  items,
   errors,
   onChange,
   onAdd,
@@ -20,12 +23,9 @@ export function PaymentTable({
 }: {
   papers: PaperRow[];
   rates?: VerifiedRates;
+  items?: ClaimItems | undefined;
   errors: FieldError[];
-  onChange: (
-    id: string,
-    key: keyof Omit<PaperRow, 'id'>,
-    value: string,
-  ) => void;
+  onChange: (id: string, key: PaperInputField, value: string) => void;
   onAdd: () => void;
   onRemove: (id: string) => void;
 }) {
@@ -78,6 +78,7 @@ export function PaymentTable({
           ? `Estimates use the authenticated backend circular ${rates.circularReference} and its verified per-paper, per-script, per-hour, and per-candidate units. The backend calculates the final amount when the claim is submitted.`
           : 'Estimates are unavailable because a complete, unit-matched circular response is not available. Rates and amounts cannot be entered manually.'}
       </p>
+      <ClaimFieldSummary papers={papers} items={items} />
       <div id="paper-table" className="paper-payment-table" tabIndex={-1}>
         <Table
           caption="Paper payment details"
@@ -235,7 +236,7 @@ export function PaymentTable({
         </Button>
         <p className="rounded-control bg-success-subtle p-4 font-semibold text-brand">
           TOTAL PAYMENT ESTIMATE:{' '}
-          <output>{formatEstimate(estimateTotal(papers, rates))}</output>
+          <output>{formatEstimate(estimateTotal(papers, rates, items))}</output>
         </p>
       </div>
       <p className="text-sm text-muted">

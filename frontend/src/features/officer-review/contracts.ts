@@ -1,6 +1,13 @@
 import { record, text } from '../../auth/contracts';
 import type { StaffProfile } from '../../auth/contracts';
 import {
+  decodeClaimItems,
+  decodeComments,
+  decodePaperExtensions,
+  type ClaimItems,
+  type PaperExtensions,
+} from '../paper-marking/supportedFields';
+import {
   decodeRequestDetail,
   decodeRequestHistory,
   decodeRequestTracking,
@@ -29,7 +36,8 @@ export interface ReviewAcademicInfo {
   examinerRole: string | null;
 }
 
-export interface ReviewPaperRow {
+export interface ReviewPaperRow extends PaperExtensions {
+  id?: string;
   title: string | null;
   durationHours: number | null;
   settingCount: number | null;
@@ -72,6 +80,8 @@ export interface OfficerClaimReview {
   personal: ReviewPersonalInfo;
   academic: ReviewAcademicInfo;
   papers: ReviewPaperRow[];
+  items?: ClaimItems | undefined;
+  comments?: string | undefined;
   feeLines: ReviewFeeLine[];
   documents: ReviewDocumentMetadata[];
   tracking: RequestTracking;
@@ -134,6 +144,7 @@ function decodePaper(value: unknown): ReviewPaperRow {
   )
     throw new Error('Invalid assessment unit');
   return {
+    ...(row.id == null ? {} : { id: text(row.id) }),
     title: optionalText(row.title),
     durationHours: optionalNumber(row.durationHours),
     settingCount: optionalNumber(row.settingCount),
@@ -143,6 +154,7 @@ function decodePaper(value: unknown): ReviewPaperRow {
     secondMarkingCount: optionalNumber(row.secondMarkingCount),
     assessmentUnit: assessmentUnit ?? null,
     assessmentQuantity: optionalNumber(row.assessmentQuantity),
+    ...decodePaperExtensions(row),
   };
 }
 
@@ -236,6 +248,8 @@ export function decodeOfficerClaimReview(
     personal: mapStrings(personal, personalKeys),
     academic: mapStrings(academic, academicKeys),
     papers: paperValues.map(decodePaper),
+    items: decodeClaimItems(formData.items),
+    comments: decodeComments(formData.comments),
     feeLines: decodeFeeLines(formData.feeCalculation),
     documents: decodeDocuments(formData.supportingDocuments),
     tracking,

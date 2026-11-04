@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Card } from '../../components/common/Card';
+import { ClaimFieldSummary } from '../paper-marking/components/ClaimFieldSummary';
 import { Alert, EmptyState } from '../../components/common/Feedback';
 import { Table, TableCell, TableHead } from '../../components/common/Table';
 import { RequestStatusBadge } from '../../components/tracking/RequestStatusBadge';
@@ -254,6 +255,11 @@ export function OfficerClaimReviewView({
                 </Table>
               )}
 
+              <ClaimFieldSummary
+                papers={review.papers}
+                items={review.items}
+                comments={review.comments}
+              />
               {review.feeLines.length > 0 ? (
                 <div className="space-y-3">
                   <h3 className="font-semibold text-brand">

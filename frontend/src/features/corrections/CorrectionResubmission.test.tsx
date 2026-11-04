@@ -6,6 +6,7 @@ import { SessionContext } from '../../auth/session';
 import { createApiClient } from '../../services/apiClient';
 import type { RequestDetail } from '../requests/contracts';
 import { PaperMarkingClaimPage } from '../paper-marking/PaperMarkingClaimPage';
+import { claimFieldFixture } from '../../test/claimFieldFixture';
 
 const requestId = '7b5b9f20-8d1d-4d3c-8e59-17e252c81401';
 const apiBase = 'https://api.example.test/api/v1';
@@ -276,6 +277,59 @@ async function openReview(user: ReturnType<typeof userEvent.setup>) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('lecturer correction and resubmission workflow', () => {
+  it('retains extended claim fields through a real edit, correction save and resubmission action', async () => {
+    const user = userEvent.setup({ delay: null });
+    const fixture = claimFieldFixture();
+    const formData = {
+      ...fixture,
+      supportingDocuments: fixture.supportingDocuments.slice(0, 1),
+    };
+    const { client, fetcher } = backend({ formData });
+    renderCorrection(client);
+    const reference = await screen.findByDisplayValue('Claim reference');
+    await user.clear(reference);
+    await user.type(reference, 'Edited reference');
+    await user.click(screen.getByRole('button', { name: 'Save corrections' }));
+    await screen.findByText(/Corrections saved to UT-2026-0042/);
+    const savedCall = fetcher.mock.calls.find(
+      ([input, init]) =>
+        String(input).includes('/requests/paper-marking/draft') &&
+        init?.method === 'POST',
+    );
+    const saved = JSON.parse(String(savedCall?.[1]?.body)) as Record<
+      string,
+      unknown
+    >;
+    expect(saved).toEqual({
+      ...formData,
+      personal: { ...formData.personal, referenceTitle: 'Edited reference' },
+      declaration: false,
+    });
+    await openReview(user);
+    expect(screen.getByText('Typed pages: 4')).toBeVisible();
+    await user.click(screen.getByRole('checkbox', { name: /I declare/ }));
+    await user.click(screen.getByRole('button', { name: 'Review & Resubmit' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Confirm resubmission' }),
+    );
+    await screen.findByText(`Request destination: ${requestId}`);
+    const actionCall = fetcher.mock.calls.find(
+      ([input, init]) =>
+        String(input).endsWith(`/requests/${requestId}/actions`) &&
+        init?.method === 'POST',
+    );
+    const payload = JSON.parse(String(actionCall?.[1]?.body)) as {
+      action: string;
+      updatedFormData: Record<string, unknown>;
+    };
+    const { selectedDocumentCategory: _category, ...expected } = formData;
+    expect(_category).toBe('CONTINUOUS_ASSESSMENT_SCHEDULE');
+    expect(payload.action).toBe('RESUBMIT');
+    expect(payload.updatedFormData).toEqual({
+      ...expected,
+      personal: { ...expected.personal, referenceTitle: 'Edited reference' },
+    });
+  });
   it('loads the returned lecturer-owned snapshot only after profile verification', async () => {
     const user = userEvent.setup({ delay: null });
     const { fetcher, client } = backend();

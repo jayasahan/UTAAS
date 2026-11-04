@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { SessionContext } from '../../auth/session';
 import type { ApiClient } from '../../services/apiClient';
 import { PaperMarkingClaimPage } from './PaperMarkingClaimPage';
+import { claimFieldFixture } from '../../test/claimFieldFixture';
 
 function makeClient(): ApiClient {
   return {
@@ -45,6 +46,55 @@ function makeClient(): ApiClient {
 }
 
 describe('paper marking draft persistence UI', () => {
+  it('loads, edits and saves all supported extended draft fields and existing document references', async () => {
+    const user = userEvent.setup({ delay: null });
+    const client = makeClient();
+    const fixture = claimFieldFixture();
+    vi.mocked(client.get).mockImplementation(async (path, decode) => {
+      if (path === '/requests/paper-marking/extended-draft')
+        return decode({
+          id: 'extended-draft',
+          trackingNumber: 'UT-EXTENDED',
+          status: 'DRAFT',
+          totalAmount: 98765.43,
+          formData: fixture,
+        });
+      // Keep the original profile and circular mock behavior.
+      if (path === '/auth/me')
+        return decode({
+          id: 'user-1',
+          email: 'lecturer@example.test',
+          fullName: 'Profile Name',
+          role: 'LECTURER',
+          departmentCode: 'ENG',
+          departmentId: 'dept-1',
+        });
+      return decode({ circularReference: 'test-only', rates: {} });
+    });
+    render(
+      <SessionContext.Provider
+        value={{ status: 'authenticated', message: '', client, version: 1 }}
+      >
+        <MemoryRouter initialEntries={['/requests/new?draftId=extended-draft']}>
+          <PaperMarkingClaimPage />
+        </MemoryRouter>
+      </SessionContext.Provider>,
+    );
+    const reference = await screen.findByDisplayValue('Claim reference');
+    await user.clear(reference);
+    await user.type(reference, 'Updated reference');
+    await user.click(screen.getByRole('button', { name: 'Save draft' }));
+    await screen.findByText(/Draft saved on the server/);
+    expect(client.post).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(client.post).mock.calls[0]?.[1]).toEqual({
+      ...fixture,
+      personal: { ...fixture.personal, referenceTitle: 'Updated reference' },
+      declaration: false,
+    });
+    expect(vi.mocked(client.post).mock.calls[0]?.[3]).toEqual({
+      draftId: 'extended-draft',
+    });
+  });
   it('creates a draft once and reports the backend-confirmed response', async () => {
     const user = userEvent.setup();
     const client = makeClient();

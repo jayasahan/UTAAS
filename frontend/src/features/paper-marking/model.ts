@@ -1,3 +1,5 @@
+import type { ClaimItems, PaperExtensions } from './supportedFields';
+
 /** Editable UI state, deliberately not the aggregate backend claim DTO. */
 export interface PersonalInformation {
   fullName: string;
@@ -15,7 +17,7 @@ export interface AcademicInformation {
   examType: string;
   examinerRole: string;
 }
-export interface PaperRow {
+export interface PaperRow extends PaperExtensions {
   id: string;
   title: string;
   durationHours: string;
@@ -27,8 +29,12 @@ export interface PaperRow {
   assessmentUnit: 'candidates' | 'hours';
   assessmentQuantity: string;
 }
-export type DocumentCategory =
-  'APPOINTMENT_LETTER' | 'EXAM_TIMETABLE' | 'ATTENDANCE_MARKS_SHEET';
+export type PaperInputField = keyof Omit<
+  PaperRow,
+  'id' | keyof PaperExtensions
+>;
+// The backend DTO accepts a nonempty string, including categories added later.
+export type DocumentCategory = string;
 export interface LocalDocument {
   id: string;
   file: File;
@@ -38,6 +44,8 @@ export const documentLabels: Record<DocumentCategory, string> = {
   APPOINTMENT_LETTER: 'Appointment letter',
   EXAM_TIMETABLE: 'Examination timetable',
   ATTENDANCE_MARKS_SHEET: 'Attendance / marks sheet',
+  HOD_COMBINED_PAPER_APPROVAL: 'HOD combined paper approval letter',
+  CONTINUOUS_ASSESSMENT_SCHEDULE: 'Continuous assessment summary schedule',
 };
 export interface ClaimForm {
   personal: PersonalInformation;
@@ -46,6 +54,10 @@ export interface ClaimForm {
   documents: LocalDocument[];
   selectedDocumentCategory: DocumentCategory;
   declaration: boolean;
+  items?: ClaimItems | undefined;
+  comments?: string | undefined;
+  /** Local comparison snapshot; never serialized to the API. */
+  originalPapers?: PaperRow[] | undefined;
 }
 export interface FieldError {
   field: string;

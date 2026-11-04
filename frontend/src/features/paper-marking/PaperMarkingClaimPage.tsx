@@ -886,6 +886,7 @@ export function PaperMarkingClaimPage() {
               />
               <PaymentTable
                 papers={claim.form.papers}
+                items={claim.form.items}
                 {...(verifiedRates ? { rates: verifiedRates } : {})}
                 errors={[...claim.errors, ...claim.quantityErrors]}
                 onChange={claim.updatePaper}

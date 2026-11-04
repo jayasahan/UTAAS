@@ -11,6 +11,8 @@ import type {
 } from '../requests/contracts';
 import { summarizeCorrection } from './correctionSummary';
 import { restoreCorrectionForm } from './correctionPersistence';
+import { ClaimFieldSummary } from '../paper-marking/components/ClaimFieldSummary';
+import type { ClaimForm } from '../paper-marking/model';
 
 const lkr = new Intl.NumberFormat('en-LK', {
   style: 'currency',
@@ -125,8 +127,9 @@ export function CorrectionReview({
     'No correction comment was included in the available return record.';
   const rows = paperRows(request.formData);
   let snapshotError: string | null = null;
+  let storedDetails: Omit<ClaimForm, 'documents'> | undefined;
   try {
-    restoreCorrectionForm(request.formData);
+    storedDetails = restoreCorrectionForm(request.formData).form;
   } catch (error) {
     snapshotError =
       error instanceof Error
@@ -198,6 +201,13 @@ export function CorrectionReview({
 
       <NumberedSection number={2} title="Paper Setting & Marking Details">
         <FieldList fields={summary.claimFields} />
+        {storedDetails && (
+          <ClaimFieldSummary
+            papers={storedDetails.papers}
+            items={storedDetails.items}
+            comments={storedDetails.comments}
+          />
+        )}
         {rows.length > 0 && (
           <div
             className="mt-4 overflow-x-auto rounded-control border border-border"

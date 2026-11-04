@@ -177,13 +177,16 @@ export function restoreCorrectionForm(
       })),
       selectedDocumentCategory: restored.selectedDocumentCategory,
       declaration: restored.declaration,
+      items: restored.items,
+      comments: restored.comments,
+      originalPapers: restored.originalPapers,
     },
     persistedDocuments: restored.persistedDocuments,
     warnings: [...warnings],
   };
 }
 
-/** Full known form snapshot; the backend recalculates aggregate items and fees. */
+/** Full writable snapshot; independent items survive and the server owns all fees. */
 export function toCorrectionPayload(
   form: ClaimForm,
   documents: PersistedDocument[],
@@ -207,6 +210,8 @@ export function toCorrectionPayload(
     papers: snapshot.papers,
     supportingDocuments: snapshot.supportingDocuments,
     declaration: snapshot.declaration,
+    ...(snapshot.items === undefined ? {} : { items: snapshot.items }),
+    ...(snapshot.comments === undefined ? {} : { comments: snapshot.comments }),
   };
 }
 
@@ -219,7 +224,7 @@ export function toCorrectionDraftPayload(
   return {
     ...toCorrectionPayload(form, documents),
     selectedDocumentCategory: form.selectedDocumentCategory,
-    ...(typeof existingComments === 'string'
+    ...(form.comments === undefined && typeof existingComments === 'string'
       ? { comments: existingComments }
       : {}),
   };

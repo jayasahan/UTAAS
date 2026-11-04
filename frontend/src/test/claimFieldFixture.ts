@@ -1,0 +1,91 @@
+/** Synthetic DTO snapshot covering every writable paper-claim field. */
+export function claimFieldFixture() {
+  return {
+    personal: {
+      fullName: 'Lecturer',
+      designation: 'Senior Lecturer',
+      department: 'Engineering',
+      staffId: 'STAFF-1',
+      referenceTitle: 'Claim reference',
+    },
+    metadata: {
+      academicYear: '2026',
+      semester: '1',
+      degreeProgramme: 'BSc',
+      courseCode: 'EC5060',
+      courseTitle: 'Software Engineering',
+      examType: 'Final',
+      examinerRole: 'First Examiner',
+    },
+    papers: [
+      {
+        id: 'extended-paper',
+        title: 'Extended paper',
+        durationHours: 3,
+        settingCount: 1,
+        moderationCount: 1,
+        translationCount: 0,
+        scriptCount: 80,
+        secondMarkingCount: 10,
+        assessmentUnit: 'candidates',
+        assessmentQuantity: 20,
+        settingShare: {
+          isShared: true,
+          totalQuestions: 5,
+          questionsClaimed: 2,
+          proportion: 0.4,
+        },
+        markingShare: {
+          isShared: true,
+          totalQuestions: 5,
+          questionsClaimed: 3,
+          proportion: 0.6,
+        },
+        typedPageCount: 4,
+        combinedPaperConfig: {
+          isCombinedPaper: true,
+          essayWeightPercent: 75,
+          mcqWeightPercent: 25,
+          mcqQuestionCount: 20,
+        },
+      },
+    ],
+    items: {
+      paperSettingCount: 0.4,
+      paperModerationCount: 1,
+      paperTranslationCount: 0,
+      scriptMarkingCount: 48,
+      practicalAssessmentHours: 0,
+      secondMarkingCount: 10,
+      candidateAssessmentCount: 20,
+      paperTypingPages: 4,
+      continuousAssessmentCount: 35,
+      dissertationUndergradCount: 2,
+      dissertationPostgradCount: 1,
+      thesisMPhilCount: 0,
+      thesisPhDCount: 1,
+    },
+    supportingDocuments: [
+      {
+        name: 'appointment.pdf',
+        url: '/api/v1/requests/documents/lecturer__appointment.pdf',
+        documentType: 'APPOINTMENT_LETTER',
+        size: 1024,
+      },
+      {
+        name: 'hod.pdf',
+        url: '/api/v1/requests/documents/lecturer__hod.pdf',
+        documentType: 'HOD_COMBINED_PAPER_APPROVAL',
+        size: 2048,
+      },
+      {
+        name: 'schedule.pdf',
+        url: 'https://storage.example.test/schedule.pdf',
+        documentType: 'CONTINUOUS_ASSESSMENT_SCHEDULE',
+      },
+    ],
+    comments: 'Keep my original applicant note.',
+    selectedDocumentCategory: 'CONTINUOUS_ASSESSMENT_SCHEDULE',
+    declaration: true,
+  };
+}

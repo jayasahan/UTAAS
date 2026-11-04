@@ -1275,3 +1275,31 @@ document overflow. The table remained horizontally scrollable on narrow widths,
 and keyboard focus showed a visible outline. Live authenticated integration,
 independent QA, CI, and teammate review remain unverified. This feature is
 uncommitted; no push, PR, or merge was created.
+
+## 2026-11-05 — Task 6: Preserve new claim fields
+
+Branch: `feature/frontend-claim-field-preservation`; intended PR base: `mvp`.
+Created from freshly fetched `origin/mvp` at
+`019879bb2ae1261d53d23510ab4108c0ba5585c8` after verifying a clean tree and
+absence of the task branch locally and remotely.
+
+Typed backend allowlists retain shared setting/marking objects, typed pages,
+combined-paper configuration, all 13 aggregate quantities, comments, supported
+document references, and draft category selections through the existing claim
+and lecturer correction paths. Read-only summaries expose these values to the
+lecturer and officers. Recognized derived aggregates follow intentional row
+edits; ambiguous independent aggregates block conflicting edits with an
+explanation. Financial calculations remain server-owned.
+
+The existing HOD correction editor and paper-quota UI are absent from this
+baseline. This task provides preservation in shared mapping code without
+introducing parallel implementations of those features. Backend DTO/service
+gaps, source links, the full file inventory, test scope, and suggested commit/PR
+text are recorded in [CLAIM_FIELD_PRESERVATION.md](CLAIM_FIELD_PRESERVATION.md).
+
+Verification: 321/321 frontend tests in 29 files, lint, strict TypeScript,
+production build, changed-source formatting, and diff whitespace checks passed.
+The fixed-date history-preview test now pins its clock. Review status:
+PENDING; reviewer unassigned. Live backend integration, browser/Figma visual
+checks, independent QA, and CI are unverified. No commit, push, PR, or merge has
+been made for this task.

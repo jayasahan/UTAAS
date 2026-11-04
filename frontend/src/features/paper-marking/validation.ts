@@ -100,10 +100,17 @@ export function validateStep(
         paper.scriptCount,
         paper.secondMarkingCount,
         paper.assessmentQuantity,
+        String(paper.typedPageCount ?? 0),
+        String(
+          paper.settingShare?.isShared
+            ? (paper.settingShare.questionsClaimed ?? 0)
+            : 0,
+        ),
       ];
       if (
         quantities.every((value) => isQuantity(value)) &&
-        quantities.every((value) => Number(value) === 0)
+        quantities.every((value) => Number(value) === 0) &&
+        !Object.values(form.items ?? {}).some((value) => value > 0)
       )
         add(
           `${paper.id}-settingCount`,
