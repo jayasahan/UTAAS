@@ -7,3 +7,4 @@ export * from './request.entity';
 export * from './request-stage-history.entity';
 export * from './audit-event.entity';
 export * from './course-module.entity';
+export * from './exam-paper-structure.entity';

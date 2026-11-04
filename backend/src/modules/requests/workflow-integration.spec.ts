@@ -7,6 +7,7 @@ import { WorkflowStateMachineService } from './services/workflow-state-machine.s
 import { TrackingHistoryService } from './services/tracking-history.service';
 import { FeeCalculationService } from './services/fee-calculation.service';
 import { TrackingNumberService } from './services/tracking-number.service';
+import { ExamPaperStructureService } from './services/exam-paper-structure.service';
 import { Request, RequestStatus } from '../../database/entities/request.entity';
 import { RequestType } from '../../database/entities/request-type.entity';
 import { WorkflowTemplate } from '../../database/entities/workflow-template.entity';
@@ -170,6 +171,7 @@ describe('Workflow & Request Engine Integration Suite (TC-WF-01 to TC-WF-10)', (
         { provide: getRepositoryToken(AuditEvent), useValue: mockAuditEventRepo },
         { provide: getRepositoryToken(User), useValue: mockUserRepo },
         { provide: DataSource, useValue: mockDataSource },
+        { provide: ExamPaperStructureService, useValue: { validateAndEnforcePaperQuotas: jest.fn().mockResolvedValue([]), getPaperStructureWithClaims: jest.fn() } },
       ],
     }).compile();
 

@@ -19,6 +19,7 @@ import {
 import { PaperMarkingClaimService } from '../services/paper-marking-claim.service';
 import { FeeCalculationService } from '../services/fee-calculation.service';
 import { AdminModulesService } from '../../admin/services/admin-modules.service';
+import { ExamPaperStructureService } from '../services/exam-paper-structure.service';
 import { CreatePaperMarkingClaimDto } from '../dto/create-paper-marking-claim.dto';
 import { SaveDraftClaimDto } from '../dto/save-draft-claim.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -45,6 +46,7 @@ export class PaperMarkingController {
     private readonly claimService: PaperMarkingClaimService,
     private readonly feeCalculationService: FeeCalculationService,
     private readonly adminModulesService: AdminModulesService,
+    private readonly examPaperStructureService: ExamPaperStructureService,
   ) {}
 
   @Get('rates/circular')
@@ -105,6 +107,31 @@ export class PaperMarkingController {
     };
   }
 
+  @Get('paper-structure')
+  @ApiOperation({
+    summary: 'Get Examination Paper Structure and Cross-Examiner Claim Breakdown',
+    description:
+      'Retrieves the registered paper structure (total questions, MCQ questions, candidates), who registered it, and current claimed vs remaining quotas for setting, marking, moderation, and typing.',
+  })
+  @ApiQuery({ name: 'courseCode', required: true, description: 'Course code e.g. EC5060, IS5302' })
+  @ApiQuery({ name: 'academicYear', required: true, description: 'Academic year e.g. 2023/2024' })
+  @ApiQuery({ name: 'semester', required: true, description: 'Semester e.g. Semester 1 or 5' })
+  @ApiQuery({ name: 'examType', required: true, description: 'Exam type e.g. End Semester Examination' })
+  @ApiResponse({ status: 200, description: 'Paper structure and claims breakdown retrieved' })
+  async getPaperStructure(
+    @Query('courseCode') courseCode: string,
+    @Query('academicYear') academicYear: string,
+    @Query('semester') semester: string,
+    @Query('examType') examType: string,
+  ) {
+    return await this.examPaperStructureService.getPaperStructureWithClaims(
+      courseCode,
+      academicYear,
+      semester,
+      examType,
+    );
+  }
+
   @Post('draft')
   @ApiOperation({
     summary: 'Save Paper Marking Claim Draft',
@@ -125,11 +152,11 @@ export class PaperMarkingController {
   @ApiOperation({
     summary: 'Submit Paper Marking Claim into Approval Workflow',
     description:
-      'Validates form data, calculates official fees server-side, assigns a tracking number, and transitions the claim to Stage 1 (HOD Review)',
+      'Validates form data, enforces cross-examiner quotas against registered paper structure, calculates official fees server-side, assigns a tracking number, and transitions the claim to Stage 1 (HOD Review)',
   })
   @ApiQuery({ name: 'draftId', required: false, description: 'Optional draft ID to promote to submitted' })
   @ApiResponse({ status: 201, description: 'Claim successfully submitted and routed to HOD' })
-  @ApiResponse({ status: 400, description: 'Validation failure or zero claim amount' })
+  @ApiResponse({ status: 400, description: 'Validation failure, quota exceeded, or zero claim amount' })
   async submitClaim(
     @CurrentUser() user: User,
     @Body() dto: CreatePaperMarkingClaimDto,
