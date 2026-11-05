@@ -5,9 +5,8 @@ import { Card } from '../components/common/Card';
 import { Alert, EmptyState, Skeleton } from '../components/common/Feedback';
 import { RequestStatusBadge } from '../components/tracking/RequestStatusBadge';
 import { RequestWorkflowProgress } from '../components/tracking/RequestWorkflowProgress';
-import { ConsensusTracking } from '../components/tracking/ConsensusTracking';
+import { LecturerProportionAgreement } from '../features/proportion-consensus/LecturerProportionAgreement';
 import { WorkflowHistory } from '../components/audit/WorkflowHistory';
-import { decodeConsensusRecord } from '../features/requests/workflowTracking';
 import {
   decodeRequestDetail,
   decodeRequestHistory,
@@ -117,6 +116,7 @@ export function RequestDetailPage() {
   );
   const correctionProfile = useRequestResource(
     detail.data?.status === 'RETURNED_FOR_CORRECTION' ||
+      detail.data?.currentStageKey === 'LECTURER_PROPORTION_CONSENSUS' ||
       detail.data?.formData.hodProportionDivision != null
       ? '/auth/me'
       : null,
@@ -236,21 +236,23 @@ export function RequestDetailPage() {
           </dl>
         </Card>
       )}
-      {detail.data?.formData.hodProportionDivision != null &&
+      {(detail.data?.formData.hodProportionDivision != null ||
+        detail.data?.currentStageKey === 'LECTURER_PROPORTION_CONSENSUS') &&
         !correctionProfile.data && (
           <RequestLoadState
             title="Consensus viewing account"
             resource={correctionProfile}
           />
         )}
-      {detail.data && (
-        <ConsensusTracking
-          record={decodeConsensusRecord(
-            detail.data.formData.hodProportionDivision,
-          )}
-          viewer={correctionProfile.data ?? undefined}
-        />
-      )}
+      <LecturerProportionAgreement
+        detail={detail.data}
+        viewer={correctionProfile.data}
+        onRefresh={() => {
+          detail.retry();
+          tracking.retry();
+          history.retry();
+        }}
+      />
       <section
         aria-labelledby="tracking-title"
         className="space-y-3"

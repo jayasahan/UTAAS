@@ -23,9 +23,11 @@ const date = new Intl.DateTimeFormat('en-LK', {
 export function ConsensusTracking({
   record,
   viewer,
+  current = false,
 }: {
   record: ConsensusRecord;
   viewer?: TrackingViewer | undefined;
+  current?: boolean;
 }) {
   if (record.state === 'missing') return null;
   if (record.state === 'invalid')
@@ -131,9 +133,9 @@ export function ConsensusTracking({
         </p>
       )}
       <p className="text-sm text-muted">
-        This is the request's last recorded consensus snapshot. Partial
-        agreements may not yet appear here. No expected examiner total was
-        returned, so completion is not inferred from response counts.
+        {current
+          ? 'This proposal and its recorded responses were verified against the current examination record. No expected examiner total was returned; completion is shown only when confirmed by the server status.'
+          : "This is the request's last recorded consensus snapshot. Partial agreements may not yet appear here. No expected examiner total was returned, so completion is not inferred from response counts."}
       </p>
     </section>
   );

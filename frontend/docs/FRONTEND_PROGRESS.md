@@ -1308,3 +1308,34 @@ fixed-fixture history-preview date test pins its clock; no production history
 logic was changed. Mocked API tests passed, but live integration, Figma/browser
 visual acceptance, independent QA and CI remain unverified. Human review is
 PENDING; reviewer unassigned. No commit, push, merge or PR was made.
+
+### Feature 8: Lecturer proportion agreement (2026-11-05)
+
+Implemented on `feature/frontend-lecturer-proportion-consensus`, intentionally
+stacked on `feature/frontend-consensus-tracking` at
+`59e4478e96a210e2e4f0eee8f5cc59ed499f7396`. The correct branch and clean working
+tree were verified before changes. Feature 11 does not need to be merged into
+`mvp` for this review; `mvp` remains the ultimate integration target.
+
+Lecturers can review persisted HOD essay/MCQ proposals, agree, or disagree with a
+validated meaningful comment. The screen verifies the current examination record
+and own response, requires explicit revisions while open, detects proposal resets,
+blocks rapid duplicate submissions, and reconciles uncertain POST outcomes using
+GETs without automatic mutation retries. Dashboard request links highlight pending
+proposals. Existing Feature 11 consensus/tracking/history components are reused
+and refreshed after confirmed submission; server totals and audit events remain
+authoritative. No HOD UI, backend, financial rules or dependencies were changed.
+
+Verification: 395/395 tests across 32 files (52 new Feature 8 regressions), lint,
+strict TypeScript, production build, changed-source/new-report formatting and diff
+whitespace checks passed. An existing timing-sensitive officer-queue test failed
+in one run, passed independently, then passed in the complete rerun; it was not
+modified. Historical tracker Markdown was not globally reformatted.
+
+Atomic proposal versions, idempotency, transactional writes, request-scoped lookup
+authorization and complete intermediate agreement history/progress remain backend
+follow-ups. Exact contracts, file inventory, risks and suggested commit/PR text:
+[LECTURER_PROPORTION_CONSENSUS.md](LECTURER_PROPORTION_CONSENSUS.md).
+Live integration, visual acceptance, independent QA and CI remain unverified.
+Human review is PENDING; reviewer unassigned. All changes remain uncommitted on
+the existing feature branch. No branch switch, reset, push, merge or PR was made.

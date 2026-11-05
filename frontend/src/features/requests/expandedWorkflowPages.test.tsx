@@ -123,6 +123,16 @@ function backend(
         return options.detailStatus
           ? ok({ message: 'private request data' }, options.detailStatus)
           : ok(detail);
+      if (path.endsWith('/paper-structure'))
+        return ok({
+          exists: true,
+          paperStructure: {
+            ...sample.academic,
+            courseCode: sample.academic.courseCode?.trim().toUpperCase(),
+          },
+          hodProportionDivision:
+            options.snapshot === undefined ? proposal() : options.snapshot,
+        });
       if (path.endsWith(`/requests/${sample.id}/tracking`)) return ok(tracking);
       if (path.endsWith(`/requests/${sample.id}/history`)) {
         if (historyFailure) {
@@ -222,9 +232,7 @@ describe('expanded tracking through authorized lecturer and officer endpoints', 
     expect(
       fetcher.mock.calls
         .map(([input]) => String(input))
-        .some((url) =>
-          /paper-structure|form-dropdowns|rates\/circular/.test(url),
-        ),
+        .some((url) => /form-dropdowns|rates\/circular/.test(url)),
     ).toBe(false);
   });
   it('uses the same presentation in authorized officer review without offering an ordinary approval at consensus stage', async () => {
@@ -319,7 +327,7 @@ describe('expanded tracking through authorized lecturer and officer endpoints', 
     ).toHaveLength(2);
     expect(
       fetcher.mock.calls.filter(([input]) =>
-        String(input).includes('/paper-marking/'),
+        String(input).endsWith(`/paper-marking/${sample.id}`),
       ),
     ).toHaveLength(1);
   });

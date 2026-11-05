@@ -136,6 +136,11 @@ function ApplicationRow({ item }: { item: RequestListItem }) {
           <span className="mt-1 block text-xs text-muted">
             Tracking {item.trackingNumber}
           </span>
+          {item.currentStageKey === 'LECTURER_PROPORTION_CONSENSUS' && (
+            <span className="mt-1 block text-sm font-semibold text-action">
+              Review the HOD proportion proposal
+            </span>
+          )}
         </span>
         <span className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
           <RequestStatusBadge status={item.status} />
