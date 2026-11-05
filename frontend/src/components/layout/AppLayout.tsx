@@ -12,7 +12,7 @@ const navigation = [
 ];
 
 interface AppLayoutProps {
-  variant?: 'lecturer' | 'officer';
+  variant?: 'lecturer' | 'officer' | 'admin';
   items?: readonly NavigationItem[];
   workspaceLabel?: string;
 }
@@ -32,7 +32,9 @@ export function AppLayout({
         'min-h-screen md:grid ' +
         (variant === 'officer'
           ? 'md:grid-cols-[14.875rem_1fr]'
-          : 'md:grid-cols-[15.375rem_1fr]')
+          : variant === 'admin'
+            ? 'md:grid-cols-[14.875rem_1fr]'
+            : 'md:grid-cols-[15.375rem_1fr]')
       }
     >
       <a href="#main-content" className="skip-link">
@@ -41,7 +43,11 @@ export function AppLayout({
       <Sidebar
         items={items ?? defaultItems}
         portalLabel={
-          variant === 'officer' ? 'Officer portal' : 'Lecturer portal'
+          variant === 'officer'
+            ? 'Officer portal'
+            : variant === 'admin'
+              ? 'Admin portal'
+              : 'Lecturer portal'
         }
       />
       <div className="min-w-0">

@@ -9,7 +9,9 @@ import { officerQueueRoles } from '../features/officer-queue/contracts';
 import { ApiError } from '../services/apiClient';
 
 function roleHome(role: StaffProfile['role']): string {
-  return role === 'LECTURER' ? '/' : '/officer';
+  if (role === 'LECTURER') return '/';
+  if (role === 'ADMIN') return '/admin';
+  return '/officer';
 }
 
 function intendedPath(
@@ -26,6 +28,13 @@ function intendedPath(
   const path = value.split(/[?#]/, 1)[0] ?? '';
   if (role === 'LECTURER')
     return path === '/' || path === '/requests' || path.startsWith('/requests/')
+      ? value
+      : null;
+  if (role === 'ADMIN')
+    return path === '/admin' ||
+      path.startsWith('/admin/') ||
+      path === '/officer' ||
+      path.startsWith('/officer/')
       ? value
       : null;
   return officerQueueRoles.includes(role) &&

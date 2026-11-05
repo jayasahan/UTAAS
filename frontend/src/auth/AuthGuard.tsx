@@ -4,7 +4,9 @@ import { useSession } from './session';
 import type { StaffProfile } from './contracts';
 
 function homeForRole(role: StaffProfile['role']): string {
-  return role === 'LECTURER' ? '/' : '/officer';
+  if (role === 'LECTURER') return '/';
+  if (role === 'ADMIN') return '/admin';
+  return '/officer';
 }
 
 export function AuthGuard({
