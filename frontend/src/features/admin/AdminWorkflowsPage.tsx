@@ -11,6 +11,7 @@ import {
   decodeWorkflowTemplates,
   type RequestTypeConfig,
   type WorkflowStage,
+  type WorkflowTemplateConfig,
 } from './resourceContracts';
 
 const initialStages: WorkflowStage[] = [
@@ -59,6 +60,8 @@ export function AdminWorkflowsPage() {
     null,
   );
   const [showTemplateForm, setShowTemplateForm] = useState(false);
+  const [editingTemplate, setEditingTemplate] =
+    useState<WorkflowTemplateConfig | null>(null);
   const [typeCode, setTypeCode] = useState('');
   const [typeName, setTypeName] = useState('');
   const [typeDescription, setTypeDescription] = useState('');
@@ -196,27 +199,39 @@ export function AdminWorkflowsPage() {
     }
   }
 
-  async function createTemplate(event: FormEvent<HTMLFormElement>) {
+  async function saveTemplate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!client || stages.length < 2) return;
     setPending('template');
     setError('');
     setNotice('');
     try {
-      await client.post(
-        '/admin/workflows/templates',
-        {
-          requestTypeId,
-          stages: stages.map((stage, order) => ({ ...stage, order })),
-          isActive: false,
-        },
-        (value) => decodeWorkflowTemplates([value])[0],
-      );
+      const payload = {
+        stages: stages.map((stage, order) => ({ ...stage, order })),
+      };
+      if (editingTemplate) {
+        if (!client.patch)
+          throw new Error('Workflow stage editing is unavailable.');
+        await client.patch(
+          `/admin/workflows/templates/${encodeURIComponent(editingTemplate.id)}`,
+          payload,
+          (value) => decodeWorkflowTemplates([value])[0],
+        );
+      } else {
+        await client.post(
+          '/admin/workflows/templates',
+          { requestTypeId, ...payload, isActive: false },
+          (value) => decodeWorkflowTemplates([value])[0],
+        );
+      }
       setShowTemplateForm(false);
       setStages(initialStages);
       setRequestTypeId('');
+      setEditingTemplate(null);
       setNotice(
-        'A new inactive workflow version was created. Review it before activating.',
+        editingTemplate
+          ? `Workflow version ${editingTemplate.version} was updated.`
+          : 'A new inactive workflow version was created. Review it before activating.',
       );
       templates.retry();
       types.retry();
@@ -225,6 +240,29 @@ export function AdminWorkflowsPage() {
     } finally {
       setPending(null);
     }
+  }
+
+  function editTemplate(template: WorkflowTemplateConfig) {
+    if (template.isActive || template.activeRequestsCount > 0) return;
+    setEditingTemplate(template);
+    setRequestTypeId(template.requestTypeId);
+    setStages(template.stages.map((stage) => ({ ...stage })));
+    setShowTemplateForm(true);
+    setShowTypeForm(false);
+    setError('');
+  }
+
+  function closeTemplateForm() {
+    setShowTemplateForm(false);
+    setEditingTemplate(null);
+    setStages(initialStages);
+    setRequestTypeId('');
+  }
+
+  function openNewTemplateForm() {
+    closeTemplateForm();
+    setShowTemplateForm(true);
+    setShowTypeForm(false);
   }
 
   function updateStage(index: number, update: Partial<WorkflowStage>) {
@@ -280,8 +318,8 @@ export function AdminWorkflowsPage() {
           variant="ghost"
           disabled={!types.data?.some((type) => type.isActive)}
           onClick={() => {
-            setShowTemplateForm((value) => !value);
-            setShowTypeForm(false);
+            if (showTemplateForm) closeTemplateForm();
+            else openNewTemplateForm();
           }}
         >
           {showTemplateForm ? 'Close version form' : 'Create workflow version'}
@@ -351,34 +389,44 @@ export function AdminWorkflowsPage() {
 
       {showTemplateForm && (
         <Card>
-          <form onSubmit={createTemplate} className="space-y-4">
+          <form onSubmit={saveTemplate} className="space-y-4">
             <div>
               <h2 className="text-lg font-bold text-brand">
-                Create workflow version
+                {editingTemplate
+                  ? `Edit inactive workflow version ${editingTemplate.version}`
+                  : 'Create workflow version'}
               </h2>
               <p className="mt-1 text-sm text-muted">
-                This version starts inactive. Stage order follows the sequence
-                shown here.
+                {editingTemplate
+                  ? 'Only inactive versions without in-flight requests can be edited. Stage order follows the sequence shown here.'
+                  : 'This version starts inactive. Stage order follows the sequence shown here.'}
               </p>
             </div>
-            <label className="grid max-w-xl gap-1 text-sm font-semibold text-brand">
-              Request type
-              <select
-                required
-                value={requestTypeId}
-                onChange={(e) => setRequestTypeId(e.target.value)}
-                className="min-h-11 rounded-control border border-border bg-white px-3 font-normal"
-              >
-                <option value="">Select request type</option>
-                {types.data
-                  ?.filter((type) => type.isActive)
-                  .map((type) => (
-                    <option key={type.id} value={type.id}>
-                      {type.code} · {type.name}
-                    </option>
-                  ))}
-              </select>
-            </label>
+            {editingTemplate ? (
+              <p className="text-sm text-muted">
+                Request type: {editingTemplate.requestTypeCode} ·{' '}
+                {editingTemplate.requestTypeName}
+              </p>
+            ) : (
+              <label className="grid max-w-xl gap-1 text-sm font-semibold text-brand">
+                Request type
+                <select
+                  required
+                  value={requestTypeId}
+                  onChange={(e) => setRequestTypeId(e.target.value)}
+                  className="min-h-11 rounded-control border border-border bg-white px-3 font-normal"
+                >
+                  <option value="">Select request type</option>
+                  {types.data
+                    ?.filter((type) => type.isActive)
+                    .map((type) => (
+                      <option key={type.id} value={type.id}>
+                        {type.code} · {type.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            )}
             <ol className="space-y-3">
               {stages.map((stage, index) => (
                 <li
@@ -441,7 +489,7 @@ export function AdminWorkflowsPage() {
                   </label>
                   <Button
                     variant="ghost"
-                    disabled={index < 2}
+                    disabled={stages.length <= 2}
                     onClick={() =>
                       setStages((current) =>
                         current.filter((_, i) => i !== index),
@@ -474,14 +522,17 @@ export function AdminWorkflowsPage() {
               <Button
                 type="submit"
                 pending={pending === 'template'}
-                disabled={!client || !requestTypeId || stages.length < 2}
+                disabled={
+                  !client ||
+                  (!editingTemplate && !requestTypeId) ||
+                  stages.length < 2
+                }
               >
-                Save inactive version
+                {editingTemplate
+                  ? 'Save workflow stages'
+                  : 'Save inactive version'}
               </Button>
-              <Button
-                variant="ghost"
-                onClick={() => setShowTemplateForm(false)}
-              >
+              <Button variant="ghost" onClick={closeTemplateForm}>
                 Cancel
               </Button>
             </div>
@@ -630,6 +681,22 @@ export function AdminWorkflowsPage() {
                       {template.isActive ? 'Deactivate' : 'Activate'}
                     </Button>
                   </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {!template.isActive && template.activeRequestsCount === 0 && (
+                    <Button
+                      variant="ghost"
+                      disabled={pending !== null}
+                      onClick={() => editTemplate(template)}
+                    >
+                      Edit stages
+                    </Button>
+                  )}
+                  {!template.isActive && template.activeRequestsCount > 0 && (
+                    <p className="text-xs text-muted">
+                      Stage editing is locked while requests are in progress.
+                    </p>
+                  )}
                 </div>
                 <ol className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                   {template.stages.map((stage) => (
