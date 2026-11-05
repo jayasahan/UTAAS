@@ -21,6 +21,8 @@ export function AdminDepartmentsPage() {
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [editingDepartment, setEditingDepartment] =
+    useState<AdminDepartment | null>(null);
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [pending, setPending] = useState(false);
@@ -45,20 +47,39 @@ export function AdminDepartmentsPage() {
     setSearch(searchInput.trim());
   }
 
-  async function createDepartment(event: FormEvent<HTMLFormElement>) {
+  async function saveDepartment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!client) return;
     setPending(true);
     setError('');
     setNotice('');
     try {
-      if (!client.post)
-        throw new Error('Department management is unavailable.');
-      await client.post('/admin/departments', { code, name }, decodeDepartment);
+      if (editingDepartment) {
+        if (!client.patch)
+          throw new Error('Department editing is unavailable.');
+        await client.patch(
+          `/admin/departments/${encodeURIComponent(editingDepartment.id)}`,
+          { code, name },
+          decodeDepartment,
+        );
+      } else {
+        if (!client.post)
+          throw new Error('Department management is unavailable.');
+        await client.post(
+          '/admin/departments',
+          { code, name },
+          decodeDepartment,
+        );
+      }
       setCode('');
       setName('');
+      setEditingDepartment(null);
       setShowCreate(false);
-      setNotice('The department was created.');
+      setNotice(
+        editingDepartment
+          ? 'Department details were updated.'
+          : 'The department was created.',
+      );
       departments.retry();
     } catch (cause) {
       setError(
@@ -71,6 +92,22 @@ export function AdminDepartmentsPage() {
     } finally {
       setPending(false);
     }
+  }
+
+  function editDepartment(department: AdminDepartment) {
+    setEditingDepartment(department);
+    setCode(department.code);
+    setName(department.name);
+    setShowCreate(true);
+    setHodDepartment(null);
+    setError('');
+  }
+
+  function closeDepartmentForm() {
+    setShowCreate(false);
+    setEditingDepartment(null);
+    setCode('');
+    setName('');
   }
 
   async function manageHod(department: AdminDepartment) {
@@ -157,7 +194,11 @@ export function AdminDepartmentsPage() {
         </div>
         <Button
           onClick={() => {
-            setShowCreate((value) => !value);
+            if (showCreate) closeDepartmentForm();
+            else {
+              closeDepartmentForm();
+              setShowCreate(true);
+            }
             setError('');
           }}
         >
@@ -178,13 +219,10 @@ export function AdminDepartmentsPage() {
 
       {showCreate && (
         <Card>
-          <form
-            onSubmit={createDepartment}
-            className="grid gap-4 sm:grid-cols-2"
-          >
+          <form onSubmit={saveDepartment} className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <h2 className="text-lg font-bold text-brand">
-                Register department
+                {editingDepartment ? 'Edit department' : 'Register department'}
               </h2>
               <p className="mt-1 text-sm text-muted">
                 The department code must use uppercase letters, numbers, dashes,
@@ -216,9 +254,9 @@ export function AdminDepartmentsPage() {
             </label>
             <div className="flex flex-wrap gap-2 sm:col-span-2">
               <Button type="submit" pending={pending} disabled={!client}>
-                Create department
+                {editingDepartment ? 'Save department' : 'Create department'}
               </Button>
-              <Button variant="ghost" onClick={() => setShowCreate(false)}>
+              <Button variant="ghost" onClick={closeDepartmentForm}>
                 Cancel
               </Button>
             </div>
@@ -354,13 +392,22 @@ export function AdminDepartmentsPage() {
                     <TableCell>{department.staffCount}</TableCell>
                     <TableCell>{department.pendingRequestsCount}</TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        disabled={pending}
-                        onClick={() => void manageHod(department)}
-                      >
-                        Manage HOD
-                      </Button>
+                      <div className="flex flex-wrap gap-1">
+                        <Button
+                          variant="ghost"
+                          disabled={pending}
+                          onClick={() => editDepartment(department)}
+                        >
+                          Edit details
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          disabled={pending}
+                          onClick={() => void manageHod(department)}
+                        >
+                          Manage HOD
+                        </Button>
+                      </div>
                     </TableCell>
                   </tr>
                 ))}
