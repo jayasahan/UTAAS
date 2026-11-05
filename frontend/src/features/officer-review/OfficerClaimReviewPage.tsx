@@ -18,6 +18,7 @@ import {
   resolveWorkflowExpectation,
 } from './workflowActions';
 import type { WorkflowActionRequest } from './workflowActions';
+import { RequestPaperStructure } from '../paper-marking/structure/RequestPaperStructure';
 
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -294,14 +295,28 @@ export function OfficerClaimReviewPage() {
           <LoadingReview />
         </div>
       ) : reviewResult.review ? (
-        <OfficerClaimReviewView
-          review={reviewResult.review}
-          onExecuteDecision={executeDecision}
-          decisionNotice={visibleDecisionNotice}
-          onDownload={onDownload}
-          downloadingFilename={downloadingFilename}
-          downloadError={downloadError}
-        />
+        <div className="space-y-6">
+          <OfficerClaimReviewView
+            review={reviewResult.review}
+            onExecuteDecision={executeDecision}
+            decisionNotice={visibleDecisionNotice}
+            onDownload={onDownload}
+            downloadingFilename={downloadingFilename}
+            downloadError={downloadError}
+          />
+          {reviewerRole === 'HOD' && detail.data && (
+            <RequestPaperStructure
+              formData={detail.data.formData}
+              status={detail.data.status}
+              currentStageKey={detail.data.currentStageKey}
+              applicantDepartmentCode={
+                detail.data.applicant?.department?.code ?? null
+              }
+              viewerProfile={profile ?? null}
+              onUpdated={retry}
+            />
+          )}
+        </div>
       ) : (
         <>
           {visibleDecisionNotice && (

@@ -30,6 +30,27 @@ export interface RegisteredStructure extends StructureSelection {
   totalCandidates: number;
   essayWeightPercent: number;
   mcqWeightPercent: number;
+  hodProportionDivision?: ProportionDivision;
+}
+export interface ProportionResponse {
+  lecturerId: string;
+  lecturerName: string;
+  agreed: boolean;
+  comments: string;
+  respondedAt: string;
+}
+export interface ProportionDivision {
+  essayWeightPercent: number;
+  mcqWeightPercent: number;
+  comments: string;
+  setByHodId: string;
+  setByHodName: string;
+  setAt: string;
+  status:
+    | 'AWAITING_LECTURER_CONSENSUS'
+    | 'DISAGREED_RETURNED_TO_HOD'
+    | 'CONSENSUS_REACHED';
+  responses: ProportionResponse[];
 }
 export interface StructureQuotas {
   setting: {
@@ -122,6 +143,62 @@ export function decodePaperStructure(value: unknown): PaperStructureResponse {
   const raw = record(data.paperStructure);
   const selected = structureSelection(raw);
   if (!selected) throw new Error('Invalid structure identity');
+  let hodProportionDivision: ProportionDivision | undefined;
+  if (raw.hodProportionDivision != null) {
+    const division = record(raw.hodProportionDivision);
+    const divisionStatus = text(division.status);
+    if (
+      ![
+        'AWAITING_LECTURER_CONSENSUS',
+        'DISAGREED_RETURNED_TO_HOD',
+        'CONSENSUS_REACHED',
+      ].includes(divisionStatus)
+    )
+      throw new Error('Invalid proportion division status');
+    if (!Array.isArray(division.responses))
+      throw new Error('Invalid proportion responses');
+    const setAt = text(division.setAt);
+    if (!Number.isFinite(Date.parse(setAt)))
+      throw new Error('Invalid proportion division timestamp');
+    hodProportionDivision = {
+      essayWeightPercent: quantity(division.essayWeightPercent),
+      mcqWeightPercent: quantity(division.mcqWeightPercent),
+      comments:
+        division.comments == null
+          ? ''
+          : typeof division.comments === 'string'
+            ? division.comments
+            : (() => {
+                throw new Error('Invalid proportion division comment');
+              })(),
+      setByHodId: text(division.setByHodId),
+      setByHodName: text(division.setByHodName),
+      setAt,
+      status: divisionStatus as ProportionDivision['status'],
+      responses: division.responses.map((entry) => {
+        const response = record(entry);
+        const respondedAt = text(response.respondedAt);
+        if (!Number.isFinite(Date.parse(respondedAt)))
+          throw new Error('Invalid proportion response timestamp');
+        if (typeof response.agreed !== 'boolean')
+          throw new Error('Invalid proportion response');
+        return {
+          lecturerId: text(response.lecturerId),
+          lecturerName: text(response.lecturerName),
+          agreed: response.agreed,
+          comments:
+            response.comments == null
+              ? ''
+              : typeof response.comments === 'string'
+                ? response.comments
+                : (() => {
+                    throw new Error('Invalid proportion response comment');
+                  })(),
+          respondedAt,
+        };
+      }),
+    };
+  }
   const paperStructure: RegisteredStructure = {
     ...selected,
     id: text(raw.id),
@@ -134,6 +211,7 @@ export function decodePaperStructure(value: unknown): PaperStructureResponse {
     // PostgreSQL decimal columns are serialized as strings by TypeORM.
     essayWeightPercent: quantity(raw.essayWeightPercent, true),
     mcqWeightPercent: quantity(raw.mcqWeightPercent, true),
+    ...(hodProportionDivision ? { hodProportionDivision } : {}),
   };
   const breakdown = record(data.claimsBreakdown);
   const setting = record(breakdown.setting);
