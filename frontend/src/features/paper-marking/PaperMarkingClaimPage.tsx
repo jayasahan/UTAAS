@@ -948,6 +948,12 @@ export function PaperMarkingClaimPage() {
                 durations={academicChoices.data?.paperDurations ?? []}
                 durationsReady={academicChoices.status === 'ready'}
                 settingUnavailable={settingUnavailable}
+                totalQuestions={
+                  paperStructure.data?.exists
+                    ? paperStructure.data.paperStructure.totalQuestions
+                    : undefined
+                }
+                onShareChange={claim.updatePaperShare}
                 {...(verifiedRates ? { rates: verifiedRates } : {})}
                 errors={[...claim.errors, ...claim.quantityErrors]}
                 onChange={claim.updatePaper}

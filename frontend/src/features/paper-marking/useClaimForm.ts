@@ -5,7 +5,8 @@ import type {
   AcademicInformation,
   DocumentCategory,
   FieldError,
-  PaperRow,
+  EditablePaperField,
+  PaperShare,
   PersonalInformation,
 } from './model';
 import { MAX_DOCUMENTS, validateFile, validateStep } from './validation';
@@ -81,11 +82,7 @@ export function useClaimForm() {
     },
     [],
   );
-  function updatePaper(
-    id: string,
-    key: keyof Omit<PaperRow, 'id'>,
-    value: string,
-  ) {
+  function updatePaper(id: string, key: EditablePaperField, value: string) {
     const current = form.papers.find((row) => row.id === id);
     if (key === 'assessmentUnit') {
       if (!current || current.assessmentUnit === value) return;
@@ -105,6 +102,26 @@ export function useClaimForm() {
               ...row,
               [key]: value,
               ...(key === 'assessmentUnit' ? { assessmentQuantity: '' } : {}),
+            }
+          : row,
+      ),
+    }));
+    changed();
+  }
+  function updatePaperShare(
+    id: string,
+    key: 'settingShare' | 'markingShare',
+    value: PaperShare | undefined,
+  ) {
+    setForm((old) => ({
+      ...old,
+      declaration: false,
+      papers: old.papers.map((row) =>
+        row.id === id
+          ? {
+              ...row,
+              [key]: value,
+              ...(key === 'settingShare' && value ? { settingCount: '0' } : {}),
             }
           : row,
       ),
@@ -234,6 +251,7 @@ export function useClaimForm() {
     updateAcademic,
     selectCourse,
     updatePaper,
+    updatePaperShare,
     addPaper,
     removePaper,
     selectDocuments,

@@ -130,6 +130,40 @@ export function toDraftPayload(
         paper.assessmentQuantity || '0',
         'Assessment quantity',
       ),
+      ...(paper.settingShare?.isShared
+        ? {
+            settingShare: {
+              isShared: true,
+              totalQuestions: paper.settingShare.totalQuestions,
+              questionsClaimed: numberValue(
+                paper.settingShare.questionsClaimed,
+                'Setting questions claimed',
+              ),
+              proportion:
+                paper.settingShare.totalQuestions > 0
+                  ? Number(paper.settingShare.questionsClaimed) /
+                    paper.settingShare.totalQuestions
+                  : 0,
+            },
+          }
+        : {}),
+      ...(paper.markingShare?.isShared
+        ? {
+            markingShare: {
+              isShared: true,
+              totalQuestions: paper.markingShare.totalQuestions,
+              questionsClaimed: numberValue(
+                paper.markingShare.questionsClaimed,
+                'Marking questions claimed',
+              ),
+              proportion:
+                paper.markingShare.totalQuestions > 0
+                  ? Number(paper.markingShare.questionsClaimed) /
+                    paper.markingShare.totalQuestions
+                  : 0,
+            },
+          }
+        : {}),
     }));
   const partialRows = form.papers.some(
     (paper) =>
@@ -190,6 +224,25 @@ function stringOrEmpty(value: unknown): string {
 function decodePaper(value: unknown, index: number): PaperRow {
   const item = record(value);
   const unit = item.assessmentUnit === 'hours' ? 'hours' : 'candidates';
+  const decodeShare = (value: unknown) => {
+    if (value == null) return undefined;
+    const share = record(value);
+    if (share.isShared !== true) return undefined;
+    const totalQuestions = Number(share.totalQuestions);
+    const questionsClaimed = Number(share.questionsClaimed);
+    if (
+      !Number.isSafeInteger(totalQuestions) ||
+      totalQuestions < 1 ||
+      !Number.isSafeInteger(questionsClaimed) ||
+      questionsClaimed < 0
+    )
+      throw new Error('Invalid saved examiner allocation.');
+    return {
+      isShared: true,
+      totalQuestions,
+      questionsClaimed: String(questionsClaimed),
+    };
+  };
   return {
     id: stringOrEmpty(item.id) || `paper-${index + 1}`,
     title: stringOrEmpty(item.title),
@@ -201,6 +254,12 @@ function decodePaper(value: unknown, index: number): PaperRow {
     secondMarkingCount: stringOrEmpty(item.secondMarkingCount ?? 0),
     assessmentUnit: unit,
     assessmentQuantity: stringOrEmpty(item.assessmentQuantity ?? 0),
+    ...(decodeShare(item.settingShare)
+      ? { settingShare: decodeShare(item.settingShare)! }
+      : {}),
+    ...(decodeShare(item.markingShare)
+      ? { markingShare: decodeShare(item.markingShare)! }
+      : {}),
   };
 }
 

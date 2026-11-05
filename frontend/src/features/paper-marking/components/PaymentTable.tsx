@@ -1,5 +1,9 @@
 import { Button } from '../../../components/common/Button';
-import { Input, Select } from '../../../components/common/FormControls';
+import {
+  Checkbox,
+  Input,
+  Select,
+} from '../../../components/common/FormControls';
 import { Table, TableCell, TableHead } from '../../../components/common/Table';
 import {
   estimatePaperBreakdown,
@@ -7,7 +11,12 @@ import {
   formatEstimate,
 } from '../estimates';
 import type { VerifiedRates } from '../estimates';
-import type { FieldError, PaperRow } from '../model';
+import type {
+  EditablePaperField,
+  FieldError,
+  PaperRow,
+  PaperShare,
+} from '../model';
 import { quantityLabels } from '../validation';
 import { OptionSelect } from '../../../components/common/OptionSelect';
 import type { PaperDurationOption } from '../academicOptions';
@@ -22,21 +31,86 @@ export function PaymentTable({
   durations,
   durationsReady,
   settingUnavailable = false,
+  totalQuestions,
+  onShareChange = () => {},
 }: {
   papers: PaperRow[];
   rates?: VerifiedRates;
   errors: FieldError[];
-  onChange: (
-    id: string,
-    key: keyof Omit<PaperRow, 'id'>,
-    value: string,
-  ) => void;
+  onChange: (id: string, key: EditablePaperField, value: string) => void;
   onAdd: () => void;
   onRemove: (id: string) => void;
   durations: readonly PaperDurationOption[];
   durationsReady: boolean;
   settingUnavailable?: boolean;
+  totalQuestions?: number | undefined;
+  onShareChange?: (
+    id: string,
+    key: 'settingShare' | 'markingShare',
+    value: PaperShare | undefined,
+  ) => void;
 }) {
+  function shareControls(row: PaperRow, key: 'settingShare' | 'markingShare') {
+    const share = row[key];
+    const label =
+      key === 'settingShare' ? 'Share paper setting' : 'Share script marking';
+    const fieldId = `${row.id}-${key}`;
+    return (
+      <div className="mt-2 min-w-48 space-y-2">
+        <Checkbox
+          id={fieldId}
+          label={label}
+          checked={Boolean(share?.isShared)}
+          disabled={!totalQuestions}
+          hint={
+            totalQuestions
+              ? 'Enter the number of questions you are responsible for. The server checks the shared allocation.'
+              : 'A registered paper structure is required before entering a shared allocation.'
+          }
+          onChange={(event) =>
+            onShareChange(
+              row.id,
+              key,
+              event.target.checked && totalQuestions
+                ? {
+                    isShared: true,
+                    totalQuestions,
+                    questionsClaimed: '0',
+                  }
+                : undefined,
+            )
+          }
+        />
+        {share?.isShared && (
+          <Input
+            id={`${fieldId}-questions`}
+            label={`${key === 'settingShare' ? 'Questions you will set' : 'Questions you will mark'} — paper`}
+            type="number"
+            min={0}
+            max={totalQuestions}
+            step={1}
+            inputMode="numeric"
+            value={share.questionsClaimed}
+            hint={`Registered total: ${totalQuestions} questions.`}
+            {...(errors.find((error) => error.field === `${fieldId}-questions`)
+              ? {
+                  error: errors.find(
+                    (error) => error.field === `${fieldId}-questions`,
+                  )!.message,
+                }
+              : {})}
+            onChange={(event) =>
+              onShareChange(row.id, key, {
+                ...share,
+                totalQuestions: totalQuestions!,
+                questionsClaimed: event.target.value,
+              })
+            }
+          />
+        )}
+      </div>
+    );
+  }
   function field(
     row: PaperRow,
     index: number,
@@ -63,7 +137,7 @@ export function PaymentTable({
         }
         {...(key === 'settingCount' && settingUnavailable
           ? {
-              hint: 'Whole-paper setting is unavailable. A previously entered value can be cleared to 0; shared setting requires the shared-claims feature.',
+              hint: 'Whole-paper setting is unavailable. Clear it to 0 or enter your question allocation using Share paper setting below.',
               max: 0,
             }
           : {})}
@@ -191,6 +265,8 @@ export function PaymentTable({
                 ).map((key) => (
                   <TableCell key={key}>
                     {field(row, index, key, quantityLabels[key])}
+                    {key === 'settingCount' &&
+                      shareControls(row, 'settingShare')}
                   </TableCell>
                 ))}
                 <TableCell>
@@ -200,6 +276,7 @@ export function PaymentTable({
                 </TableCell>
                 <TableCell>
                   {field(row, index, 'scriptCount', quantityLabels.scriptCount)}
+                  {shareControls(row, 'markingShare')}
                 </TableCell>
                 <TableCell>
                   {field(
