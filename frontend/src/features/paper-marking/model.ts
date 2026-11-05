@@ -26,6 +26,17 @@ export interface PaperRow {
   secondMarkingCount: string;
   assessmentUnit: 'candidates' | 'hours';
   assessmentQuantity: string;
+  settingShare?: PaperShare;
+  markingShare?: PaperShare;
+}
+export type EditablePaperField = Exclude<
+  keyof Omit<PaperRow, 'id'>,
+  'settingShare' | 'markingShare'
+>;
+export interface PaperShare {
+  isShared: boolean;
+  totalQuestions: number;
+  questionsClaimed: string;
 }
 export type DocumentCategory =
   'APPOINTMENT_LETTER' | 'EXAM_TIMETABLE' | 'ATTENDANCE_MARKS_SHEET';

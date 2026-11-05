@@ -60,6 +60,9 @@ export function estimatePaperBreakdown(
   paper: PaperRow,
   rates?: VerifiedRates,
 ): PaperEstimate | null {
+  // Shared allocations are priced by the backend's proportion calculation.
+  // Do not show a full-paper estimate for a partial examiner allocation.
+  if (paper.settingShare?.isShared || paper.markingShare?.isShared) return null;
   if (
     !rates?.circularReference.trim() ||
     !Object.values(rates)

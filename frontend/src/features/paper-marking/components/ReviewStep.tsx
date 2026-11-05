@@ -99,6 +99,18 @@ export function ReviewStep({
                 Paper {index + 1}: {paper.title}
               </h4>
               <p>Duration: {paper.durationHours} hours</p>
+              {paper.settingShare?.isShared && (
+                <p>
+                  Shared setting: {paper.settingShare.questionsClaimed} of{' '}
+                  {paper.settingShare.totalQuestions} questions claimed
+                </p>
+              )}
+              {paper.markingShare?.isShared && (
+                <p>
+                  Shared marking: {paper.markingShare.questionsClaimed} of{' '}
+                  {paper.markingShare.totalQuestions} questions claimed
+                </p>
+              )}
               <dl className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
                 {(
                   Object.keys(quantityLabels) as (keyof typeof quantityLabels)[]
@@ -117,7 +129,12 @@ export function ReviewStep({
                   <dd>{paper.assessmentQuantity}</dd>
                 </div>
               </dl>
-              <p>Row estimate: {formatEstimate(estimatePaper(paper, rates))}</p>
+              <p>
+                Row estimate:{' '}
+                {paper.settingShare?.isShared || paper.markingShare?.isShared
+                  ? 'Calculated by the backend for shared allocations after submission.'
+                  : formatEstimate(estimatePaper(paper, rates))}
+              </p>
             </li>
           ))}
         </ol>

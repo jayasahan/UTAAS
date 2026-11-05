@@ -114,8 +114,9 @@ export function PaperStructurePanel({
                   </>
                 )}
                 <p className="text-sm text-muted">
-                  A positive Papers set quantity claims the whole paper. Partial
-                  remaining questions require shared question-setting entry.
+                  A positive Papers set quantity claims the whole paper. Use the
+                  share control in the claim form to enter your allocation when
+                  examiners divide the questions.
                 </p>
               </div>
               <div className="space-y-2 rounded-control bg-blue-50 p-3">
