@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Outlet, Route, Routes } from 'react-router-dom';
 import { AuthGuard } from './auth/AuthGuard';
 import { SignInPage } from './pages/SignInPage';
 import { AppLayout } from './components/layout/AppLayout';
@@ -14,6 +14,38 @@ import { OfficerQueuePage } from './features/officer-queue/OfficerQueuePage';
 import { OfficerDashboardPage } from './features/officer-dashboard/OfficerDashboardPage';
 import { OfficerClaimReviewPage } from './features/officer-review/OfficerClaimReviewPage';
 import { OfficerReviewHistoryPage } from './features/officer-history/OfficerReviewHistoryPage';
+import { AdminPortalLayout } from './features/admin/AdminPortalLayout';
+
+const AdminDashboardPage = lazy(() =>
+  import('./features/admin/AdminDashboardPage').then((module) => ({
+    default: module.AdminDashboardPage,
+  })),
+);
+const AdminUsersPage = lazy(() =>
+  import('./features/admin/AdminUsersPage').then((module) => ({
+    default: module.AdminUsersPage,
+  })),
+);
+const AdminDepartmentsPage = lazy(() =>
+  import('./features/admin/AdminDepartmentsPage').then((module) => ({
+    default: module.AdminDepartmentsPage,
+  })),
+);
+const AdminModulesPage = lazy(() =>
+  import('./features/admin/AdminModulesPage').then((module) => ({
+    default: module.AdminModulesPage,
+  })),
+);
+const AdminWorkflowsPage = lazy(() =>
+  import('./features/admin/AdminWorkflowsPage').then((module) => ({
+    default: module.AdminWorkflowsPage,
+  })),
+);
+const AdminAuditPage = lazy(() =>
+  import('./features/admin/AdminAuditPage').then((module) => ({
+    default: module.AdminAuditPage,
+  })),
+);
 
 const DevOfficerClaimReviewPreview = import.meta.env.DEV
   ? lazy(() => import('./features/officer-review/DevOfficerClaimReviewPreview'))
@@ -42,6 +74,28 @@ export default function App() {
         <Route path="requests/new" element={<NewRequestPage />} />
         <Route path="requests/:requestId" element={<RequestDetailPage />} />
         <Route path="*" element={<NotFoundPage />} />
+      </Route>
+      <Route
+        element={
+          <AuthGuard allowedRoles={['ADMIN']}>
+            <AdminPortalLayout />
+          </AuthGuard>
+        }
+      >
+        <Route
+          element={
+            <Suspense fallback={<p role="status">Loading administration…</p>}>
+              <Outlet />
+            </Suspense>
+          }
+        >
+          <Route path="admin" element={<AdminDashboardPage />} />
+          <Route path="admin/users" element={<AdminUsersPage />} />
+          <Route path="admin/departments" element={<AdminDepartmentsPage />} />
+          <Route path="admin/modules" element={<AdminModulesPage />} />
+          <Route path="admin/workflows" element={<AdminWorkflowsPage />} />
+          <Route path="admin/audit" element={<AdminAuditPage />} />
+        </Route>
       </Route>
       <Route
         element={

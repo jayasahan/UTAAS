@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 import { UserRole } from '../../../database/entities/user.entity';
 
@@ -36,7 +36,7 @@ export class AdminUserQueryDto {
 
   @ApiPropertyOptional({ description: 'Filter by active status' })
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   isActive?: boolean;
 }
