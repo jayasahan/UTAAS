@@ -6,6 +6,7 @@ import { SessionContext } from '../../auth/session';
 import { createApiClient } from '../../services/apiClient';
 import type { RequestDetail } from '../requests/contracts';
 import { PaperMarkingClaimPage } from '../paper-marking/PaperMarkingClaimPage';
+import { academicOptionsFixture } from '../../test/academicOptionsFixture';
 
 const requestId = '7b5b9f20-8d1d-4d3c-8e59-17e252c81401';
 const apiBase = 'https://api.example.test/api/v1';
@@ -168,6 +169,20 @@ function backend(
         });
       if (url.pathname.endsWith('/requests/paper-marking/rates/circular'))
         return response({ circularReference: 'MERGED-CIRCULAR', rates: {} });
+      if (
+        url.pathname.endsWith('/requests/paper-marking/options/form-dropdowns')
+      )
+        return response({
+          ...academicOptionsFixture,
+          courseModules: [
+            {
+              code: 'EC5060',
+              title: 'Software Engineering',
+              departmentCode: 'ENG',
+              semester: 1,
+            },
+          ],
+        });
       if (url.pathname === `/api/v1/requests/paper-marking/${requestId}`) {
         if (options.detailStatus)
           return response({ message: 'private' }, options.detailStatus);

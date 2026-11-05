@@ -5,10 +5,13 @@ import { MemoryRouter } from 'react-router-dom';
 import { SessionContext } from '../../auth/session';
 import type { ApiClient } from '../../services/apiClient';
 import { PaperMarkingClaimPage } from './PaperMarkingClaimPage';
+import { academicOptionsFixture } from '../../test/academicOptionsFixture';
 
 function makeClient(): ApiClient {
   return {
     get: vi.fn(async (path, decode) => {
+      if (path === '/requests/paper-marking/options/form-dropdowns')
+        return decode(academicOptionsFixture);
       const response =
         path === '/auth/me'
           ? {
@@ -77,6 +80,18 @@ describe('paper marking draft persistence UI', () => {
     window.history.replaceState({}, '', '/requests/new?draftId=draft-2');
     const client = makeClient();
     vi.mocked(client.get).mockImplementation(async (path, decode) => {
+      if (path === '/requests/paper-marking/options/form-dropdowns')
+        return decode({
+          ...academicOptionsFixture,
+          courseModules: [
+            {
+              code: 'EC5060',
+              title: 'Saved Course',
+              departmentCode: 'ENG',
+              semester: 1,
+            },
+          ],
+        });
       if (path === '/auth/me')
         return decode({
           id: 'user-1',

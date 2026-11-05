@@ -14,6 +14,8 @@ import { ReviewStep } from './components/ReviewStep';
 import { ReviewProgress } from './components/ReviewProgress';
 import './paper-marking.css';
 import { useReadOnlyData } from './useReadOnlyData';
+import { useAcademicOptions } from './useAcademicOptions';
+import { validateAcademicChoices } from './academicOptions';
 import { ReadOnlyInformation } from './components/ReadOnlyInformation';
 import {
   decodeSubmittedClaim,
@@ -128,6 +130,28 @@ export function PaperMarkingClaimPage() {
   const loadedDraft = useRef('');
   const { applyProfile, restore } = claim;
   const loadedProfile = integration.profile.data;
+  const academicChoices = useAcademicOptions(
+    loadedProfile,
+    claim.form.academic.semester,
+  );
+  const { selectCourse } = claim;
+  const departmentScope = loadedProfile
+    ? JSON.stringify([
+        loadedProfile.id,
+        loadedProfile.departmentId,
+        loadedProfile.departmentCode,
+      ])
+    : null;
+  const previousDepartment = useRef<string | null>(null);
+  useEffect(() => {
+    if (departmentScope === null) return;
+    if (
+      previousDepartment.current !== null &&
+      previousDepartment.current !== departmentScope
+    )
+      selectCourse('', '');
+    previousDepartment.current = departmentScope;
+  }, [departmentScope, selectCourse]);
   const hasSession = Boolean(integration.session.client);
   const lecturerSession =
     hasSession && integration.profile.data?.role === 'LECTURER';
@@ -164,7 +188,15 @@ export function PaperMarkingClaimPage() {
     setPersistedDocuments(update);
   }
   const navigateClaim = (target: number) =>
-    claim.navigate(target, currentDocuments.length);
+    claim.navigate(
+      target,
+      currentDocuments.length,
+      validateAcademicChoices(claim.form, academicChoices),
+    );
+  const reviewErrors = () => [
+    ...validateReview(claim.form, currentDocuments.length),
+    ...validateAcademicChoices(claim.form, academicChoices),
+  ];
   const actionHelp = correctionMode
     ? claim.form.documents.length > 0
       ? 'Upload locally selected documents before saving or resubmitting; uploaded references remain separate from the request until saved.'
@@ -413,11 +445,11 @@ export function PaperMarkingClaimPage() {
       submitBusy
     )
       return;
-    const errors = validateReview(claim.form, currentDocuments.length);
+    const errors = reviewErrors();
     if (errors.length) {
-      claim.setErrors(errors);
       const firstStep = Math.min(...errors.map((error) => error.step));
       claim.navigate(firstStep, currentDocuments.length);
+      claim.setErrors(errors.filter((error) => error.step === firstStep));
       return;
     }
     if (uploadLocks.current.size > 0) return;
@@ -448,11 +480,11 @@ export function PaperMarkingClaimPage() {
   function openResubmissionConfirmation() {
     if (!correctionMode || !correctionContext || submitBusy || draftBusy)
       return;
-    const errors = validateReview(claim.form, currentDocuments.length);
+    const errors = reviewErrors();
     if (errors.length) {
-      claim.setErrors(errors);
       const firstStep = Math.min(...errors.map((error) => error.step));
       claim.navigate(firstStep, currentDocuments.length);
+      claim.setErrors(errors.filter((error) => error.step === firstStep));
       return;
     }
     if (claim.form.documents.length || uploadLocks.current.size > 0) {
@@ -478,12 +510,12 @@ export function PaperMarkingClaimPage() {
       uploadLocks.current.size > 0
     )
       return;
-    const errors = validateReview(claim.form, currentDocuments.length);
+    const errors = reviewErrors();
     if (errors.length) {
       setResubmitDialogOpen(false);
-      claim.setErrors(errors);
       const firstStep = Math.min(...errors.map((error) => error.step));
       claim.navigate(firstStep, currentDocuments.length);
+      claim.setErrors(errors.filter((error) => error.step === firstStep));
       return;
     }
     resubmitLock.current = true;
@@ -862,10 +894,7 @@ export function PaperMarkingClaimPage() {
         onSubmit={(event) => {
           event.preventDefault();
           if (claim.step < 3) navigateClaim(claim.step + 1);
-          else
-            claim.setErrors(
-              validateReview(claim.form, currentDocuments.length),
-            );
+          else claim.setErrors(reviewErrors());
         }}
       >
         <Card className="space-y-8">
@@ -883,9 +912,13 @@ export function PaperMarkingClaimPage() {
                 value={claim.form.academic}
                 errors={claim.errors}
                 onChange={claim.updateAcademic}
+                onCourseChange={claim.selectCourse}
+                choices={academicChoices}
               />
               <PaymentTable
                 papers={claim.form.papers}
+                durations={academicChoices.data?.paperDurations ?? []}
+                durationsReady={academicChoices.status === 'ready'}
                 {...(verifiedRates ? { rates: verifiedRates } : {})}
                 errors={[...claim.errors, ...claim.quantityErrors]}
                 onChange={claim.updatePaper}

@@ -7,6 +7,7 @@ import { ReviewStep } from './components/ReviewStep';
 import { academicLabels, createForm, personalLabels } from './model';
 import { SessionContext } from '../../auth/session';
 import type { ApiClient } from '../../services/apiClient';
+import { academicOptionsFixture } from '../../test/academicOptionsFixture';
 
 async function personal(user: ReturnType<typeof userEvent.setup>) {
   for (const [label, value] of [
@@ -22,18 +23,19 @@ async function personal(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('button', { name: 'Continue →' }));
 }
 async function payment(user: ReturnType<typeof userEvent.setup>) {
-  for (const label of [
-    'Academic year',
-    'Semester',
-    'Degree programme',
-    'Course code',
-    'Course title',
-    'Examination type',
-    'Examiner role',
-  ])
-    fireEvent.change(screen.getByLabelText(new RegExp(`^${label}`)), {
-      target: { value: 'Entered locally' },
+  for (const [label, value] of [
+    ['Academic year', '2024/2025'],
+    ['Semester', 'Semester 5'],
+    ['Degree programme', 'BSc'],
+    ['Course code', 'EC5060'],
+    ['Examination type', 'Final'],
+    ['Examiner role', 'First Examiner'],
+  ]) {
+    const control = await screen.findByRole('combobox', {
+      name: new RegExp(`^${label}`),
     });
+    await user.selectOptions(control, value!);
+  }
   fireEvent.change(screen.getByLabelText(/^Title of paper/), {
     target: { value: 'EC5060 Software Engineering' },
   });
@@ -84,6 +86,8 @@ function authenticatedClient(): ApiClient {
           departmentCode: 'ENG',
           departmentId: 'department-1',
         });
+      if (path === '/requests/paper-marking/options/form-dropdowns')
+        return decode(academicOptionsFixture);
       return decode({
         circularReference: 'MERGED-CIRCULAR',
         rates: {
@@ -186,7 +190,7 @@ describe('paper-marking claim UI', () => {
   });
   it('preserves category through the full journey and keeps earlier file categories', async () => {
     const user = userEvent.setup({ delay: null });
-    renderClaimPage();
+    authenticatedPage();
     expect(screen.getByRole('heading', { name: 'Next steps' })).toBeVisible();
     await personal(user);
     await payment(user);
@@ -320,7 +324,7 @@ describe('paper-marking claim UI', () => {
   });
   it('validates and removes locally selected documents, including invalid and duplicate files', async () => {
     const user = userEvent.setup({ applyAccept: false });
-    renderClaimPage();
+    authenticatedPage();
     await personal(user);
     await payment(user);
     await user.click(
@@ -352,10 +356,11 @@ describe('paper-marking claim UI', () => {
     expect(screen.getByText('No documents selected.')).toBeVisible();
     expect(screen.getByLabelText('Select supporting documents')).toHaveFocus();
   });
-  it('reviews all four steps, gates declaration, preserves edits and never submits or calls an API', async () => {
+  it('reviews all four steps, gates declaration, preserves edits and never sends a mutation', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     const user = userEvent.setup();
-    renderClaimPage();
+    const client = authenticatedClient();
+    authenticatedPage(client);
     await review(user);
     expect(
       screen.getByRole('heading', { name: 'Review & Submit' }),
@@ -382,6 +387,7 @@ describe('paper-marking claim UI', () => {
     expect(submit).toBeDisabled();
     await user.click(submit);
     expect(fetchSpy).not.toHaveBeenCalled();
+    expect(client.post).not.toHaveBeenCalled();
     await user.click(
       screen.getByRole('button', { name: 'Edit personal information' }),
     );
@@ -405,8 +411,8 @@ describe('paper-marking claim UI', () => {
       screen.getByRole('textbox', { name: 'Title of paper — paper 2' }),
       'EC5070 Practical',
     );
-    await user.type(
-      screen.getByRole('textbox', { name: 'Duration (hours) — paper 2' }),
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Duration (hours) — paper 2' }),
       '2',
     );
     await user.type(

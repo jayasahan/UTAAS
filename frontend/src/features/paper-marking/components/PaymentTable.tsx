@@ -9,6 +9,8 @@ import {
 import type { VerifiedRates } from '../estimates';
 import type { FieldError, PaperRow } from '../model';
 import { quantityLabels } from '../validation';
+import { OptionSelect } from '../../../components/common/OptionSelect';
+import type { PaperDurationOption } from '../academicOptions';
 
 export function PaymentTable({
   papers,
@@ -17,6 +19,8 @@ export function PaymentTable({
   onChange,
   onAdd,
   onRemove,
+  durations,
+  durationsReady,
 }: {
   papers: PaperRow[];
   rates?: VerifiedRates;
@@ -28,6 +32,8 @@ export function PaymentTable({
   ) => void;
   onAdd: () => void;
   onRemove: (id: string) => void;
+  durations: readonly PaperDurationOption[];
+  durationsReady: boolean;
 }) {
   function field(
     row: PaperRow,
@@ -125,13 +131,43 @@ export function PaymentTable({
                   {field(row, index, 'title', 'Title of paper')}
                 </TableCell>
                 <TableCell>
-                  {field(
-                    row,
-                    index,
-                    'durationHours',
-                    'Duration (hours)',
-                    false,
-                  )}
+                  <OptionSelect
+                    id={`${row.id}-durationHours`}
+                    label={`Duration (hours) — paper ${index + 1}`}
+                    value={
+                      row.durationHours &&
+                      Number.isFinite(Number(row.durationHours))
+                        ? String(Number(row.durationHours))
+                        : row.durationHours
+                    }
+                    options={durations.map((duration) => ({
+                      value: String(duration.hours),
+                      label: duration.label,
+                    }))}
+                    placeholder={
+                      !durationsReady
+                        ? 'Load academic choices'
+                        : durations.length
+                          ? 'Select duration'
+                          : 'No durations available'
+                    }
+                    disabled={!durationsReady || durations.length === 0}
+                    required
+                    className="min-w-48"
+                    {...(errors.find(
+                      (error) => error.field === `${row.id}-durationHours`,
+                    )
+                      ? {
+                          error: errors.find(
+                            (error) =>
+                              error.field === `${row.id}-durationHours`,
+                          )!.message,
+                        }
+                      : {})}
+                    onChange={(event) =>
+                      onChange(row.id, 'durationHours', event.target.value)
+                    }
+                  />
                 </TableCell>
                 {(
                   [
