@@ -222,6 +222,16 @@ export function RequestDetailPage() {
         <RequestPaperStructure
           key={detail.data.id}
           formData={detail.data.formData}
+          status={detail.data.status}
+          currentStageKey={detail.data.currentStageKey}
+          applicantDepartmentCode={
+            detail.data.applicant?.department?.code ?? null
+          }
+          onUpdated={() => {
+            detail.retry();
+            tracking.retry();
+            history.retry();
+          }}
         />
       )}
       <section

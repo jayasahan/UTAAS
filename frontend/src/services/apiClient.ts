@@ -95,7 +95,7 @@ export async function requestJson<T>(
   path: string,
   decode: (value: unknown) => T,
   options: {
-    method?: 'GET' | 'POST';
+    method?: 'GET' | 'POST' | 'PATCH';
     body?: unknown;
     signal?: AbortSignal;
     token?: string;
@@ -217,6 +217,11 @@ export interface ApiClient {
     decode: (value: unknown) => T,
     query?: Readonly<Record<string, string>>,
   ): Promise<T>;
+  patch?<T>(
+    path: string,
+    body: unknown,
+    decode: (value: unknown) => T,
+  ): Promise<T>;
   upload<T>(
     path: string,
     file: File,
@@ -256,6 +261,21 @@ export function createApiClient(
           body,
           token,
           ...(query ? { query } : {}),
+        });
+      } catch (error) {
+        if (error instanceof ApiError && error.kind === 'unauthorized')
+          onUnauthorized();
+        throw error;
+      }
+    },
+    async patch(path, body, decode) {
+      const token = getToken();
+      if (!token) throw new ApiError('unauthorized');
+      try {
+        return await requestJson(base, path, decode, {
+          method: 'PATCH',
+          body,
+          token,
         });
       } catch (error) {
         if (error instanceof ApiError && error.kind === 'unauthorized')
