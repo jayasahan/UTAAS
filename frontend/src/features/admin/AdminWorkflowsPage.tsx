@@ -9,6 +9,7 @@ import { useRequestResource } from '../requests/useRequestResource';
 import {
   decodeRequestTypes,
   decodeWorkflowTemplates,
+  type RequestTypeConfig,
   type WorkflowStage,
 } from './resourceContracts';
 
@@ -54,6 +55,9 @@ function slug(value: string) {
 export function AdminWorkflowsPage() {
   const client = useSession().client;
   const [showTypeForm, setShowTypeForm] = useState(false);
+  const [editingType, setEditingType] = useState<RequestTypeConfig | null>(
+    null,
+  );
   const [showTemplateForm, setShowTemplateForm] = useState(false);
   const [typeCode, setTypeCode] = useState('');
   const [typeName, setTypeName] = useState('');
@@ -72,34 +76,67 @@ export function AdminWorkflowsPage() {
     decodeWorkflowTemplates,
   );
 
-  async function createRequestType(event: FormEvent<HTMLFormElement>) {
+  async function saveRequestType(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!client) return;
     setPending('type');
     setError('');
     setNotice('');
     try {
-      await client.post(
-        '/admin/workflows/request-types',
-        {
-          code: typeCode,
-          name: typeName,
-          description: typeDescription,
-          isActive: true,
-        },
-        objectResponse,
-      );
+      if (editingType) {
+        if (!client.patch)
+          throw new Error('Request type editing is unavailable.');
+        await client.patch(
+          `/admin/workflows/request-types/${encodeURIComponent(editingType.id)}`,
+          { name: typeName, description: typeDescription },
+          objectResponse,
+        );
+      } else {
+        await client.post(
+          '/admin/workflows/request-types',
+          {
+            code: typeCode,
+            name: typeName,
+            description: typeDescription,
+            isActive: true,
+          },
+          objectResponse,
+        );
+      }
       setTypeCode('');
       setTypeName('');
       setTypeDescription('');
+      setEditingType(null);
       setShowTypeForm(false);
-      setNotice('The request type was created.');
+      setNotice(
+        editingType
+          ? 'Request type details were updated.'
+          : 'The request type was created.',
+      );
       types.retry();
     } catch (cause) {
       setError(apiMessage(cause));
     } finally {
       setPending(null);
     }
+  }
+
+  function editRequestType(type: RequestTypeConfig) {
+    setEditingType(type);
+    setTypeCode(type.code);
+    setTypeName(type.name);
+    setTypeDescription(type.description);
+    setShowTypeForm(true);
+    setShowTemplateForm(false);
+    setError('');
+  }
+
+  function closeTypeForm() {
+    setShowTypeForm(false);
+    setEditingType(null);
+    setTypeCode('');
+    setTypeName('');
+    setTypeDescription('');
   }
 
   async function toggleType(id: string, active: boolean, name: string) {
@@ -229,7 +266,11 @@ export function AdminWorkflowsPage() {
       <div className="flex flex-wrap gap-2">
         <Button
           onClick={() => {
-            setShowTypeForm((value) => !value);
+            if (showTypeForm) closeTypeForm();
+            else {
+              closeTypeForm();
+              setShowTypeForm(true);
+            }
             setShowTemplateForm(false);
           }}
         >
@@ -250,24 +291,30 @@ export function AdminWorkflowsPage() {
       {showTypeForm && (
         <Card>
           <form
-            onSubmit={createRequestType}
+            onSubmit={saveRequestType}
             className="grid gap-4 sm:grid-cols-2"
           >
             <h2 className="text-lg font-bold text-brand sm:col-span-2">
-              Create request type
+              {editingType ? 'Edit request type' : 'Create request type'}
             </h2>
-            <label className="grid gap-1 text-sm font-semibold text-brand">
-              Code
-              <input
-                required
-                minLength={2}
-                maxLength={50}
-                pattern="[A-Z0-9_-]+"
-                value={typeCode}
-                onChange={(e) => setTypeCode(e.target.value.toUpperCase())}
-                className="min-h-11 rounded-control border border-border px-3 font-normal"
-              />
-            </label>
+            {editingType ? (
+              <p className="text-sm text-muted">
+                Code: {editingType.code} (fixed)
+              </p>
+            ) : (
+              <label className="grid gap-1 text-sm font-semibold text-brand">
+                Code
+                <input
+                  required
+                  minLength={2}
+                  maxLength={50}
+                  pattern="[A-Z0-9_-]+"
+                  value={typeCode}
+                  onChange={(e) => setTypeCode(e.target.value.toUpperCase())}
+                  className="min-h-11 rounded-control border border-border px-3 font-normal"
+                />
+              </label>
+            )}
             <label className="grid gap-1 text-sm font-semibold text-brand">
               Display name
               <input
@@ -293,7 +340,10 @@ export function AdminWorkflowsPage() {
               pending={pending === 'type'}
               disabled={!client}
             >
-              Create request type
+              {editingType ? 'Save request type' : 'Create request type'}
+            </Button>
+            <Button variant="ghost" onClick={closeTypeForm}>
+              Cancel
             </Button>
           </form>
         </Card>
@@ -489,15 +539,24 @@ export function AdminWorkflowsPage() {
                     : `v${type.activeTemplateVersion}`}{' '}
                   · {type.totalTemplatesCount} version(s)
                 </p>
-                <Button
-                  variant="ghost"
-                  pending={pending === type.id}
-                  onClick={() =>
-                    void toggleType(type.id, type.isActive, type.name)
-                  }
-                >
-                  {type.isActive ? 'Deactivate type' : 'Activate type'}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="ghost"
+                    disabled={pending !== null}
+                    onClick={() => editRequestType(type)}
+                  >
+                    Edit details
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    pending={pending === type.id}
+                    onClick={() =>
+                      void toggleType(type.id, type.isActive, type.name)
+                    }
+                  >
+                    {type.isActive ? 'Deactivate type' : 'Activate type'}
+                  </Button>
+                </div>
               </Card>
             ))}
           </div>

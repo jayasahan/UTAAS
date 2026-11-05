@@ -10,6 +10,7 @@ import {
   decodeDepartmentPage,
   decodeAdminModule,
   decodeAdminModulePage,
+  type AdminModule,
 } from './resourceContracts';
 
 export function AdminModulesPage() {
@@ -18,8 +19,10 @@ export function AdminModulesPage() {
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [departmentId, setDepartmentId] = useState('');
+  const [moduleDepartmentId, setModuleDepartmentId] = useState('');
   const [activeFilter, setActiveFilter] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [editingModule, setEditingModule] = useState<AdminModule | null>(null);
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [semester, setSemester] = useState('1');
@@ -48,27 +51,39 @@ export function AdminModulesPage() {
     setSearch(searchInput.trim());
   }
 
-  async function createModule(event: FormEvent<HTMLFormElement>) {
+  async function saveModule(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!client) return;
-    setPendingId('new');
+    setPendingId(editingModule?.id ?? 'new');
     setError('');
     setNotice('');
     try {
-      await client.post(
-        '/admin/modules',
-        {
-          code,
-          name,
-          departmentId,
-          semester: Number(semester),
-          credits: Number(credits),
-        },
-        decodeAdminModule,
-      );
+      const payload = {
+        code,
+        name,
+        departmentId: moduleDepartmentId,
+        semester: Number(semester),
+        credits: Number(credits),
+      };
+      if (editingModule) {
+        if (!client.patch)
+          throw new Error('Course module editing is unavailable.');
+        await client.patch(
+          `/admin/modules/${encodeURIComponent(editingModule.id)}`,
+          payload,
+          decodeAdminModule,
+        );
+      } else {
+        await client.post('/admin/modules', payload, decodeAdminModule);
+      }
       setCode('');
       setName('');
-      setNotice('The course module was created.');
+      setEditingModule(null);
+      setNotice(
+        editingModule
+          ? 'Course module details were updated.'
+          : 'The course module was created.',
+      );
       setShowCreate(false);
       modules.retry();
     } catch (cause) {
@@ -77,11 +92,32 @@ export function AdminModulesPage() {
           ? cause.validationMessages.join(' ')
           : cause instanceof ApiError
             ? cause.message
-            : 'The course module could not be created.',
+            : 'The course module could not be saved.',
       );
     } finally {
       setPendingId(null);
     }
+  }
+
+  function editModule(module: AdminModule) {
+    setEditingModule(module);
+    setCode(module.code);
+    setName(module.name);
+    setModuleDepartmentId(module.departmentId);
+    setSemester(String(module.semester));
+    setCredits(String(module.credits));
+    setShowCreate(true);
+    setError('');
+  }
+
+  function closeModuleForm() {
+    setShowCreate(false);
+    setEditingModule(null);
+    setCode('');
+    setName('');
+    setModuleDepartmentId('');
+    setSemester('1');
+    setCredits('3');
   }
 
   async function setActive(id: string, isActive: boolean) {
@@ -129,7 +165,11 @@ export function AdminModulesPage() {
         </div>
         <Button
           onClick={() => {
-            setShowCreate((value) => !value);
+            if (showCreate) closeModuleForm();
+            else {
+              closeModuleForm();
+              setShowCreate(true);
+            }
             setError('');
           }}
         >
@@ -149,11 +189,11 @@ export function AdminModulesPage() {
       {showCreate && (
         <Card>
           <form
-            onSubmit={createModule}
+            onSubmit={saveModule}
             className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
           >
             <h2 className="text-lg font-bold text-brand sm:col-span-2 xl:col-span-3">
-              Add course module
+              {editingModule ? 'Edit course module' : 'Add course module'}
             </h2>
             <label className="grid gap-1 text-sm font-semibold text-brand">
               Module code
@@ -181,8 +221,8 @@ export function AdminModulesPage() {
               Department
               <select
                 required
-                value={departmentId}
-                onChange={(e) => setDepartmentId(e.target.value)}
+                value={moduleDepartmentId}
+                onChange={(e) => setModuleDepartmentId(e.target.value)}
                 className="min-h-11 rounded-control border border-border bg-white px-3 font-normal"
               >
                 <option value="">Select department</option>
@@ -224,12 +264,12 @@ export function AdminModulesPage() {
             <div className="flex gap-2 sm:col-span-2 xl:col-span-3">
               <Button
                 type="submit"
-                pending={pendingId === 'new'}
+                pending={pendingId === 'new' || pendingId === editingModule?.id}
                 disabled={!client || departments.status !== 'ready'}
               >
-                Create module
+                {editingModule ? 'Save module' : 'Create module'}
               </Button>
-              <Button variant="ghost" onClick={() => setShowCreate(false)}>
+              <Button variant="ghost" onClick={closeModuleForm}>
                 Cancel
               </Button>
             </div>
@@ -346,16 +386,25 @@ export function AdminModulesPage() {
                       {module.isActive ? 'Active' : 'Archived'}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        pending={pendingId === module.id}
-                        disabled={pendingId !== null}
-                        onClick={() =>
-                          void setActive(module.id, module.isActive)
-                        }
-                      >
-                        {module.isActive ? 'Archive' : 'Activate'}
-                      </Button>
+                      <div className="flex flex-wrap gap-1">
+                        <Button
+                          variant="ghost"
+                          disabled={pendingId !== null}
+                          onClick={() => editModule(module)}
+                        >
+                          Edit details
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          pending={pendingId === module.id}
+                          disabled={pendingId !== null}
+                          onClick={() =>
+                            void setActive(module.id, module.isActive)
+                          }
+                        >
+                          {module.isActive ? 'Archive' : 'Activate'}
+                        </Button>
+                      </div>
                     </TableCell>
                   </tr>
                 ))}
