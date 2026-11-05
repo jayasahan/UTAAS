@@ -21,6 +21,7 @@ export function AdminModulesPage() {
   const [departmentId, setDepartmentId] = useState('');
   const [moduleDepartmentId, setModuleDepartmentId] = useState('');
   const [activeFilter, setActiveFilter] = useState('');
+  const [semesterFilter, setSemesterFilter] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [editingModule, setEditingModule] = useState<AdminModule | null>(null);
   const [code, setCode] = useState('');
@@ -34,6 +35,7 @@ export function AdminModulesPage() {
   if (search) query.search = search;
   if (departmentId) query.departmentId = departmentId;
   if (activeFilter) query.isActive = activeFilter;
+  if (semesterFilter) query.semester = semesterFilter;
   const modules = useRequestResource(
     '/admin/modules',
     decodeAdminModulePage,
@@ -279,7 +281,7 @@ export function AdminModulesPage() {
       <Card className="space-y-4">
         <form
           onSubmit={applySearch}
-          className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,1fr)_minmax(12rem,auto)_auto_auto] xl:items-end"
+          className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,1fr)_minmax(10rem,auto)_auto_auto_auto] xl:items-end"
         >
           <label className="grid gap-1 text-sm font-semibold text-brand">
             Search code or title
@@ -288,6 +290,24 @@ export function AdminModulesPage() {
               onChange={(e) => setSearchInput(e.target.value)}
               className="min-h-11 rounded-control border border-border px-3 font-normal"
             />
+          </label>
+          <label className="grid gap-1 text-sm font-semibold text-brand">
+            Semester
+            <select
+              value={semesterFilter}
+              onChange={(e) => {
+                setSemesterFilter(e.target.value);
+                setPage(1);
+              }}
+              className="min-h-11 rounded-control border border-border bg-white px-3 font-normal"
+            >
+              <option value="">All semesters</option>
+              {Array.from({ length: 8 }, (_, index) => (
+                <option key={index + 1} value={index + 1}>
+                  Semester {index + 1}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="grid gap-1 text-sm font-semibold text-brand">
             Department

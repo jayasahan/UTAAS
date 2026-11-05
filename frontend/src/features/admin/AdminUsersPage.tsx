@@ -42,6 +42,7 @@ export function AdminUsersPage() {
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [role, setRole] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('');
   const [isActive, setIsActive] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
@@ -64,6 +65,7 @@ export function AdminUsersPage() {
   const query: Record<string, string> = { page: String(page), limit: '10' };
   if (search) query.search = search;
   if (role) query.role = role;
+  if (departmentFilter) query.departmentId = departmentFilter;
   if (isActive) query.isActive = isActive;
   const users = useRequestResource('/admin/users', decodeAdminUserPage, query);
   const departments = useRequestResource(
@@ -444,7 +446,7 @@ export function AdminUsersPage() {
       <Card className="space-y-4">
         <form
           onSubmit={applySearch}
-          className="grid gap-3 sm:grid-cols-[minmax(12rem,1fr)_auto_auto_auto] sm:items-end"
+          className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(12rem,1fr)_auto_auto_auto_auto] xl:items-end"
         >
           <label className="grid gap-1 text-sm font-semibold text-brand">
             Search name or email
@@ -453,6 +455,24 @@ export function AdminUsersPage() {
               onChange={(e) => setSearchInput(e.target.value)}
               className="min-h-11 rounded-control border border-border px-3 font-normal"
             />
+          </label>
+          <label className="grid gap-1 text-sm font-semibold text-brand">
+            Department
+            <select
+              value={departmentFilter}
+              onChange={(e) => {
+                setDepartmentFilter(e.target.value);
+                setPage(1);
+              }}
+              className="min-h-11 rounded-control border border-border bg-white px-3 font-normal"
+            >
+              <option value="">All departments</option>
+              {departments.data?.data.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.code}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="grid gap-1 text-sm font-semibold text-brand">
             Role

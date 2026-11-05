@@ -5,7 +5,7 @@ import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { Table, TableCell, TableHead } from '../../components/common/Table';
 import { useRequestResource } from '../requests/useRequestResource';
-import { decodeAuditPage } from './resourceContracts';
+import { decodeAdminUserPage, decodeAuditPage } from './resourceContracts';
 
 const dateTime = new Intl.DateTimeFormat('en-LK', {
   dateStyle: 'medium',
@@ -31,6 +31,10 @@ export function AdminAuditPage() {
   const [page, setPage] = useState(1);
   const [trackingInput, setTrackingInput] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
+  const [requestIdInput, setRequestIdInput] = useState('');
+  const [requestId, setRequestId] = useState('');
+  const [actorIdInput, setActorIdInput] = useState('');
+  const [actorId, setActorId] = useState('');
   const [actorRoleInput, setActorRoleInput] = useState('');
   const [actorRole, setActorRole] = useState('');
   const [actionInput, setActionInput] = useState('');
@@ -39,8 +43,14 @@ export function AdminAuditPage() {
   const [startDate, setStartDate] = useState('');
   const [endInput, setEndInput] = useState('');
   const [endDate, setEndDate] = useState('');
+  const actors = useRequestResource('/admin/users', decodeAdminUserPage, {
+    page: '1',
+    limit: '100',
+  });
   const query: Record<string, string> = { page: String(page), limit: '20' };
   if (trackingNumber) query.trackingNumber = trackingNumber;
+  if (requestId) query.requestId = requestId;
+  if (actorId) query.actorId = actorId;
   if (actorRole) query.actorRole = actorRole;
   if (actionType) query.actionType = actionType;
   if (startDate) query.startDate = dateBoundary(startDate, false)!;
@@ -52,6 +62,8 @@ export function AdminAuditPage() {
     if (startInput && endInput && startInput > endInput) return;
     setPage(1);
     setTrackingNumber(trackingInput.trim());
+    setRequestId(requestIdInput.trim());
+    setActorId(actorIdInput);
     setActorRole(actorRoleInput);
     setActionType(actionInput);
     setStartDate(startInput);
@@ -71,14 +83,14 @@ export function AdminAuditPage() {
           Audit trail
         </h1>
         <p className="mt-2 max-w-3xl text-muted">
-          Search immutable system events by claim, actor role, action, and date.
-          Event details are read-only.
+          Search immutable system events by claim, request, actor, role, action,
+          and date. Event details are read-only.
         </p>
       </header>
       <Card className="space-y-4">
         <form
           onSubmit={applyFilters}
-          className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+          className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
         >
           <label className="grid gap-1 text-sm font-semibold text-brand">
             Tracking number
@@ -87,6 +99,32 @@ export function AdminAuditPage() {
               onChange={(e) => setTrackingInput(e.target.value)}
               className="min-h-11 rounded-control border border-border px-3 font-normal"
             />
+          </label>
+          <label className="grid gap-1 text-sm font-semibold text-brand">
+            Request ID
+            <input
+              value={requestIdInput}
+              onChange={(e) => setRequestIdInput(e.target.value)}
+              placeholder="Request UUID"
+              pattern="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}"
+              title="Enter a valid version 4 request UUID."
+              className="min-h-11 rounded-control border border-border px-3 font-normal"
+            />
+          </label>
+          <label className="grid gap-1 text-sm font-semibold text-brand">
+            Actor
+            <select
+              value={actorIdInput}
+              onChange={(e) => setActorIdInput(e.target.value)}
+              className="min-h-11 rounded-control border border-border bg-white px-3 font-normal"
+            >
+              <option value="">All actors</option>
+              {actors.data?.data.map((actor) => (
+                <option key={actor.id} value={actor.id}>
+                  {actor.fullName} · {actor.role.replaceAll('_', ' ')}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="grid gap-1 text-sm font-semibold text-brand">
             Actor role
@@ -139,6 +177,8 @@ export function AdminAuditPage() {
           <div className="flex items-end gap-2">
             <Button type="submit">Apply filters</Button>
             {(trackingNumber ||
+              requestId ||
+              actorId ||
               actorRole ||
               actionType ||
               startDate ||
@@ -148,6 +188,10 @@ export function AdminAuditPage() {
                 onClick={() => {
                   setTrackingInput('');
                   setTrackingNumber('');
+                  setRequestIdInput('');
+                  setRequestId('');
+                  setActorIdInput('');
+                  setActorId('');
                   setActorRoleInput('');
                   setActorRole('');
                   setActionInput('');
