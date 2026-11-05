@@ -13,6 +13,7 @@ import {
 import { CorrectionReview } from '../features/corrections/CorrectionReview';
 import { useRequestResource } from '../features/requests/useRequestResource';
 import type { RequestResource } from '../features/requests/useRequestResource';
+import { RequestPaperStructure } from '../features/paper-marking/structure/RequestPaperStructure';
 
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -216,6 +217,12 @@ export function RequestDetailPage() {
             </div>
           </dl>
         </Card>
+      )}
+      {detail.data && (
+        <RequestPaperStructure
+          key={detail.data.id}
+          formData={detail.data.formData}
+        />
       )}
       <section
         aria-labelledby="tracking-title"

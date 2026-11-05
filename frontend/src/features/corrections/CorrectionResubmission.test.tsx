@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
@@ -183,6 +183,11 @@ function backend(
             },
           ],
         });
+      if (url.pathname.endsWith('/requests/paper-marking/paper-structure'))
+        return response({
+          exists: false,
+          message: 'No registered structure yet.',
+        });
       if (url.pathname === `/api/v1/requests/paper-marking/${requestId}`) {
         if (options.detailStatus)
           return response({ message: 'private' }, options.detailStatus);
@@ -291,6 +296,30 @@ async function openReview(user: ReturnType<typeof userEvent.setup>) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('lecturer correction and resubmission workflow', () => {
+  it('refreshes paper quotas after correction saves and server-rejected resubmissions', async () => {
+    const user = userEvent.setup({ delay: null });
+    const { client, fetcher } = backend({ actionStatus: 400 });
+    renderCorrection(client);
+    await screen.findByDisplayValue('Lecturer Name');
+    const queries = () =>
+      fetcher.mock.calls.filter(([input]) =>
+        new URL(String(input)).pathname.endsWith('/paper-structure'),
+      ).length;
+    await waitFor(() => expect(queries()).toBe(1));
+    await user.click(screen.getByRole('button', { name: 'Save corrections' }));
+    await screen.findByText(/Corrections saved to UT-2026-0042/);
+    await waitFor(() => expect(queries()).toBe(2));
+    await openReview(user);
+    await user.click(screen.getByRole('button', { name: 'Review & Resubmit' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Confirm resubmission' }),
+    );
+    expect(await screen.findByText('Workflow action rejected')).toBeVisible();
+    await waitFor(() => expect(queries()).toBe(3));
+    expect(
+      screen.queryByText(`Request destination: ${requestId}`),
+    ).not.toBeInTheDocument();
+  });
   it('loads the returned lecturer-owned snapshot only after profile verification', async () => {
     const user = userEvent.setup({ delay: null });
     const { fetcher, client } = backend();
