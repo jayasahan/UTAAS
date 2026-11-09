@@ -21,6 +21,7 @@ const requestId = 'b6a51b21-71e2-47d0-b5cb-965b8c4af922';
 const detailPath = `/requests/paper-marking/${requestId}`;
 const trackingPath = `/requests/${requestId}/tracking`;
 const historyPath = `/requests/${requestId}/history`;
+const paperStructurePath = '/requests/paper-marking/paper-structure';
 const hod: StaffProfile = {
   id: 'f37bb8b1-275c-4b68-bad5-c666bd4a13ac',
   email: 'hod@example.test',
@@ -58,6 +59,10 @@ function responses() {
     },
     [trackingPath]: syntheticOfficerReview.tracking,
     [historyPath]: syntheticOfficerReview.history,
+    [paperStructurePath]: {
+      exists: false,
+      message: 'No registered structure.',
+    },
   };
 }
 
@@ -289,7 +294,13 @@ describe('Officer Claim Review', () => {
       screen.getByRole('link', { name: '← Back to Queue' }),
     ).toHaveAttribute('href', '/officer/queue');
     expect(get.mock.calls.map(([path]) => path).sort()).toEqual(
-      ['/auth/me', detailPath, trackingPath, historyPath].sort(),
+      [
+        '/auth/me',
+        detailPath,
+        trackingPath,
+        historyPath,
+        paperStructurePath,
+      ].sort(),
     );
     expect(screen.getByRole('button', { name: 'Approve' })).toBeVisible();
     expect(screen.queryByRole('button', { name: /reject/i })).toBeNull();

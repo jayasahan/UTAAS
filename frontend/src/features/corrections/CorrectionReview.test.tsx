@@ -137,6 +137,17 @@ describe('returned Paper Marking request review', () => {
           return Promise.resolve(response(tracking));
         if (url.endsWith(`/requests/${requestId}/history`))
           return Promise.resolve(response(history));
+        if (new URL(url).pathname.endsWith('/auth/me'))
+          return Promise.resolve(
+            response({
+              id: 'lecturer-1',
+              email: 'lecturer@example.test',
+              fullName: 'Dr. Lecturer',
+              role: 'LECTURER',
+              departmentCode: 'COM',
+              departmentId: 'department-1',
+            }),
+          );
         return Promise.reject(new Error('Unexpected request'));
       },
     );
@@ -171,7 +182,17 @@ describe('returned Paper Marking request review', () => {
     expect(
       screen.queryByText(/private\.example|private-officer-id/),
     ).not.toBeInTheDocument();
-    expect(fetcher).toHaveBeenCalledTimes(4);
+    expect(fetcher).toHaveBeenCalledTimes(5);
+    expect(
+      fetcher.mock.calls.some(([input]) =>
+        new URL(String(input)).pathname.endsWith('/auth/me'),
+      ),
+    ).toBe(true);
+    expect(
+      fetcher.mock.calls.filter(([input]) =>
+        new URL(String(input)).pathname.endsWith('/auth/me'),
+      ),
+    ).toHaveLength(2);
     for (const [, init] of fetcher.mock.calls) {
       expect(init?.method ?? 'GET').toBe('GET');
     }
