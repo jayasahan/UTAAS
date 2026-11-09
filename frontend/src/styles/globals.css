@@ -40,6 +40,9 @@
   .workflow-stage {
     @apply relative flex min-w-0 flex-1 gap-3 pb-6 last:pb-0 xl:flex-col xl:pb-0;
   }
+  .workflow-stepper-vertical > .workflow-stage {
+    @apply flex-none flex-row pb-6 last:pb-0;
+  }
   .workflow-stage:not(:last-child)::after {
     content: '';
     position: absolute;
@@ -69,6 +72,26 @@
     }
     .workflow-stage[data-state='pending']::after {
       border-top-style: dashed;
+    }
+    .workflow-stepper-vertical > .workflow-stage:not(:last-child)::after {
+      top: 32px;
+      left: 15px;
+      right: auto;
+      bottom: 0;
+      border-left: 2px solid var(--color-border);
+      border-top: 0;
+    }
+    .workflow-stepper-vertical
+      > .workflow-stage[data-state='completed']:not(:last-child)::after {
+      border-left-color: var(--color-success);
+    }
+    .workflow-stepper-vertical
+      > .workflow-stage[data-state='returned']:not(:last-child)::after {
+      border-left-color: var(--color-warning);
+    }
+    .workflow-stepper-vertical
+      > .workflow-stage[data-state='pending']:not(:last-child)::after {
+      border-left-style: dashed;
     }
   }
   .skip-link {

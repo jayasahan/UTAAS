@@ -371,7 +371,10 @@ export function OfficerClaimReviewView({
             <div id="review-progress-title">
               <SectionHeading number={4} title="Approval Progress" />
             </div>
-            <WorkflowStepper stages={stageDisplay(review)} />
+            <WorkflowStepper
+              stages={stageDisplay(review)}
+              orientation="vertical"
+            />
           </section>
 
           <section aria-labelledby="review-history-title" className="space-y-4">
