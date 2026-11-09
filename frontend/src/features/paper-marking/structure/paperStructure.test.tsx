@@ -172,10 +172,16 @@ describe('paper structure decoding and quota rules', () => {
   });
   it('accepts a preserved partial setting share within quota and rejects a share over quota', () => {
     const data = decodePaperStructure(paperStructureFixture());
+    if (!data.exists)
+      throw new Error('Expected a registered structure fixture');
     const paper = {
       id: 'shared-row',
       settingCount: '0',
-      settingShare: { isShared: true, questionsClaimed: 2 },
+      settingShare: {
+        isShared: true,
+        questionsClaimed: 2,
+        totalQuestions: data.paperStructure.totalQuestions,
+      },
     };
     expect(settingQuotaErrors([paper], data, 'me')).toEqual([]);
     paper.settingShare.questionsClaimed = 3;

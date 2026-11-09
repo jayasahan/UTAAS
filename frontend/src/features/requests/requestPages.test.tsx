@@ -139,6 +139,17 @@ describe('authenticated request pages', () => {
           return Promise.resolve(ok(tracking));
         if (url.endsWith(`/requests/${requestId}/history`))
           return Promise.resolve(ok(history));
+        if (new URL(url).pathname.endsWith('/auth/me'))
+          return Promise.resolve(
+            ok({
+              id: 'lecturer-1',
+              email: 'lecturer@example.test',
+              fullName: 'Lecturer',
+              role: 'LECTURER',
+              departmentCode: 'ENG',
+              departmentId: 'department-1',
+            }),
+          );
         return Promise.reject(new Error('Unexpected request'));
       },
     );
@@ -164,7 +175,17 @@ describe('authenticated request pages', () => {
     await screen.getByText('Changed fields').click();
     expect(screen.getByText('courseCode')).toBeInTheDocument();
     expect(screen.getByText('CS101')).toBeInTheDocument();
-    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(fetcher).toHaveBeenCalledTimes(4);
+    expect(
+      fetcher.mock.calls.some(([input]) =>
+        new URL(String(input)).pathname.endsWith('/auth/me'),
+      ),
+    ).toBe(true);
+    expect(
+      fetcher.mock.calls.filter(([input]) =>
+        new URL(String(input)).pathname.endsWith('/auth/me'),
+      ),
+    ).toHaveLength(1);
     for (const [, options] of fetcher.mock.calls) {
       expect(options?.headers).toEqual({
         Authorization: 'Bearer memory-only-test-token',
