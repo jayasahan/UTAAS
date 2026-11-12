@@ -57,6 +57,15 @@ const DevOfficerReviewHistoryPreview = import.meta.env.DEV
       ),
     )
   : null;
+const DevGeneralReimbursementPreview = import.meta.env.DEV
+  ? lazy(() =>
+      import('./features/general-reimbursement/GeneralReimbursementPreviewPage').then(
+        (module) => ({
+          default: module.GeneralReimbursementPreviewPage,
+        }),
+      ),
+    )
+  : null;
 
 export default function App() {
   return (
@@ -176,6 +185,36 @@ export default function App() {
               }
             />
           )}
+        </Route>
+      )}
+      {import.meta.env.DEV && DevGeneralReimbursementPreview && (
+        <Route
+          element={
+            <AppLayout
+              workspaceLabel="Lecturer"
+              items={[
+                {
+                  to: '/design-system',
+                  label: 'Component examples',
+                  end: true,
+                },
+                {
+                  to: '/design-system/general-reimbursement',
+                  label: 'General reimbursement preview',
+                  end: true,
+                },
+              ]}
+            />
+          }
+        >
+          <Route
+            path="design-system/general-reimbursement"
+            element={
+              <Suspense fallback={<p role="status">Loading preview…</p>}>
+                <DevGeneralReimbursementPreview />
+              </Suspense>
+            }
+          />
         </Route>
       )}
     </Routes>
