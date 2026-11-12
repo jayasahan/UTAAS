@@ -66,6 +66,13 @@ const DevGeneralReimbursementPreview = import.meta.env.DEV
       ),
     )
   : null;
+const DevExaminationDutyPreview = import.meta.env.DEV
+  ? lazy(() =>
+      import('./features/examination-duty/ExaminationDutyPreviewPage').then(
+        (module) => ({ default: module.ExaminationDutyPreviewPage }),
+      ),
+    )
+  : null;
 
 export default function App() {
   return (
@@ -187,36 +194,51 @@ export default function App() {
           )}
         </Route>
       )}
-      {import.meta.env.DEV && DevGeneralReimbursementPreview && (
-        <Route
-          element={
-            <AppLayout
-              workspaceLabel="Lecturer"
-              items={[
-                {
-                  to: '/design-system',
-                  label: 'Component examples',
-                  end: true,
-                },
-                {
-                  to: '/design-system/general-reimbursement',
-                  label: 'General reimbursement preview',
-                  end: true,
-                },
-              ]}
-            />
-          }
-        >
+      {import.meta.env.DEV &&
+        DevGeneralReimbursementPreview &&
+        DevExaminationDutyPreview && (
           <Route
-            path="design-system/general-reimbursement"
             element={
-              <Suspense fallback={<p role="status">Loading preview…</p>}>
-                <DevGeneralReimbursementPreview />
-              </Suspense>
+              <AppLayout
+                workspaceLabel="Lecturer"
+                items={[
+                  {
+                    to: '/design-system',
+                    label: 'Component examples',
+                    end: true,
+                  },
+                  {
+                    to: '/design-system/general-reimbursement',
+                    label: 'General reimbursement preview',
+                    end: true,
+                  },
+                  {
+                    to: '/design-system/examination-duty',
+                    label: 'Examination duty preview',
+                    end: true,
+                  },
+                ]}
+              />
             }
-          />
-        </Route>
-      )}
+          >
+            <Route
+              path="design-system/general-reimbursement"
+              element={
+                <Suspense fallback={<p role="status">Loading preview…</p>}>
+                  <DevGeneralReimbursementPreview />
+                </Suspense>
+              }
+            />
+            <Route
+              path="design-system/examination-duty"
+              element={
+                <Suspense fallback={<p role="status">Loading preview…</p>}>
+                  <DevExaminationDutyPreview />
+                </Suspense>
+              }
+            />
+          </Route>
+        )}
     </Routes>
   );
 }
