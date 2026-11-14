@@ -19,7 +19,7 @@ export function settingAvailability(
     wholePaperAvailable: remaining >= data.paperStructure.totalQuestions,
   };
 }
-// Structural input also accepts preserved shared rows once the separate form feature is merged.
+// Structural input accepts shared rows added to the claim model in PR #64.
 type SettingQuotaRow = Pick<PaperRow, 'id' | 'settingCount'> & {
   settingShare?: {
     isShared?: boolean;

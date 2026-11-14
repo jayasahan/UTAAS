@@ -1,6 +1,34 @@
 # UTAAS frontend development progress
 
-## Persistence worktree continuation (2026-10-21)
+## Current project status — 2026-11-14
+
+Current source baseline: freshly fetched `origin/mvp` at `0ea8731` (PR #73).
+The merged frontend work now includes the Paper Setting & Marking workflow and
+its tracking, officer and admin views; academic dropdowns (PR #62), paper
+structure/quota presentation (PR #63), shared examiner claims (PR #64), HOD
+proportion consensus (PR #65), admin dashboard/editing (PRs #66 and #68–#70),
+officer progress layout (PR #71), and UI previews for General Reimbursement and
+Examination Duty Reimbursement (PRs #72–#73).
+
+| Area | Current frontend state | Remaining evidence |
+| --- | --- | --- |
+| Paper Setting & Marking | Merged frontend flows use typed contracts, authenticated routes, and explicit request states. | Live role-by-role workflows have not been verified against a safe backend/test database. |
+| Dropdowns, structure, shared claims, consensus | PRs #62–#65 are merged and present in source. | Live API behavior and quota enforcement still need verification; known source limits are in [PAPER_STRUCTURE_QUOTAS.md](PAPER_STRUCTURE_QUOTAS.md). |
+| Officer and admin views | PRs #66 and #68–#71 are merged; current frontend calls the source-present role-protected admin endpoints. | Authenticated populated screens and safe admin mutations have not been live-tested. |
+| General and Examination Duty reimbursement | PRs #72–#73 add development-only Figma previews. Save, upload, and submit remain disabled. | Confirm faculty rules and Sinhala/English field labels, then wait for backend contracts before integrating. |
+
+PR #73's CI passed all three checks, and its local frontend suite passed 363/363.
+These are build and mocked/local UI evidence, not live backend end-to-end results.
+On 2026-11-14, a local Playwright smoke of both reimbursement preview routes at
+1440px and 375px found no document overflow, console errors, or `/api/` requests;
+the Save draft controls remained disabled. The production bundle contains none
+of the preview page modules or navigation labels.
+On 2026-11-14 no backend was listening at `127.0.0.1:4000`; live API and
+mutation checks were therefore not run. Older task snapshots and status counts
+below are historical; use this section and the latest dated entries for current
+status.
+
+## Historical task log — persistence worktree continuation (2026-10-21)
 
 Current working branch: `feature/frontend-paper-marking-persistence-v2`, based on merged `origin/mvp` at `ba37ecce7fb2b9f0302434379621a7b374c7f878`. The original checkout at `E:\Academic Works\Sem 05\Software Project\UTAAS` remains untouched on its prior branch with all uncommitted tracked and untracked files preserved. Request tracking PR #13 and backend contract PR #14 are present in this base.
 
@@ -80,7 +108,11 @@ There are 30 equal-weight Sprint 1 tasks below. Do not assign partial credit:
 - Future tasks and tracker maintenance are excluded. Log scope changes before
   changing the denominator; do not silently split tasks to increase progress.
 
-### Current summary
+### Historical planning baseline — 2026-10-21
+
+The following 30-task register and percentages are the original planning
+snapshot. They were not recalculated after the later merged PRs and must not be
+used as current project totals.
 
 | Scope             | Complete (all gates) | Implemented I | In progress IP | Blocked B | Not started NS | Total |
 | ----------------- | -------------------: | ------------: | -------------: | --------: | -------------: | ----: |
@@ -1349,3 +1381,24 @@ production build, changed-source/report formatting and diff whitespace checks
 passed. The existing date-dependent history-preview test pins its clock. Tests
 use mocked APIs; live integration, Figma/browser visual review and independent QA
 are unverified. CI and teammate review for this quota PR are pending.
+
+## Merged frontend updates — 2026-11-14
+
+The following later PRs supersede the pending/“separate feature” statements in
+older snapshots above. Historical implementation notes remain useful for their
+test evidence and backend limits; their PR/review status is no longer current.
+
+- PR #64 adds shared examiner claim entry and preserves shared fields in the
+  frontend claim flow.
+- PR #65 adds the HOD paper-proportion division and lecturer consensus UI.
+- PR #66 adds the role-protected admin dashboard; PRs #68–#70 add admin editing,
+  directory/audit filters, and inactive workflow-stage editing.
+- PR #71 changes the officer progress layout.
+- PR #72 adds the General Reimbursement UI preview; PR #73 adds the Examination
+  Duty reimbursement UI preview. Both remain development previews with disabled
+  mutations because the backend forms/contracts and official rules are absent.
+
+The current E2E state is tracked in [MVP_E2E_TEST_MATRIX.md](MVP_E2E_TEST_MATRIX.md).
+Source-level contracts and runtime limits are tracked in
+[BACKEND_COMPATIBILITY.md](BACKEND_COMPATIBILITY.md). CI, mocked tests, and
+preview-only browser checks do not substitute for safe live workflow QA.
