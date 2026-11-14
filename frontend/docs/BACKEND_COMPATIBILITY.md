@@ -1,9 +1,36 @@
 # Backend compatibility register
 
-Inspected 2026-10-21 (Asia/Colombo). Current frontend branch: `feature/frontend-officer-claim-review`.
+Initial inspection: 2026-10-21 (Asia/Colombo), on the then-current
+`feature/frontend-officer-claim-review` branch. That branch/revision note is
+historical; see the current source recheck below.
 Backend ownership: another team member. This register records findings only.
 Never modify backend sources, configuration, schemas, dependencies or seeds as
 part of a frontend task. Report incompatibilities to the backend owner.
+
+## Current source recheck — 2026-11-14
+
+Rechecked `origin/mvp` at `0ea8731` against the current frontend callers and the
+backend controllers, guards, DTOs, services, and relevant tests. This is source
+compatibility evidence only. The local backend was not listening at
+`127.0.0.1:4000`; no live API call, backend test suite, or database mutation was
+performed for this recheck.
+
+| Feature area | Current backend source contract | Current frontend connection | Runtime boundary |
+| --- | --- | --- | --- |
+| Production identity | `POST /api/v1/auth/login`, bearer-protected `GET /api/v1/auth/me`, and bearer-protected `POST /api/v1/auth/logout`; PR #45 source includes password validation and token-version revocation. | The production session provider calls login, confirms the returned identity through `/auth/me`, and sends logout. | No live login, session expiry, logout, CORS, or legacy-token rollout test was run. |
+| Paper-marking options and rates | Bearer-protected `GET /api/v1/requests/paper-marking/rates/circular` and `GET /api/v1/requests/paper-marking/options/form-dropdowns`; PRs #52/#57 provide rates/options and filtered course modules. The options controller can fall back to its Engineering catalog when the filtered result is empty. | Academic-option hooks use the returned catalog and typed decoding; they do not derive rates or department scope from editable form fields. | Live department/semester filtering and the fallback behavior still need safe runtime verification. |
+| Registered structure and consensus | The bearer-protected paper-marking controller exposes `GET` and `PATCH /paper-structure`, `POST /hod-proportion-division`, and `POST /proportion-consensus`; PRs #58–#59 add structure/quota and consensus behavior. | The claim flow and request detail use typed structure decoders; HOD and lecturer controls call the corresponding endpoints and display pending/error states. | Contract is source-present. Quota/consensus behavior has not been exercised against a live service. |
+| Claim and workflow mutations | `POST /requests/paper-marking/draft`, `POST /requests/paper-marking/submit`, and `POST /requests/:id/actions` are bearer-protected. Submission calculates fees and validates quotas in the backend; workflow service checks action/stage/role. | The frontend sends typed payloads and waits for decoded server responses before confirming mutations. | Mocked frontend tests do not prove live authorization, canonical totals, or workflow progression. The quota validator is called on initial claim submission; source search did not find it in the correction/resubmission path. |
+| Officer review history | `GET /api/v1/requests/review-history` accepts personal/role scope and uses the QA-03/QA-04 source fixes from backend PR #49. | Frontend PR #50 consumes the decoded response, including explicit scope, search, decision filter, and pagination. | Source contract and mocked tests are present; live reviewer-scoped results remain unverified. |
+| Admin portal | PRs #53–#57 add dashboard metrics, users, departments, modules, workflows, and audit endpoints. Admin controllers use `JwtAuthGuard` and `RolesGuard` with `ADMIN`. | The merged admin pages call `/admin/dashboard/metrics`, `/admin/users`, `/admin/departments`, `/admin/modules`, `/admin/workflows`, and `/admin/audit-logs` through the authenticated client. | No live role denial, filtering, or administrative mutation was performed. Admin UI checks must use a disposable test database. |
+| General and Examination Duty reimbursement | No dedicated form-submission controller/DTO/service for either request type was found under current `backend/src`; the available claim controller is Paper Marking. | PRs #72–#73 are development-only UI previews and make no backend requests; draft, upload, and submit remain disabled. | Integration requires backend contracts plus faculty-approved fields, document rules, workflow, and payment rules. |
+
+The earlier dated entries below preserve the evidence available at their own
+revisions. When a historical statement conflicts with this recheck, use this
+2026-11-14 source snapshot for current status. See
+[PAPER_STRUCTURE_QUOTAS.md](PAPER_STRUCTURE_QUOTAS.md) for known quota
+limitations and [MVP_E2E_TEST_MATRIX.md](MVP_E2E_TEST_MATRIX.md) for live QA
+cases that remain unrun.
 
 ## Revision and integration boundary
 

@@ -1,5 +1,13 @@
 # Task 5: Paper structure and quota display
 
+Historical report for the PR #63 implementation, prepared 2026-11-05. PR #63
+has since merged to `mvp`; the current source snapshot is recorded in
+[FRONTEND_PROGRESS.md](FRONTEND_PROGRESS.md) and
+[BACKEND_COMPATIBILITY.md](BACKEND_COMPATIBILITY.md). PRs #64 and #65 later added
+shared examiner claims and HOD proportion consensus. The verification below
+records the original quota feature and does not verify those later additions or
+live backend behavior.
+
 Branch: `feature/frontend-paper-structure-quotas`  
 PR base: `mvp`  
 Backend/source baseline: `019879bb2ae1261d53d23510ab4108c0ba5585c8`  
@@ -129,14 +137,13 @@ Draft saving does not establish a registration or reserve capacity.
    handling. The lookup endpoint uses JWT but has no department-scoping check in
    this service. Department access rules and atomic quota enforcement belong in
    the backend; the frontend adds no unsupported department filter or permissions.
-6. **Other frontend features have separate scopes.** Academic dropdowns were
-   merged in PR #62 and are included in this branch's current `mvp` base. Claim-
-   field preservation and shared-claim entry remain separate work. This feature
-   does not implement parallel persistence or repair older mappings; integrate
-   claim-field preservation before enabling edits to claims containing new
-   shared/typing/combined fields. Shared entry and full first-registration control
-   require their own feature work. Merge field preservation and this quota feature
-   before building shared-claim entry.
+6. **Later frontend work is outside this report's original verification.**
+   Academic dropdowns (PR #62), shared examiner claim entry and field preservation
+   (PR #64), and HOD proportion consensus (PR #65) are now merged. The tests
+   recorded below predate those changes; recheck draft restoration, corrections,
+   and quota behavior with shared claims before treating the combined flow as
+   verified. This report does not establish live behavior or first-registration
+   administration coverage.
 
 The panel reuses existing design tokens, tables, inputs, buttons and feedback
 components. No live Figma/browser visual review or backend/database mutation
@@ -177,10 +184,12 @@ and correction save/rejected-resubmission refreshes.
 The existing development history-preview date test uses fixed October fixtures;
 its clock is now pinned and real timers are restored after each test. No
 production history logic was changed. No live integration, independent QA or CI
-result is implied. CI and teammate review for this quota PR are pending.
+result is implied. The pending CI and teammate review note above described the
+state when this report was prepared; PR #63 has since merged. Current live QA
+remains unverified.
 Historical formatting in the long-lived progress tracker is retained.
 
-## Suggested commit and Pull Request
+## Historical PR #63 description
 
 Conventional Commit: `feat(frontend): display paper structure quotas`
 
@@ -205,4 +214,5 @@ Suggested description:
 > rules, claim-storage fields or workflow permissions are changed.
 >
 > Validation: see the final verification record above. Live integration, CI and
-> independent teammate review remain pending.
+> independent teammate review were pending when PR #63 was prepared. PR #63 has
+> since merged; live integration remains unverified.
