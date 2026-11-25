@@ -18,7 +18,7 @@ function ControlledPersonalStep({
   onChangeSpy,
 }: {
   initial: PersonalInformation;
-  onChangeSpy?: (...args: any[]) => void;
+  onChangeSpy?: (...args: unknown[]) => void;
 }) {
   const [personal, setPersonal] = useState(initial);
   return (
@@ -39,7 +39,7 @@ function ControlledPaymentTable({
   onChangeSpy,
 }: {
   initialPaper: PaperRow;
-  onChangeSpy?: (...args: any[]) => void;
+  onChangeSpy?: (...args: unknown[]) => void;
 }) {
   const [papers, setPapers] = useState<PaperRow[]>([initialPaper]);
   return (

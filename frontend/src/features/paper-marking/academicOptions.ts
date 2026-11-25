@@ -194,25 +194,30 @@ export function decodeAcademicOptions(value: unknown): AcademicOptions {
       })
     : DEFAULT_STAFF_MEMBERS;
 
-  const quantityPresets = data.quantityPresets && typeof data.quantityPresets === 'object'
+  const rawPresets =
+    data.quantityPresets && typeof data.quantityPresets === 'object'
+      ? record(data.quantityPresets)
+      : null;
+
+  const quantityPresets = rawPresets
     ? {
-        paperSetting: Array.isArray((data.quantityPresets as any).paperSetting)
-          ? choices((data.quantityPresets as any).paperSetting)
+        paperSetting: Array.isArray(rawPresets.paperSetting)
+          ? choices(rawPresets.paperSetting)
           : DEFAULT_QUANTITY_PRESETS.paperSetting,
-        paperModeration: Array.isArray((data.quantityPresets as any).paperModeration)
-          ? choices((data.quantityPresets as any).paperModeration)
+        paperModeration: Array.isArray(rawPresets.paperModeration)
+          ? choices(rawPresets.paperModeration)
           : DEFAULT_QUANTITY_PRESETS.paperModeration,
-        paperTranslation: Array.isArray((data.quantityPresets as any).paperTranslation)
-          ? choices((data.quantityPresets as any).paperTranslation)
+        paperTranslation: Array.isArray(rawPresets.paperTranslation)
+          ? choices(rawPresets.paperTranslation)
           : DEFAULT_QUANTITY_PRESETS.paperTranslation,
-        scriptsMarked: Array.isArray((data.quantityPresets as any).scriptsMarked)
-          ? choices((data.quantityPresets as any).scriptsMarked)
+        scriptsMarked: Array.isArray(rawPresets.scriptsMarked)
+          ? choices(rawPresets.scriptsMarked)
           : DEFAULT_QUANTITY_PRESETS.scriptsMarked,
-        secondMarking: Array.isArray((data.quantityPresets as any).secondMarking)
-          ? choices((data.quantityPresets as any).secondMarking)
+        secondMarking: Array.isArray(rawPresets.secondMarking)
+          ? choices(rawPresets.secondMarking)
           : DEFAULT_QUANTITY_PRESETS.secondMarking,
-        assessmentCandidates: Array.isArray((data.quantityPresets as any).assessmentCandidates)
-          ? choices((data.quantityPresets as any).assessmentCandidates)
+        assessmentCandidates: Array.isArray(rawPresets.assessmentCandidates)
+          ? choices(rawPresets.assessmentCandidates)
           : DEFAULT_QUANTITY_PRESETS.assessmentCandidates,
       }
     : DEFAULT_QUANTITY_PRESETS;
