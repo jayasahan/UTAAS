@@ -34,4 +34,23 @@ export const academicOptionsFixture = {
     },
   ],
   userDepartmentCode: 'ENG',
+  designations: [
+    'Senior Professor',
+    'Professor',
+    'Associate Professor',
+    'Senior Lecturer (Grade I)',
+    'Senior Lecturer (Grade II)',
+    'Lecturer (Unconfirmed)',
+    'Lecturer (Probationary)',
+  ],
+  departments: [
+    { code: 'CEE', name: 'Department of Civil and Environmental Engineering', label: 'CEE — Department of Civil and Environmental Engineering' },
+    { code: 'EIE', name: 'Department of Electrical and Information Engineering', label: 'EIE — Department of Electrical and Information Engineering' },
+    { code: 'MME', name: 'Department of Mechanical and Manufacturing Engineering', label: 'MME — Department of Mechanical and Manufacturing Engineering' },
+    { code: 'MENA', name: 'Department of Marine Engineering and Naval Architecture', label: 'MENA — Department of Marine Engineering and Naval Architecture' },
+    { code: 'IS', name: 'Department of Interdisciplinary Studies', label: 'IS — Department of Interdisciplinary Studies' },
+  ],
+  staffMembers: [
+    { staffId: 'ENG/AC/0101', fullName: 'Dr. Hansana H.A.J.', email: 'lecturer@eng.ruh.ac.lk', designation: 'Senior Lecturer (Grade II)', departmentCode: 'EIE', departmentName: 'Department of Electrical and Information Engineering' },
+  ],
 };

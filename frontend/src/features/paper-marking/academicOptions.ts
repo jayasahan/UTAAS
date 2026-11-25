@@ -14,6 +14,70 @@ export interface CourseModuleOption {
   semester: number;
 }
 
+export interface DepartmentOption {
+  code: string;
+  name: string;
+  label: string;
+}
+
+export interface StaffDirectoryOption {
+  staffId: string;
+  fullName: string;
+  email: string;
+  designation: string;
+  departmentCode: string;
+  departmentName: string;
+}
+
+export interface QuantityPresets {
+  paperSetting: string[];
+  paperModeration: string[];
+  paperTranslation: string[];
+  scriptsMarked: string[];
+  secondMarking: string[];
+  assessmentCandidates: string[];
+}
+
+export const DEFAULT_DESIGNATIONS = [
+  'Senior Professor',
+  'Professor',
+  'Associate Professor',
+  'Senior Lecturer (Grade I)',
+  'Senior Lecturer (Grade II)',
+  'Lecturer (Unconfirmed)',
+  'Lecturer (Probationary)',
+  'Temporary Lecturer',
+  'Visiting Lecturer',
+];
+
+export const DEFAULT_DEPARTMENTS: DepartmentOption[] = [
+  { code: 'CEE', name: 'Department of Civil and Environmental Engineering', label: 'CEE — Department of Civil and Environmental Engineering' },
+  { code: 'EIE', name: 'Department of Electrical and Information Engineering', label: 'EIE — Department of Electrical and Information Engineering' },
+  { code: 'MME', name: 'Department of Mechanical and Manufacturing Engineering', label: 'MME — Department of Mechanical and Manufacturing Engineering' },
+  { code: 'MENA', name: 'Department of Marine Engineering and Naval Architecture', label: 'MENA — Department of Marine Engineering and Naval Architecture' },
+  { code: 'IS', name: 'Department of Interdisciplinary Studies', label: 'IS — Department of Interdisciplinary Studies' },
+];
+
+export const DEFAULT_STAFF_MEMBERS: StaffDirectoryOption[] = [
+  { staffId: 'ENG/AC/0101', fullName: 'Dr. Hansana H.A.J.', email: 'lecturer@eng.ruh.ac.lk', designation: 'Senior Lecturer (Grade II)', departmentCode: 'EIE', departmentName: 'Department of Electrical and Information Engineering' },
+  { staffId: 'ENG/AC/0102', fullName: 'Prof. K.U. Herath', email: 'hod.computer@eng.ruh.ac.lk', designation: 'Professor', departmentCode: 'EIE', departmentName: 'Department of Electrical and Information Engineering' },
+  { staffId: 'ENG/AC/0201', fullName: 'Prof. D.M. Silva', email: 'hod.civil@eng.ruh.ac.lk', designation: 'Professor', departmentCode: 'CEE', departmentName: 'Department of Civil and Environmental Engineering' },
+  { staffId: 'ENG/AC/0301', fullName: 'Dr. P.S. Ranawaka', email: 'dean@eng.ruh.ac.lk', designation: 'Associate Professor', departmentCode: 'MME', departmentName: 'Department of Mechanical and Manufacturing Engineering' },
+  { staffId: 'ENG/AC/0401', fullName: 'Dr. T.M. Jayawardena', email: 'mena.staff@eng.ruh.ac.lk', designation: 'Senior Lecturer (Grade I)', departmentCode: 'MENA', departmentName: 'Department of Marine Engineering and Naval Architecture' },
+  { staffId: 'ENG/AC/0501', fullName: 'Dr. N.K. Wickramasinghe', email: 'is.staff@eng.ruh.ac.lk', designation: 'Senior Lecturer (Grade I)', departmentCode: 'IS', departmentName: 'Department of Interdisciplinary Studies' },
+  { staffId: 'ENG/AC/0103', fullName: 'Dr. S.B. Wijekoon', email: 'wijekoon@eng.ruh.ac.lk', designation: 'Lecturer (Probationary)', departmentCode: 'EIE', departmentName: 'Department of Electrical and Information Engineering' },
+  { staffId: 'ENG/AC/0202', fullName: 'Dr. R.M. Pathirana', email: 'pathirana@eng.ruh.ac.lk', designation: 'Senior Lecturer (Grade II)', departmentCode: 'CEE', departmentName: 'Department of Civil and Environmental Engineering' },
+];
+
+export const DEFAULT_QUANTITY_PRESETS: QuantityPresets = {
+  paperSetting: ['0', '1', '2', '3', '4', '5'],
+  paperModeration: ['0', '1', '2', '3', '4'],
+  paperTranslation: ['0', '1', '2', '3'],
+  scriptsMarked: ['0', '10', '20', '30', '40', '50', '60', '75', '80', '100', '120', '150', '200'],
+  secondMarking: ['0', '10', '20', '30', '40', '50', '60', '75', '80', '100', '120', '150', '200'],
+  assessmentCandidates: ['0', '10', '20', '30', '40', '50', '60', '75', '80', '100', '120', '150', '200', '250', '300'],
+};
+
 export interface AcademicOptions {
   academicYears: string[];
   semesters: string[];
@@ -24,6 +88,10 @@ export interface AcademicOptions {
   courseModules: CourseModuleOption[];
   coursesVerified: boolean;
   userDepartmentCode: string | null;
+  designations: string[];
+  departments: DepartmentOption[];
+  staffMembers: StaffDirectoryOption[];
+  quantityPresets: QuantityPresets;
 }
 
 function choices(value: unknown): string[] {
@@ -97,6 +165,63 @@ export function decodeAcademicOptions(value: unknown): AcademicOptions {
     courseModules.length
   )
     throw new Error('Ambiguous course codes');
+  const designations = Array.isArray(data.designations)
+    ? choices(data.designations)
+    : DEFAULT_DESIGNATIONS;
+
+  const departments = Array.isArray(data.departments)
+    ? data.departments.map((deptVal) => {
+        const d = record(deptVal);
+        return {
+          code: text(d.code),
+          name: text(d.name),
+          label: text(d.label ?? `${d.code} — ${d.name}`),
+        };
+      })
+    : DEFAULT_DEPARTMENTS;
+
+  const staffMembers = Array.isArray(data.staffMembers)
+    ? data.staffMembers.map((staffVal) => {
+        const s = record(staffVal);
+        return {
+          staffId: text(s.staffId),
+          fullName: text(s.fullName),
+          email: text(s.email),
+          designation: text(s.designation),
+          departmentCode: text(s.departmentCode),
+          departmentName: text(s.departmentName),
+        };
+      })
+    : DEFAULT_STAFF_MEMBERS;
+
+  const rawPresets =
+    data.quantityPresets && typeof data.quantityPresets === 'object'
+      ? record(data.quantityPresets)
+      : null;
+
+  const quantityPresets = rawPresets
+    ? {
+        paperSetting: Array.isArray(rawPresets.paperSetting)
+          ? choices(rawPresets.paperSetting)
+          : DEFAULT_QUANTITY_PRESETS.paperSetting,
+        paperModeration: Array.isArray(rawPresets.paperModeration)
+          ? choices(rawPresets.paperModeration)
+          : DEFAULT_QUANTITY_PRESETS.paperModeration,
+        paperTranslation: Array.isArray(rawPresets.paperTranslation)
+          ? choices(rawPresets.paperTranslation)
+          : DEFAULT_QUANTITY_PRESETS.paperTranslation,
+        scriptsMarked: Array.isArray(rawPresets.scriptsMarked)
+          ? choices(rawPresets.scriptsMarked)
+          : DEFAULT_QUANTITY_PRESETS.scriptsMarked,
+        secondMarking: Array.isArray(rawPresets.secondMarking)
+          ? choices(rawPresets.secondMarking)
+          : DEFAULT_QUANTITY_PRESETS.secondMarking,
+        assessmentCandidates: Array.isArray(rawPresets.assessmentCandidates)
+          ? choices(rawPresets.assessmentCandidates)
+          : DEFAULT_QUANTITY_PRESETS.assessmentCandidates,
+      }
+    : DEFAULT_QUANTITY_PRESETS;
+
   return {
     academicYears: choices(data.academicYears),
     semesters: choices(data.semesters),
@@ -108,6 +233,10 @@ export function decodeAcademicOptions(value: unknown): AcademicOptions {
     coursesVerified,
     userDepartmentCode:
       data.userDepartmentCode == null ? null : text(data.userDepartmentCode),
+    designations,
+    departments,
+    staffMembers,
+    quantityPresets,
   };
 }
 

@@ -81,48 +81,64 @@ export class SeedService implements OnApplicationBootstrap {
         email: 'lecturer@eng.ruh.ac.lk',
         fullName: 'Dr. Hansana H.A.J.',
         role: UserRole.LECTURER,
+        designation: 'Senior Lecturer (Grade II)',
+        staffId: 'ENG/AC/0101',
         departmentId: departments['EIE']?.id || departments['COM']?.id,
       },
       {
         email: 'hod.computer@eng.ruh.ac.lk',
         fullName: 'Prof. K.U. Herath',
         role: UserRole.HOD,
+        designation: 'Professor',
+        staffId: 'ENG/AC/0102',
         departmentId: departments['EIE']?.id || departments['COM']?.id,
       },
       {
         email: 'hod.civil@eng.ruh.ac.lk',
         fullName: 'Prof. D.M. Silva',
         role: UserRole.HOD,
+        designation: 'Professor',
+        staffId: 'ENG/AC/0201',
         departmentId: departments['CEE']?.id || departments['CIV']?.id,
       },
       {
         email: 'dean@eng.ruh.ac.lk',
         fullName: 'Dr. P.S. Ranawaka',
         role: UserRole.DEAN,
+        designation: 'Associate Professor',
+        staffId: 'ENG/AC/0301',
         departmentId: null,
       },
       {
         email: 'exam.officer@eng.ruh.ac.lk',
         fullName: 'Mr. A.N.V. Fernando',
         role: UserRole.EXAMINATION_OFFICER,
+        designation: 'Senior Assistant Registrar (Examinations)',
+        staffId: 'ENG/AD/0012',
         departmentId: null,
       },
       {
         email: 'finance.officer@eng.ruh.ac.lk',
         fullName: 'Mrs. S.K. Perera',
         role: UserRole.FINANCIAL_OFFICER,
+        designation: 'Senior Assistant Bursar',
+        staffId: 'ENG/FN/0008',
         departmentId: null,
       },
       {
         email: 'asst.bursar@eng.ruh.ac.lk',
         fullName: 'Mr. W.M. Bandara',
         role: UserRole.ASSISTANT_BURSAR,
+        designation: 'Assistant Bursar',
+        staffId: 'ENG/FN/0015',
         departmentId: null,
       },
       {
         email: 'admin@eng.ruh.ac.lk',
         fullName: 'System Administrator',
         role: UserRole.ADMIN,
+        designation: 'System Administrator',
+        staffId: 'ENG/IT/0001',
         departmentId: null,
       },
     ];
@@ -134,6 +150,8 @@ export class SeedService implements OnApplicationBootstrap {
           email: def.email,
           fullName: def.fullName,
           role: def.role,
+          designation: def.designation,
+          staffId: def.staffId,
           departmentId: def.departmentId,
           passwordHash: defaultPasswordHash,
           isActive: true,
@@ -145,6 +163,8 @@ export class SeedService implements OnApplicationBootstrap {
         exists.passwordHash = defaultPasswordHash;
         exists.role = def.role;
         exists.fullName = def.fullName;
+        exists.designation = def.designation;
+        exists.staffId = def.staffId;
         if (def.departmentId) exists.departmentId = def.departmentId;
         await this.userRepo.save(exists);
         this.logger.log(`Updated User password hash for: ${def.email}`);

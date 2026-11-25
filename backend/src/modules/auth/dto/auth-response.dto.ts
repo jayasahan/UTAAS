@@ -17,8 +17,17 @@ export class UserProfileDto {
   @ApiProperty({ example: 'COM', nullable: true })
   departmentCode?: string | null;
 
+  @ApiProperty({ example: 'Department of Electrical and Information Engineering', nullable: true })
+  departmentName?: string | null;
+
   @ApiProperty({ example: 'd1e2f3a4-5b6c-7d8e-9f0a-1b2c3d4e5f6a', nullable: true })
   departmentId?: string | null;
+
+  @ApiProperty({ example: 'Senior Lecturer (Grade I)', nullable: true })
+  designation?: string | null;
+
+  @ApiProperty({ example: 'ENG/AC/0101', nullable: true })
+  staffId?: string | null;
 }
 
 export class AuthResponseDto {

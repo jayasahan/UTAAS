@@ -14,6 +14,9 @@ export interface StaffProfile {
   role: (typeof userRoles)[number];
   departmentCode: string | null;
   departmentId: string | null;
+  designation?: string | null;
+  staffId?: string | null;
+  departmentName?: string | null;
 }
 export interface AuthResponse {
   accessToken: string;
@@ -45,7 +48,7 @@ export function decodeProfile(value: unknown): StaffProfile {
   const role = text(data.role);
   if (!userRoles.some((known) => known === role))
     throw new Error('Invalid contract');
-  return {
+  const profile: StaffProfile = {
     id: text(data.id),
     email: text(data.email),
     fullName: text(data.fullName),
@@ -53,6 +56,16 @@ export function decodeProfile(value: unknown): StaffProfile {
     departmentCode: nullableText(data.departmentCode),
     departmentId: nullableText(data.departmentId),
   };
+  if (data.designation !== undefined) {
+    profile.designation = nullableText(data.designation);
+  }
+  if (data.staffId !== undefined) {
+    profile.staffId = nullableText(data.staffId);
+  }
+  if (data.departmentName !== undefined) {
+    profile.departmentName = nullableText(data.departmentName);
+  }
+  return profile;
 }
 export function decodeAuthResponse(value: unknown): AuthResponse {
   const data = record(value);

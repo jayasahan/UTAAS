@@ -1,4 +1,4 @@
-import { Input } from '../../../components/common/FormControls';
+import { FormField, Input } from '../../../components/common/FormControls';
 import { OptionSelect } from '../../../components/common/OptionSelect';
 import { Button } from '../../../components/common/Button';
 import type { useAcademicOptions } from '../useAcademicOptions';
@@ -8,18 +8,121 @@ import type {
   FieldError,
   PersonalInformation,
 } from '../model';
+import {
+  DEFAULT_DEPARTMENTS,
+  DEFAULT_DESIGNATIONS,
+  DEFAULT_STAFF_MEMBERS,
+} from '../academicOptions';
+
+export function SelectableInput({
+  id,
+  label,
+  value,
+  options,
+  placeholder,
+  onChange,
+  error,
+  required,
+  hint,
+  maxLength = 200,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  placeholder: string;
+  onChange: (value: string) => void;
+  error?: string | undefined;
+  required?: boolean | undefined;
+  hint?: string | undefined;
+  maxLength?: number | undefined;
+}) {
+  return (
+    <FormField
+      id={id}
+      label={label}
+      hint={hint}
+      error={error}
+      required={required}
+    >
+      <div className="relative flex items-center w-full">
+        <input
+          id={id}
+          type="text"
+          value={value}
+          required={required}
+          maxLength={maxLength}
+          placeholder={placeholder}
+          aria-invalid={error ? true : undefined}
+          className="field-control pr-8 w-full"
+          onChange={(event) => onChange(event.target.value)}
+        />
+        <select
+          id={`${id}-dropdown`}
+          aria-label="Select preset"
+          tabIndex={-1}
+          value={options.some((opt) => opt.value === value) ? value : ''}
+          className="absolute right-1 w-6 h-7 text-xs bg-transparent border-none text-slate-500 hover:text-slate-800 cursor-pointer focus:outline-none"
+          onChange={(event) => {
+            if (event.target.value !== '') {
+              onChange(event.target.value);
+            }
+          }}
+        >
+          <option value="" disabled hidden>
+            ▼
+          </option>
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    </FormField>
+  );
+}
 
 export function PersonalStep({
   value,
   errors,
   onChange,
   profileAvailable = false,
+  choices,
 }: {
   value: PersonalInformation;
   errors: FieldError[];
   onChange: (key: keyof PersonalInformation, value: string) => void;
   profileAvailable?: boolean;
+  choices?: ReturnType<typeof useAcademicOptions> | undefined;
 }) {
+  const designationList = choices?.data?.designations ?? DEFAULT_DESIGNATIONS;
+  const departmentList = choices?.data?.departments ?? DEFAULT_DEPARTMENTS;
+  const staffList = choices?.data?.staffMembers ?? DEFAULT_STAFF_MEMBERS;
+
+  const designationOptions = [
+    ...designationList.map((d) => ({ value: d, label: d })),
+    ...(value.designation && !designationList.includes(value.designation)
+      ? [{ value: value.designation, label: value.designation }]
+      : []),
+  ];
+
+  const departmentOptions = [
+    ...departmentList.map((d) => ({ value: d.code, label: d.label })),
+    ...(value.department &&
+    !departmentList.some(
+      (d) => d.code === value.department || d.label === value.department,
+    )
+      ? [{ value: value.department, label: value.department }]
+      : []),
+  ];
+
+  const designationError = errors.find((e) => e.field === 'designation')?.message;
+  const departmentError = errors.find((e) => e.field === 'department')?.message;
+  const fullNameError = errors.find((e) => e.field === 'fullName')?.message;
+  const staffIdError = errors.find((e) => e.field === 'staffId')?.message;
+  const refTitleError = errors.find((e) => e.field === 'referenceTitle')?.message;
+
   return (
     <section aria-labelledby="personal-heading" className="space-y-6">
       <h2 id="personal-heading" className="text-2xl font-bold text-brand">
@@ -27,43 +130,101 @@ export function PersonalStep({
       </h2>
       <p className="text-sm text-muted">
         {profileAvailable
-          ? 'Untouched name and department fields use the backend development profile. Department contains its returned code, not an invented department name. Any edited values remain local.'
-          : 'Enter your staff details for local review. An authenticated backend profile is currently unavailable; local entries are not verified against university records.'}
+          ? 'Untouched name, department, designation, and staff ID use your university profile. Any edited values remain local.'
+          : 'Enter your staff details for review. An authenticated backend profile is currently unavailable; local entries are not verified against university records.'}
       </p>
       <div className="grid gap-6 lg:grid-cols-2">
-        {(Object.keys(personalLabels) as (keyof PersonalInformation)[]).map(
-          (key) => (
-            <div
-              key={key}
-              className={key === 'referenceTitle' ? 'lg:col-span-2' : ''}
-            >
-              <Input
-                id={key}
-                label={personalLabels[key]}
-                value={value[key]}
-                maxLength={200}
-                required={key !== 'referenceTitle'}
-                {...(errors.find((error) => error.field === key)
-                  ? {
-                      error: errors.find((error) => error.field === key)!
-                        .message,
-                    }
-                  : {})}
-                {...(key === 'referenceTitle'
-                  ? {
-                      hint: 'Optional private label. Kept in this page only; not sent or saved.',
-                    }
-                  : {})}
-                {...(key === 'designation' || key === 'staffId'
-                  ? {
-                      hint: 'Not returned by the profile endpoint. Enter locally; this value is not backend-verified.',
-                    }
-                  : {})}
-                onChange={(event) => onChange(key, event.target.value)}
-              />
-            </div>
-          ),
-        )}
+        <div>
+          <Input
+            id="fullName"
+            label={personalLabels.fullName}
+            value={value.fullName}
+            maxLength={200}
+            required
+            {...(fullNameError ? { error: fullNameError } : {})}
+            onChange={(event) => onChange('fullName', event.target.value)}
+          />
+        </div>
+
+        <div>
+          <SelectableInput
+            id="designation"
+            label={personalLabels.designation}
+            value={value.designation}
+            options={designationOptions}
+            placeholder="Select designation"
+            required
+            hint={
+              profileAvailable && value.designation
+                ? 'Loaded from your university profile.'
+                : 'Select your academic or administrative designation.'
+            }
+            {...(designationError ? { error: designationError } : {})}
+            onChange={(val) => onChange('designation', val)}
+          />
+        </div>
+
+        <div>
+          <SelectableInput
+            id="department"
+            label={personalLabels.department}
+            value={value.department}
+            options={departmentOptions}
+            placeholder="Select department"
+            required
+            hint={
+              profileAvailable && value.department
+                ? 'Loaded from your university profile.'
+                : 'Select your department from the dropdown.'
+            }
+            {...(departmentError ? { error: departmentError } : {})}
+            onChange={(val) => onChange('department', val)}
+          />
+        </div>
+
+        <div>
+          <SelectableInput
+            id="staffId"
+            label={personalLabels.staffId}
+            value={value.staffId}
+            options={staffList.map((s) => ({
+              value: s.staffId,
+              label: `${s.staffId} — ${s.fullName} (${s.departmentCode})`,
+            }))}
+            placeholder="Type or select staff ID"
+            required
+            maxLength={50}
+            hint={
+              profileAvailable && value.staffId
+                ? 'Loaded from your university profile. Type or select another ID.'
+                : 'Type your staff ID or select from the staff directory.'
+            }
+            {...(staffIdError ? { error: staffIdError } : {})}
+            onChange={(val) => {
+              onChange('staffId', val);
+              const matched = staffList.find(
+                (s) => s.staffId.toLowerCase() === val.trim().toLowerCase(),
+              );
+              if (matched) {
+                if (!value.fullName) onChange('fullName', matched.fullName);
+                if (!value.designation) onChange('designation', matched.designation);
+                if (!value.department) onChange('department', matched.departmentCode);
+              }
+            }}
+          />
+        </div>
+
+        <div className="lg:col-span-2">
+          <Input
+            id="referenceTitle"
+            label={personalLabels.referenceTitle}
+            value={value.referenceTitle}
+            maxLength={200}
+            hint="Optional private label. Kept in this page only; not sent or saved."
+            {...(refTitleError ? { error: refTitleError } : {})}
+            onChange={(event) => onChange('referenceTitle', event.target.value)}
+          />
+        </div>
       </div>
     </section>
   );
