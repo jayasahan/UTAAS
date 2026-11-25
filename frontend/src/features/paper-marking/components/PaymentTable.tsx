@@ -1,6 +1,7 @@
 import { Button } from '../../../components/common/Button';
 import {
   Checkbox,
+  FormField,
   Input,
   Select,
 } from '../../../components/common/FormControls';
@@ -19,7 +20,79 @@ import type {
 } from '../model';
 import { quantityLabels } from '../validation';
 import { OptionSelect } from '../../../components/common/OptionSelect';
-import type { PaperDurationOption } from '../academicOptions';
+import type { PaperDurationOption, QuantityPresets } from '../academicOptions';
+import { DEFAULT_QUANTITY_PRESETS } from '../academicOptions';
+
+export function QuantitySelector({
+  id,
+  label,
+  value,
+  options,
+  onChange,
+  error,
+  disabled,
+  hint,
+  required,
+  className = '',
+}: {
+  id: string;
+  label: string;
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+  error?: string | undefined;
+  disabled?: boolean | undefined;
+  hint?: string | undefined;
+  required?: boolean | undefined;
+  className?: string | undefined;
+}) {
+  return (
+    <FormField
+      id={id}
+      label={label}
+      hint={hint}
+      error={error}
+      required={required}
+    >
+      <div className="relative inline-flex items-center w-full">
+        <input
+          id={id}
+          type="text"
+          inputMode="numeric"
+          value={value}
+          disabled={disabled}
+          required={required}
+          maxLength={16}
+          aria-invalid={error ? true : undefined}
+          className={`field-control pr-8 ${className}`}
+          onChange={(event) => onChange(event.target.value)}
+        />
+        <select
+          id={`${id}-dropdown`}
+          aria-label="Select preset"
+          tabIndex={-1}
+          value={options.includes(value) ? value : ''}
+          disabled={disabled}
+          className="absolute right-1 w-6 h-7 text-xs bg-transparent border-none text-slate-500 hover:text-slate-800 cursor-pointer focus:outline-none"
+          onChange={(event) => {
+            if (event.target.value !== '') {
+              onChange(event.target.value);
+            }
+          }}
+        >
+          <option value="" disabled hidden>
+            ▼
+          </option>
+          {options.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+      </div>
+    </FormField>
+  );
+}
 
 export function PaymentTable({
   papers,
@@ -33,6 +106,7 @@ export function PaymentTable({
   settingUnavailable = false,
   totalQuestions,
   onShareChange = () => {},
+  quantityPresets,
 }: {
   papers: PaperRow[];
   rates?: VerifiedRates;
@@ -49,6 +123,7 @@ export function PaymentTable({
     key: 'settingShare' | 'markingShare',
     value: PaperShare | undefined,
   ) => void;
+  quantityPresets?: QuantityPresets | undefined;
 }) {
   function shareControls(row: PaperRow, key: 'settingShare' | 'markingShare') {
     const share = row[key];
@@ -111,6 +186,43 @@ export function PaymentTable({
       </div>
     );
   }
+  const presets = quantityPresets ?? DEFAULT_QUANTITY_PRESETS;
+
+  function quantityField(
+    row: PaperRow,
+    index: number,
+    key:
+      | keyof typeof quantityLabels
+      | 'assessmentQuantity',
+    label: string,
+    presetList: string[],
+  ) {
+    const id = `${row.id}-${key}`;
+    const error = errors.find((item) => item.field === id);
+    return (
+      <QuantitySelector
+        id={id}
+        label={`${label} — paper ${index + 1}`}
+        value={row[key]}
+        options={presetList}
+        required
+        disabled={
+          key === 'settingCount' &&
+          settingUnavailable &&
+          Number(row.settingCount) === 0
+        }
+        {...(key === 'settingCount' && settingUnavailable
+          ? {
+              hint: 'Whole-paper setting is unavailable. Clear it to 0 or enter your question allocation using Share paper setting below.',
+            }
+          : {})}
+        className="min-w-32"
+        {...(error ? { error: error.message } : {})}
+        onChange={(val) => onChange(row.id, key, val)}
+      />
+    );
+  }
+
   function field(
     row: PaperRow,
     index: number,
@@ -258,13 +370,13 @@ export function PaymentTable({
                 </TableCell>
                 {(
                   [
-                    'settingCount',
-                    'moderationCount',
-                    'translationCount',
-                  ] as const
-                ).map((key) => (
+                    { key: 'settingCount' as const, optList: presets.paperSetting },
+                    { key: 'moderationCount' as const, optList: presets.paperModeration },
+                    { key: 'translationCount' as const, optList: presets.paperTranslation },
+                  ]
+                ).map(({ key, optList }) => (
                   <TableCell key={key}>
-                    {field(row, index, key, quantityLabels[key])}
+                    {quantityField(row, index, key, quantityLabels[key], optList)}
                     {key === 'settingCount' &&
                       shareControls(row, 'settingShare')}
                   </TableCell>
@@ -275,15 +387,22 @@ export function PaymentTable({
                   )}
                 </TableCell>
                 <TableCell>
-                  {field(row, index, 'scriptCount', quantityLabels.scriptCount)}
+                  {quantityField(
+                    row,
+                    index,
+                    'scriptCount',
+                    quantityLabels.scriptCount,
+                    presets.scriptsMarked,
+                  )}
                   {shareControls(row, 'markingShare')}
                 </TableCell>
                 <TableCell>
-                  {field(
+                  {quantityField(
                     row,
                     index,
                     'secondMarkingCount',
                     quantityLabels.secondMarkingCount,
+                    presets.secondMarking,
                   )}
                 </TableCell>
                 <TableCell>
@@ -311,12 +430,14 @@ export function PaymentTable({
                   </Select>
                 </TableCell>
                 <TableCell>
-                  {field(
+                  {quantityField(
                     row,
                     index,
                     'assessmentQuantity',
                     `Assessment ${row.assessmentUnit}`,
-                    row.assessmentUnit === 'candidates',
+                    row.assessmentUnit === 'candidates'
+                      ? presets.assessmentCandidates
+                      : ['0', '1', '2', '3', '4', '5', '6', '8', '10', '12'],
                   )}
                 </TableCell>
                 <TableCell>

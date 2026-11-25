@@ -23,6 +23,11 @@ export class CreateAdminUserDto {
   @IsString()
   designation?: string;
 
+  @ApiPropertyOptional({ example: 'ENG/AC/0101', description: 'University staff ID number' })
+  @IsOptional()
+  @IsString()
+  staffId?: string;
+
   @ApiPropertyOptional({ description: 'Department UUID (required for LECTURER and HOD roles)' })
   @IsOptional()
   @IsUUID('4', { message: 'departmentId must be a valid UUID' })

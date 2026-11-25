@@ -39,6 +39,10 @@ import {
   SCRIPT_EVALUATION_TYPES,
   DOCUMENT_CATEGORY_OPTIONS,
   ENGINEERING_COURSE_MODULES,
+  DESIGNATION_OPTIONS,
+  FACULTY_DEPARTMENT_OPTIONS,
+  STAFF_DIRECTORY_OPTIONS,
+  QUANTITY_PRESETS,
 } from '../constants/examination-options.constant';
 
 @ApiTags('Paper Marking Claims')
@@ -108,6 +112,10 @@ export class PaperMarkingController {
       documentCategories: DOCUMENT_CATEGORY_OPTIONS,
       courseModules,
       userDepartmentCode: user?.department?.code || null,
+      designations: DESIGNATION_OPTIONS,
+      departments: FACULTY_DEPARTMENT_OPTIONS,
+      staffMembers: STAFF_DIRECTORY_OPTIONS,
+      quantityPresets: QUANTITY_PRESETS,
     };
   }
 

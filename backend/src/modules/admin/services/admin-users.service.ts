@@ -137,6 +137,7 @@ export class AdminUsersService {
       fullName: dto.fullName.trim(),
       role: dto.role,
       designation: dto.designation?.trim() || null,
+      staffId: dto.staffId?.trim() || null,
       departmentId: dto.departmentId || null,
       passwordHash,
       isActive: true,
@@ -173,6 +174,10 @@ export class AdminUsersService {
 
     if (dto.designation !== undefined) {
       user.designation = dto.designation ? dto.designation.trim() : null;
+    }
+
+    if (dto.staffId !== undefined) {
+      user.staffId = dto.staffId ? dto.staffId.trim() : null;
     }
 
     if (dto.departmentId !== undefined) {

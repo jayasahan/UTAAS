@@ -23,6 +23,11 @@ export class UpdateAdminUserDto {
   @IsString()
   designation?: string;
 
+  @ApiPropertyOptional({ example: 'ENG/AC/0101', description: 'Updated staff ID' })
+  @IsOptional()
+  @IsString()
+  staffId?: string;
+
   @ApiPropertyOptional({ description: 'Updated Department UUID or null' })
   @IsOptional()
   @IsUUID('4', { message: 'departmentId must be a valid UUID' })

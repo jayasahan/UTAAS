@@ -927,6 +927,7 @@ export function PaperMarkingClaimPage() {
               errors={claim.errors}
               onChange={claim.updatePersonal}
               profileAvailable={Boolean(integration.profile.data)}
+              choices={academicChoices}
             />
           )}
           {claim.step === 1 && (
@@ -954,6 +955,7 @@ export function PaperMarkingClaimPage() {
                     : undefined
                 }
                 onShareChange={claim.updatePaperShare}
+                quantityPresets={academicChoices.data?.quantityPresets}
                 {...(verifiedRates ? { rates: verifiedRates } : {})}
                 errors={[...claim.errors, ...claim.quantityErrors]}
                 onChange={claim.updatePaper}

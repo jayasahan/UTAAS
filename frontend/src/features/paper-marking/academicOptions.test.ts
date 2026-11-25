@@ -15,6 +15,11 @@ describe('academic dropdown contracts', () => {
       semester: 5,
     });
     expect(options.coursesVerified).toBe(true);
+    expect(options.designations.length).toBeGreaterThan(0);
+    expect(options.departments.length).toBeGreaterThan(0);
+    expect(options.staffMembers.length).toBeGreaterThan(0);
+    expect(options.quantityPresets.paperSetting).toContain('1');
+    expect(options.quantityPresets.scriptsMarked).toContain('50');
     expect(
       decodeAcademicOptions({
         ...academicOptionsFixture,

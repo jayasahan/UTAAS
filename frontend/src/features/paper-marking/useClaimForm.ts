@@ -27,9 +27,15 @@ export function useClaimForm() {
         personal.fullName = profile?.fullName ?? '';
       if (!editedPersonal.current.has('department'))
         personal.department = profile?.departmentCode ?? '';
+      if (!editedPersonal.current.has('designation') && profile?.designation)
+        personal.designation = profile.designation;
+      if (!editedPersonal.current.has('staffId') && profile?.staffId)
+        personal.staffId = profile.staffId;
       if (
         personal.fullName === old.personal.fullName &&
-        personal.department === old.personal.department
+        personal.department === old.personal.department &&
+        personal.designation === old.personal.designation &&
+        personal.staffId === old.personal.staffId
       )
         return old;
       return { ...old, personal, declaration: false };

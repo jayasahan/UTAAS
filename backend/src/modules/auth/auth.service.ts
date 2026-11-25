@@ -99,7 +99,10 @@ export class AuthService {
       fullName: user.fullName,
       role: user.role,
       departmentCode: user.department?.code || null,
+      departmentName: user.department?.name || null,
       departmentId: user.departmentId || user.department?.id || null,
+      designation: user.designation || null,
+      staffId: user.staffId || null,
     };
   }
 }

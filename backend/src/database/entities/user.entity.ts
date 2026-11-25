@@ -41,6 +41,9 @@ export class User {
   @Column({ nullable: true, length: 150 })
   designation?: string | null;
 
+  @Column({ nullable: true, length: 50 })
+  staffId?: string | null;
+
   @Column({ nullable: true })
   departmentId: string;
 

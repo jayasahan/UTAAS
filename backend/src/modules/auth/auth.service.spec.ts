@@ -87,7 +87,10 @@ describe('AuthService', () => {
           fullName: mockUser.fullName,
           role: mockUser.role,
           departmentCode: 'COM',
+          departmentName: 'Computer Engineering',
           departmentId: 'dept-uuid-com',
+          designation: null,
+          staffId: null,
         },
       });
     });
